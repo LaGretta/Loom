@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="Loom.API/Loom.API.csproj" />
+  <Project Path="Loom.Application/Loom.Application.csproj" />
+  <Project Path="Loom.Domain/Loom.Domain.csproj" />
+  <Project Path="Loom.Infrastructure/Loom.Infrastructure.csproj" />
+  <Project Path="Loom.Tests/Loom.Tests.csproj" />
+</Solution>
