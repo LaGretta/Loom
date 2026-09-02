@@ -4,6 +4,6 @@ namespace Loom.Application.Interfaces.Security;
 
 public interface IJwtTokenGenerator
 {
-    string GenerateJwtToken(User user);
+    string GenerateAccessToken(User user);
     string GenerateRefreshToken();
 }

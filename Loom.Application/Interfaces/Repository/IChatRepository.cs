@@ -12,4 +12,5 @@ public interface IChatRepository
     Task<ChatMember?> GetMemberAsync(int chatId, int userId, CancellationToken ct);
     Task<bool> IsMemberAsync(int chatId, int userId, CancellationToken ct);
     Task<List<ChatMember>> GetMembersAsync(int chatId, CancellationToken ct);
+    void RemoveMember(ChatMember member);
 }
