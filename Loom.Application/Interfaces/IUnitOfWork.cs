@@ -1,4 +1,4 @@
-﻿namespace Loom.Application.Interfaces.Security;
+﻿namespace Loom.Application.Interfaces;
 
 public interface IUnitOfWork
 {

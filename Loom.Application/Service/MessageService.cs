@@ -15,17 +15,20 @@ public class MessageService : IMessageService
     private readonly IChatRepository _chatRepo;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
+    private readonly IChatNotifier _notifier;
 
     public MessageService(
         IMessageRepository messageRepo,
         IChatRepository chatRepo,
         IUnitOfWork unitOfWork,
-        IMapper mapper)
+        IMapper mapper
+        , IChatNotifier notifier)
     {
         _messageRepo = messageRepo;
         _chatRepo = chatRepo;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
+        _notifier = notifier;
     }
 
     public async Task<MessageResponseDto> SendMessage(int userId, SendMessageDto dto, CancellationToken ct)
@@ -45,8 +48,12 @@ public class MessageService : IMessageService
 
         await _messageRepo.CreateAsync(message, ct);
         await _unitOfWork.SaveChangesAsync(ct);
+        
 
-        return _mapper.Map<MessageResponseDto>(message);
+        
+        var dtos = _mapper.Map<MessageResponseDto>(message);
+        await _notifier.MessageSent(dto.ChatId, dtos); 
+        return dtos;
     }
 
     public async Task<PagedResponse<MessageResponseDto>> GetHistory(

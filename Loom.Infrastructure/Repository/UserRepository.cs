@@ -26,6 +26,7 @@ public class UserRepository : IUserRepository
         {
             user.Status = status;
             user.LastSeenAt = lastSeenAt;
+            await _context.SaveChangesAsync(ct);
         }
     }
 }

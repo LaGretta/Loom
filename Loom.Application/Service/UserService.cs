@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using Loom.Application.DTO;
+using Loom.Application.Interfaces;
 using Loom.Application.Interfaces.Repository;
 using Loom.Application.Interfaces.Security;
 using Loom.Application.Interfaces.Service;
