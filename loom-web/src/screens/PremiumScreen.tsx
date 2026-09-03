@@ -1,11 +1,13 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { Check } from 'lucide-react'
 import { Overlay } from '../ui/Overlay'
 import { CraftedObject } from '../ui/CraftedObject'
-import { Button } from '../ui/primitives'
-import { useMock } from '../store/mock'
+import { Button, CenterSpinner } from '../ui/primitives'
+import { premiumApi } from '../lib/api'
 import { useAuth } from '../store/auth'
+import { fmtNumber } from '../ui/format'
 import { toast } from '../ui/toast'
-import { Check } from 'lucide-react'
+import type { PremiumPlan, PremiumStatus } from '../lib/types'
 
 const PERKS = [
   { sym: 's-rocket', title: 'Faster everything', sub: 'Priority delivery & uploads' },
@@ -15,10 +17,37 @@ const PERKS = [
 ]
 
 export function PremiumScreen() {
-  const active = useMock((s) => s.premiumActive)
-  const setPremium = useMock((s) => s.setPremium)
   const me = useAuth((s) => s.me)
-  const [plan, setPlan] = useState<'monthly' | 'yearly'>('yearly')
+  const refreshMe = useAuth((s) => s.refreshMe)
+  const [plans, setPlans] = useState<PremiumPlan[]>([])
+  const [status, setStatus] = useState<PremiumStatus | null>(null)
+  const [selected, setSelected] = useState<number>(12)
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(false)
+
+  const load = async () => {
+    const [p, s] = await Promise.allSettled([premiumApi.plans(), premiumApi.status()])
+    if (p.status === 'fulfilled') { setPlans(p.value); if (p.value[0]) setSelected(p.value[p.value.length - 1].months) }
+    if (s.status === 'fulfilled') setStatus(s.value)
+    setLoading(false)
+  }
+  useEffect(() => { void load() }, [])
+
+  const subscribe = async () => {
+    setBusy(true)
+    try {
+      const s = await premiumApi.subscribe(selected)
+      setStatus(s)
+      await refreshMe() // premiumTier → badge shows on profile/avatar
+      toast('Welcome to Premium ✨')
+    } catch (e: any) {
+      toast(e?.status === 400 ? 'Not enough Stars — top up first' : (e?.message ?? 'Could not subscribe'))
+    } finally { setBusy(false) }
+  }
+
+  const isActive = status?.isActive || me?.premiumTier === 'Premium'
+
+  if (loading) return <Overlay title="Loom Premium"><CenterSpinner /></Overlay>
 
   return (
     <Overlay title="Loom Premium">
@@ -26,7 +55,9 @@ export function PremiumScreen() {
       <div style={{ margin: '12px 16px', borderRadius: 20, padding: '30px 20px', textAlign: 'center', color: 'var(--on-accent)', background: 'var(--accent-grad)', position: 'relative', overflow: 'hidden' }}>
         <div style={{ animation: 'lmGem 7s linear infinite', display: 'inline-block' }}><CraftedObject id="s-gem" size={92} /></div>
         <div style={{ fontSize: 24, fontWeight: 800, marginTop: 8 }}>Loom Premium</div>
-        <div style={{ fontSize: 14, opacity: .85, marginTop: 2 }}>Everything, elevated.</div>
+        <div style={{ fontSize: 14, opacity: .85, marginTop: 2 }}>
+          {isActive && status?.until ? `Active until ${new Date(status.until).toLocaleDateString()}` : 'Everything, elevated.'}
+        </div>
       </div>
 
       {/* name preview */}
@@ -45,24 +76,31 @@ export function PremiumScreen() {
         ))}
       </div>
 
-      {/* plans */}
-      <div style={{ padding: '4px 16px 8px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-        {([['monthly', 'Monthly', '$4.99'], ['yearly', 'Yearly', '$39.99']] as const).map(([id, label, price]) => (
-          <button key={id} onClick={() => setPlan(id)} style={{ position: 'relative', border: plan === id ? '2.5px solid var(--ring)' : '1px solid var(--hairline)', borderRadius: 16, padding: '16px 12px', background: 'var(--surface)', textAlign: 'center' }}>
-            {id === 'yearly' && <span className="rarity legendary" style={{ position: 'absolute', top: 8, right: 8 }}>SAVE 33%</span>}
-            <div style={{ fontSize: 15, fontWeight: 700 }}>{label}</div>
-            <div style={{ fontSize: 22, fontWeight: 800, marginTop: 4 }}>{price}</div>
-          </button>
-        ))}
+      {/* plans (real) */}
+      <div className="section-label">Choose a plan</div>
+      <div style={{ padding: '0 16px 8px', display: 'grid', gridTemplateColumns: `repeat(${Math.min(plans.length, 3)},1fr)`, gap: 10 }}>
+        {plans.map((p) => {
+          const on = selected === p.months
+          const best = p.months === Math.max(...plans.map((x) => x.months))
+          return (
+            <button key={p.months} onClick={() => setSelected(p.months)}
+              style={{ position: 'relative', border: on ? '2.5px solid var(--ring)' : '1px solid var(--hairline)', borderRadius: 16, padding: '16px 8px', background: 'var(--surface)', textAlign: 'center' }}>
+              {best && <span className="rarity legendary" style={{ position: 'absolute', top: 8, right: 8 }}>BEST</span>}
+              <div style={{ fontSize: 14, fontWeight: 700 }}>{p.name}</div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, marginTop: 6 }}>
+                <CraftedObject id="s-coin" size={20} />
+                <span style={{ fontSize: 19, fontWeight: 800 }}>{fmtNumber(p.starCost)}</span>
+              </div>
+            </button>
+          )
+        })}
       </div>
 
       <div style={{ padding: '8px 16px 24px' }}>
-        {active
-          ? <Button block variant="secondary" onClick={() => { setPremium(false); toast('Premium cancelled') }}><Check size={18} /> Premium active — Cancel</Button>
-          : <Button block onClick={() => { setPremium(true); toast('Welcome to Premium ✨') }}>Subscribe · 30 days free</Button>}
-        <div className="muted" style={{ textAlign: 'center', fontSize: 12, marginTop: 10 }}>
-          Local preview — subscription is not billed or persisted server-side yet.
-        </div>
+        <Button block onClick={() => void subscribe()} disabled={busy}>
+          {busy ? 'Processing…' : isActive ? `Extend · ⭐ ${fmtNumber(plans.find((p) => p.months === selected)?.starCost ?? 0)}` : `Subscribe · ⭐ ${fmtNumber(plans.find((p) => p.months === selected)?.starCost ?? 0)}`}
+        </Button>
+        {isActive && <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 12, color: 'var(--success)', fontSize: 13.5, fontWeight: 600 }}><Check size={16} /> Premium is active</div>}
       </div>
     </Overlay>
   )

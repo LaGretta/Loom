@@ -1,6 +1,4 @@
-﻿using Loom.Domain.Enums;
-
-namespace Loom.Domain.Entities;
+﻿namespace Loom.Domain.Entities.Stars;
 
 public class Gift
 {

@@ -17,6 +17,7 @@ public static class DependencyInjection
         services.AddScoped<IStarService, StarService>();
         services.AddScoped<IGiftService, GiftService>();
         services.AddScoped<IPremiumService, PremiumService>();
+        services.AddScoped<IEventService, EventService>();
 
         services.AddAutoMapper(cfg => 
             cfg.AddMaps(Assembly.GetExecutingAssembly()));

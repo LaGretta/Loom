@@ -5,6 +5,7 @@ using Loom.Application.Interfaces.Repository;
 using Loom.Application.Interfaces.Security;
 using Loom.Application.Interfaces.Service;
 using Loom.Domain.Entities;
+using Loom.Domain.Entities.Chats;
 using Loom.Domain.Enums;
 
 namespace Loom.Application.Service;
@@ -74,6 +75,7 @@ public class ChatService : IChatService
         {
             var dto = _mapper.Map<ChatResponseDto>(c);
             dto.MembersCount = c.Members.Count;
+
             var last = await _messageRepo.GetLastMessageAsync(c.Id, ct);
             if (last != null)
             {
@@ -85,6 +87,8 @@ public class ChatService : IChatService
                     SentAt = last.SentAt
                 };
             }
+            var myMembership = c.Members.FirstOrDefault(m => m.UserId == userId);
+            dto.UnreadCount = await _messageRepo.CountUnreadAsync(c.Id, myMembership?.LastReadAt, ct);
             if (c.Type == ChatType.Direct)
             {
                 var other = c.Members.FirstOrDefault(m => m.UserId != userId);
@@ -143,5 +147,14 @@ public class ChatService : IChatService
 
         var members = await _chatRepo.GetMembersAsync(chatId, ct);
         return _mapper.Map<List<ChatMemberDto>>(members);
+    }
+    
+    public async Task MarkChatRead(int userId, int chatId, CancellationToken ct)
+    {
+        var member = await _chatRepo.GetMemberAsync(chatId, userId, ct);
+        if (member == null) return;
+
+        member.LastReadAt = DateTime.UtcNow;
+        await _unitOfWork.SaveChangesAsync(ct);
     }
 }

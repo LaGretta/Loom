@@ -1,4 +1,6 @@
-﻿namespace Loom.Domain.Entities;
+﻿using Loom.Domain.Entities.Users;
+
+namespace Loom.Domain.Entities.Stickers;
 
 public class StickerPack
 {

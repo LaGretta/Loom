@@ -9,4 +9,6 @@ public interface IChatNotifier
     Task MessageDeleted(int chatId, int messageId);
     Task ReactionUpdated(int chatId, int messageId);
     Task MessageRead(int chatId, int messageId, int userId);
+    Task EventShared(int chatId, EventResponseDto ev);
+    Task EventUpdated(int chatId, EventResponseDto ev);
 }

@@ -1,5 +1,6 @@
 ﻿
 using Loom.Domain.Entities;
+using Loom.Domain.Entities.Users;
 
 namespace Loom.Application.Interfaces.Repository;
 

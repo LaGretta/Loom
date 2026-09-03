@@ -6,6 +6,7 @@ import { useChat } from '../store/chat'
 import { mediaApi, messagesApi } from '../lib/api'
 import { toast } from '../ui/toast'
 import { LOOMI_POSES, STAR_POSES } from '../assets/loom'
+import { CreateEventModal } from '../components/CreateEventModal'
 import type { Message } from '../lib/types'
 
 const QUICK_REACTIONS = ['❤️', '👍', '🔥', '😂', '😮']
@@ -31,6 +32,7 @@ export function Composer({ chatId, replyTo, onCancelReply, editing, onCancelEdit
   const [text, setText] = useState('')
   const [attachOpen, setAttachOpen] = useState(false)
   const [stickerOpen, setStickerOpen] = useState(false)
+  const [eventOpen, setEventOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const taRef = useRef<HTMLTextAreaElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -38,6 +40,7 @@ export function Composer({ chatId, replyTo, onCancelReply, editing, onCancelEdit
   const send = useChat((s) => s.send)
   const edit = useChat((s) => s.edit)
   const ingest = useChat((s) => s.ingestMessage)
+  const upsertEvent = useChat((s) => s.upsertEvent)
   const sendTyping = useChat((s) => s.sendTyping)
 
   useEffect(() => {
@@ -136,6 +139,7 @@ export function Composer({ chatId, replyTo, onCancelReply, editing, onCancelEdit
             {ATTACH_ITEMS.map((it) => (
               <button key={it.label} className="obj-cell" onClick={() => {
                 if (it.label === 'Photos' || it.label === 'File' || it.label === 'Camera') fileRef.current?.click()
+                else if (it.label === 'Event') { setAttachOpen(false); setEventOpen(true) }
                 else { setAttachOpen(false); toast(`${it.label} — coming soon`) }
               }}>
                 <CraftedObject id={it.sym} size={54} />
@@ -150,6 +154,10 @@ export function Composer({ chatId, replyTo, onCancelReply, editing, onCancelEdit
         <Sheet onClose={() => setStickerOpen(false)}>
           <StickerPickerBody onPick={(id) => void sendSticker(id)} />
         </Sheet>
+      )}
+
+      {eventOpen && (
+        <CreateEventModal chatId={chatId} title="Share an event" onClose={() => setEventOpen(false)} onCreated={(ev) => upsertEvent(ev)} />
       )}
     </>
   )

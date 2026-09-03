@@ -1,4 +1,4 @@
-﻿namespace Loom.Domain.Entities;
+﻿namespace Loom.Domain.Entities.Stickers;
 
 public class Sticker
 {

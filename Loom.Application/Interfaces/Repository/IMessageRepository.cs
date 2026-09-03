@@ -1,4 +1,5 @@
 ﻿using Loom.Domain.Entities;
+using Loom.Domain.Entities.Chats;
 
 namespace Loom.Application.Interfaces.Repository;
 
@@ -15,4 +16,5 @@ public interface IMessageRepository
     Task AddReadReceiptAsync(MessageReadReceipt receipt, CancellationToken ct);
     Task<bool> HasReadReceiptAsync(int messageId, int userId, CancellationToken ct);
     Task<Message?> GetLastMessageAsync(int chatId, CancellationToken ct);
+    Task<int> CountUnreadAsync(int chatId, DateTime? lastReadAt, CancellationToken ct);
 }

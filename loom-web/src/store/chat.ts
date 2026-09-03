@@ -1,8 +1,8 @@
 import { create } from 'zustand'
-import { chatsApi, messagesApi } from '../lib/api'
+import { chatsApi, messagesApi, eventsApi } from '../lib/api'
 import { signalr } from '../lib/signalr'
 import { tokenStore } from '../lib/tokenStore'
-import type { Chat, Message } from '../lib/types'
+import type { Chat, Message, LoomEvent } from '../lib/types'
 import { MessageTypeE } from '../lib/enums'
 
 function myId(): number | null { return tokenStore.user?.id ?? null }
@@ -22,6 +22,7 @@ interface ChatState {
 
   presence: Record<number, { online: boolean; lastSeenAt?: string }>
   typing: Record<number, TypingEntry[]>      // chatId -> typing users
+  events: Record<number, LoomEvent[]>        // chatId -> shared event cards
 
   hubConnected: boolean
 
@@ -40,6 +41,8 @@ interface ChatState {
   applyDeleted: (messageId: number) => void
   applyReactionUpdate: (messageId: number) => Promise<void>
   applyReadReceipt: (messageId: number, userId: number) => void
+  loadEvents: (chatId: number) => Promise<void>
+  upsertEvent: (ev: LoomEvent) => void
   reset: () => void
 }
 
@@ -64,6 +67,7 @@ export const useChat = create<ChatState>((set, get) => ({
   msgPage: {},
   presence: {},
   typing: {},
+  events: {},
   hubConnected: false,
 
   loadChats: async () => {
@@ -79,8 +83,11 @@ export const useChat = create<ChatState>((set, get) => ({
   openChat: async (chatId) => {
     set({ activeChatId: chatId })
     void signalr.joinChat(chatId)
-    // clear local unread
+    // clear unread — locally + server-side
     set((s) => ({ chats: s.chats.map((c) => (c.id === chatId ? { ...c, unreadCount: 0 } : c)) }))
+    void chatsApi.read(chatId).catch(() => {})
+    // load shared event cards for this chat (survives reload)
+    void get().loadEvents(chatId)
     if (get().messages[chatId]) return
     set((s) => ({ msgLoading: { ...s.msgLoading, [chatId]: true } }))
     try {
@@ -296,9 +303,26 @@ export const useChat = create<ChatState>((set, get) => ({
     if (!get().chats.some((c) => c.id === m.chatId)) void get().loadChats()
   },
 
+  loadEvents: async (chatId) => {
+    try {
+      const evs = await eventsApi.byChat(chatId)
+      set((s) => ({ events: { ...s.events, [chatId]: evs } }))
+    } catch { /* ignore */ }
+  },
+
+  upsertEvent: (ev) => {
+    if (ev.chatId == null) return
+    set((s) => {
+      const list = s.events[ev.chatId!] ?? []
+      const exists = list.some((e) => e.id === ev.id)
+      const next = exists ? list.map((e) => (e.id === ev.id ? ev : e)) : [...list, ev]
+      return { events: { ...s.events, [ev.chatId!]: next } }
+    })
+  },
+
   reset: () => set({
     chats: [], activeChatId: null, messages: {}, msgLoading: {}, msgHasMore: {}, msgPage: {},
-    presence: {}, typing: {},
+    presence: {}, typing: {}, events: {},
   }),
 }))
 
@@ -310,6 +334,8 @@ export function wireRealtime() {
     onMessageDeleted: (id) => useChat.getState().applyDeleted(id),
     onReactionUpdated: (id) => void useChat.getState().applyReactionUpdate(id),
     onMessageRead: (id, userId) => useChat.getState().applyReadReceipt(id, userId),
+    onEventShared: (ev) => useChat.getState().upsertEvent(ev),
+    onEventUpdated: (ev) => useChat.getState().upsertEvent(ev),
     onUserOnline: (userId) => useChat.setState((s) => ({
       presence: { ...s.presence, [userId]: { online: true } },
     })),

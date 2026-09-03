@@ -24,7 +24,13 @@ export function setAuthLostHandler(fn: OnAuthLost) { onAuthLost = fn }
 export type RefreshResult = 'refreshed' | 'auth-failed' | 'unreachable'
 let refreshInFlight: Promise<RefreshResult> | null = null
 
-async function doRefresh(): Promise<RefreshResult> {
+// Refresh tokens are SINGLE-USE (rotated on every refresh). If two tabs refresh at once,
+// the loser reuses a now-consumed token and gets logged out. We prevent that by:
+//  (a) `prevAccess` snapshot — if the stored access token already changed (another tab
+//      refreshed), adopt it instead of consuming the refresh token again; and
+//  (b) a cross-tab Web Lock so only one tab performs the network refresh at a time.
+async function performRefresh(prevAccess: string | null): Promise<RefreshResult> {
+  if (prevAccess && tokenStore.access && tokenStore.access !== prevAccess) return 'refreshed'
   const rt = tokenStore.refresh
   if (!rt) return 'auth-failed'
   let res: Response
@@ -52,9 +58,18 @@ async function doRefresh(): Promise<RefreshResult> {
   }
 }
 
-function refreshOnce(): Promise<RefreshResult> {
+async function doRefresh(prevAccess: string | null): Promise<RefreshResult> {
+  const locks = (typeof navigator !== 'undefined' && (navigator as any).locks) || null
+  if (locks?.request) {
+    try { return await locks.request('loom.token.refresh', () => performRefresh(prevAccess)) }
+    catch { return performRefresh(prevAccess) }
+  }
+  return performRefresh(prevAccess)
+}
+
+function refreshOnce(prevAccess: string | null): Promise<RefreshResult> {
   if (!refreshInFlight) {
-    refreshInFlight = doRefresh().finally(() => { refreshInFlight = null })
+    refreshInFlight = doRefresh(prevAccess).finally(() => { refreshInFlight = null })
   }
   return refreshInFlight
 }
@@ -71,10 +86,8 @@ interface ReqOpts {
 async function raw(path: string, opts: ReqOpts, isRetry = false): Promise<Response> {
   const headers: Record<string, string> = {}
   const auth = opts.auth !== false
-  if (auth) {
-    const t = tokenStore.access
-    if (t) headers['Authorization'] = `Bearer ${t}`
-  }
+  const sentToken = auth ? tokenStore.access : null
+  if (auth && sentToken) headers['Authorization'] = `Bearer ${sentToken}`
   let body: BodyInit | undefined
   if (opts.body instanceof FormData) {
     body = opts.body
@@ -89,7 +102,12 @@ async function raw(path: string, opts: ReqOpts, isRetry = false): Promise<Respon
   const res = await fetch(`${BASE}${path}`, { method: opts.method ?? 'GET', headers, body, signal: opts.signal })
 
   if (res.status === 401 && auth && !isRetry) {
-    const result = await refreshOnce()
+    // Another tab may have already refreshed → the stored token changed → just retry with it,
+    // without consuming our (now possibly stale) refresh token.
+    if (sentToken && tokenStore.access && tokenStore.access !== sentToken) {
+      return raw(path, opts, true)
+    }
+    const result = await refreshOnce(sentToken)
     if (result === 'refreshed') return raw(path, opts, true)
     if (result === 'auth-failed') {
       // Only a definitive rejection wipes the session.

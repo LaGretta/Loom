@@ -1,6 +1,7 @@
-﻿using Loom.Domain.Enums;
+﻿using Loom.Domain.Entities.Chats;
+using Loom.Domain.Enums;
 
-namespace Loom.Domain.Entities;
+namespace Loom.Domain.Entities.Users;
 
 public class User
 {

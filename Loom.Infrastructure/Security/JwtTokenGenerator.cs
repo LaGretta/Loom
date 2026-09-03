@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Loom.Application.Interfaces.Security;
 using Loom.Domain.Entities;
+using Loom.Domain.Entities.Users;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 

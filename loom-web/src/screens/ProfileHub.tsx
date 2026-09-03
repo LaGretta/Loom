@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Pencil } from 'lucide-react'
 import { useAuth } from '../store/auth'
-import { useMock } from '../store/mock'
 import { Avatar } from '../ui/Avatar'
 import { CraftedObject } from '../ui/CraftedObject'
 import { Button } from '../ui/primitives'
@@ -14,7 +13,7 @@ import type { GiftInstance } from '../lib/types'
 export function ProfileHub() {
   const me = useAuth((s) => s.me)
   const navigate = useNavigate()
-  const premium = useMock((s) => s.premiumActive)
+  const premium = me?.premiumTier === 'Premium'
   const [gifts, setGifts] = useState<GiftInstance[]>([])
 
   useEffect(() => { giftsApi.mine().then(setGifts).catch(() => {}) }, [])
@@ -31,7 +30,7 @@ export function ProfileHub() {
             <Avatar name={me.displayName} id={me.id} src={me.avatarUrl} size={96} />
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 14 }}>
               <span style={{ fontSize: 23, fontWeight: 800, letterSpacing: '-.02em' }}>{me.displayName}</span>
-              {(premium || me.premiumTier === 'Premium') && <CraftedObject id="s-gem" size={26} />}
+              {premium && <CraftedObject id="s-gem" size={26} />}
             </div>
             <div className="muted" style={{ fontSize: 14, marginTop: 2 }}>@{me.userName}</div>
             {me.bio && <div style={{ fontSize: 14, marginTop: 10, maxWidth: 420 }}>{me.bio}</div>}

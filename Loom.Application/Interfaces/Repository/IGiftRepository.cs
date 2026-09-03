@@ -1,4 +1,5 @@
 ﻿using Loom.Domain.Entities;
+using Loom.Domain.Entities.Stars;
 
 namespace Loom.Application.Interfaces.Repository;
 

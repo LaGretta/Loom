@@ -1,4 +1,9 @@
 ﻿using Loom.Domain.Entities;
+using Loom.Domain.Entities.Chats;
+using Loom.Domain.Entities.Events;
+using Loom.Domain.Entities.Stars;
+using Loom.Domain.Entities.Stickers;
+using Loom.Domain.Entities.Users;
 using Microsoft.EntityFrameworkCore;
 
 namespace Loom.Infrastructure.Data;
@@ -20,6 +25,9 @@ public class LoomDbContext : DbContext
     public DbSet<GiftInstance> GiftInstances { get; set; }
     public DbSet<StickerPack> StickerPacks { get; set; }
     public DbSet<Sticker> Stickers { get; set; }
+    public DbSet<Event> Events { get; set; }
+    public DbSet<EventRsvp> EventRsvps { get; set; }
+    public DbSet<CalendarEntry> CalendarEntries { get; set; }
 
     protected override void OnModelCreating(ModelBuilder mb)
     {
@@ -96,6 +104,31 @@ public class LoomDbContext : DbContext
         {
             e.HasOne(x => x.StickerPack).WithMany(p => p.Stickers)
                 .HasForeignKey(x => x.StickerPackId).OnDelete(DeleteBehavior.Cascade);
+        });
+        mb.Entity<Event>(e =>
+        {
+            e.HasOne(x => x.Chat).WithMany()
+                .HasForeignKey(x => x.ChatId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.CreatedBy).WithMany()
+                .HasForeignKey(x => x.CreatedById).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        mb.Entity<EventRsvp>(e =>
+        {
+            e.HasIndex(x => new { x.EventId, x.UserId }).IsUnique();
+            e.HasOne(x => x.Event).WithMany(ev => ev.Rsvps)
+                .HasForeignKey(x => x.EventId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.User).WithMany()
+                .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        mb.Entity<CalendarEntry>(e =>
+        {
+            e.HasIndex(x => new { x.UserId, x.EventId }).IsUnique();   
+            e.HasOne(x => x.Event).WithMany(ev => ev.CalendarEntries)
+                .HasForeignKey(x => x.EventId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.User).WithMany()
+                .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

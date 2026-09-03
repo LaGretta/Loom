@@ -1,4 +1,7 @@
-﻿namespace Loom.Domain.Entities;
+﻿using Loom.Domain.Entities.Chats;
+using Loom.Domain.Entities.Users;
+
+namespace Loom.Domain.Entities.Stars;
 
 public class GiftInstance
 {

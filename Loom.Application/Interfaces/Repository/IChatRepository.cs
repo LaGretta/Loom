@@ -1,4 +1,5 @@
 ﻿using Loom.Domain.Entities;
+using Loom.Domain.Entities.Chats;
 
 namespace Loom.Application.Interfaces.Repository;
 

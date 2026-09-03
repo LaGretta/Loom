@@ -9,7 +9,6 @@ import type { GiftMeta } from '../assets/loom'
 import { fmtNumber } from '../ui/format'
 import { toast } from '../ui/toast'
 import { Search, Check } from 'lucide-react'
-import { useMock } from '../store/mock'
 import type { GiftCatalogItem, GiftInstance, UserSummary } from '../lib/types'
 
 type Tab = 'catalog' | 'mine' | 'craft'
@@ -202,7 +201,6 @@ function SendGiftModal({ gift, onClose, onSent }: { gift: GiftCatalogItem; onClo
 
 function CraftPanel({ owned }: { owned: GiftInstance[] }) {
   const [sel, setSel] = useState<number[]>([])
-  const setPremium = useMock((s) => s.setPremium)
   const chance = useMemo(() => {
     const weights: Record<string, number> = { UNCOMMON: 6, RARE: 12, EPIC: 20, LEGENDARY: 34 }
     let sum = 0
@@ -213,7 +211,6 @@ function CraftPanel({ owned }: { owned: GiftInstance[] }) {
     }
     return Math.min(95, sum)
   }, [sel, owned])
-  void setPremium
 
   const toggle = (id: number) => setSel((s) => s.includes(id) ? s.filter((x) => x !== id) : s.length < 4 ? [...s, id] : s)
 

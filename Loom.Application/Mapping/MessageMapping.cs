@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using Loom.Application.DTO;
 using Loom.Domain.Entities;
+using Loom.Domain.Entities.Chats;
 
 namespace Loom.Application.Mapping;
 

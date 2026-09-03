@@ -52,4 +52,7 @@ export type UserStatus = (typeof UserStatusE.names)[number]
 export const AttachmentTypeE = ORD(['Image', 'Video', 'File', 'Audio'] as const)
 export type AttachmentType = (typeof AttachmentTypeE.names)[number]
 
+export const RsvpStatusE = ORD(['Going', 'Maybe', 'NotGoing'] as const)
+export type RsvpStatus = (typeof RsvpStatusE.names)[number]
+
 export const isOnline = (s: UserStatus) => s === 'Online' || s === 'Away' || s === 'Busy'

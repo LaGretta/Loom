@@ -143,6 +143,11 @@
 .card-file .fn{ font-size:14px; font-weight:600; }
 .card-file .fs{ font-size:12px; opacity:.65; }
 
+/* in-chat event card */
+.event-row{ display:flex; margin:4px 0; }
+.event-card{ width:min(320px,86%); background:var(--surface); border:1px solid var(--hairline); border-radius:16px; box-shadow:var(--shadow-sm); padding:12px 14px; }
+.event-card button:active{ transform:scale(.94); }
+
 /* typing */
 .typing{ display:flex; align-items:center; gap:4px; padding:4px 2px; }
 .typing .dots{ display:inline-flex; gap:3px; }

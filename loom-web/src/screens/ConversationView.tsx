@@ -10,8 +10,9 @@ import { CraftedObject } from '../ui/CraftedObject'
 import { Wallpaper } from '../ui/Wallpaper'
 import { timeShort, dayLabel, fileSize } from '../ui/format'
 import { isOnline, type UserStatus } from '../lib/enums'
-import type { Chat, ChatMember, Message } from '../lib/types'
+import type { Chat, ChatMember, Message, LoomEvent } from '../lib/types'
 import { Composer, MessageContextMenu } from './conversation-parts'
+import { EventCard } from '../components/EventCard'
 import { toast } from '../ui/toast'
 
 export function ConversationView({ chatId }: { chatId: number }) {
@@ -19,6 +20,7 @@ export function ConversationView({ chatId }: { chatId: number }) {
   const me = useAuth((s) => s.me)
   const chats = useChat((s) => s.chats)
   const messages = useChat((s) => s.messages[chatId])
+  const events = useChat((s) => s.events[chatId])
   const loading = useChat((s) => s.msgLoading[chatId])
   const typing = useChat((s) => s.typing[chatId])
   const presence = useChat((s) => s.presence)
@@ -87,7 +89,7 @@ export function ConversationView({ chatId }: { chatId: number }) {
     }
   }
 
-  const grouped = useMemo(() => groupMessages(messages ?? []), [messages])
+  const grouped = useMemo(() => buildTimeline(messages ?? [], events ?? []), [messages, events])
 
   return (
     <div className="pane" style={{ flex: 1, minWidth: 0, position: 'relative' }}>
@@ -123,15 +125,17 @@ export function ConversationView({ chatId }: { chatId: number }) {
                 : grouped.map((g) => (
                   g.kind === 'day'
                     ? <div key={g.key} className="day-pill">{g.label}</div>
-                    : <Bubble
-                        key={g.message.id}
-                        message={g.message}
-                        mine={g.message.senderId === me?.id}
-                        showSender={!isDirect && g.showSender}
-                        grouped={g.grouped}
-                        onReply={() => { setEditing(null); setReplyTo(g.message) }}
-                        onMenu={() => setMenuFor(g.message)}
-                      />
+                    : g.kind === 'event'
+                      ? <div key={`ev-${g.event.id}`} className="event-row"><EventCard event={g.event} /></div>
+                      : <Bubble
+                          key={g.message.id}
+                          message={g.message}
+                          mine={g.message.senderId === me?.id}
+                          showSender={!isDirect && g.showSender}
+                          grouped={g.grouped}
+                          onReply={() => { setEditing(null); setReplyTo(g.message) }}
+                          onMenu={() => setMenuFor(g.message)}
+                        />
                 ))}
             <div ref={bottomRef} />
           </div>
@@ -242,25 +246,36 @@ function ReactionRow({ message, mine, onToggle }: { message: Message; mine: bool
 type Group =
   | { kind: 'day'; key: string; label: string }
   | { kind: 'msg'; message: Message; showSender: boolean; grouped: boolean }
+  | { kind: 'event'; event: LoomEvent }
 
-function groupMessages(messages: Message[]): Group[] {
+// Merge messages + shared event cards into one time-ordered timeline with day dividers.
+function buildTimeline(messages: Message[], events: LoomEvent[]): Group[] {
+  type Item = { at: number; iso: string } & ({ t: 'msg'; m: Message } | { t: 'event'; e: LoomEvent })
+  const items: Item[] = [
+    ...messages.map((m) => ({ at: new Date(m.sentAt).getTime(), iso: m.sentAt, t: 'msg' as const, m })),
+    ...events.map((e) => ({ at: new Date(e.createdAt).getTime(), iso: e.createdAt, t: 'event' as const, e })),
+  ].sort((a, b) => a.at - b.at)
+
   const out: Group[] = []
   let lastDay = ''
   let lastSender = -1
   let lastTime = 0
-  for (const m of messages) {
-    const d = new Date(m.sentAt)
-    const dayKey = d.toDateString()
+  for (const it of items) {
+    const dayKey = new Date(it.iso).toDateString()
     if (dayKey !== lastDay) {
-      out.push({ kind: 'day', key: dayKey, label: dayLabel(m.sentAt) })
+      out.push({ kind: 'day', key: dayKey + it.at, label: dayLabel(it.iso) })
       lastDay = dayKey
       lastSender = -1
     }
-    const t = d.getTime()
-    const grouped = m.senderId === lastSender && t - lastTime < 5 * 60 * 1000
-    out.push({ kind: 'msg', message: m, showSender: !grouped, grouped })
-    lastSender = m.senderId
-    lastTime = t
+    if (it.t === 'event') {
+      out.push({ kind: 'event', event: it.e })
+      lastSender = -1
+      continue
+    }
+    const grouped = it.m.senderId === lastSender && it.at - lastTime < 5 * 60 * 1000
+    out.push({ kind: 'msg', message: it.m, showSender: !grouped, grouped })
+    lastSender = it.m.senderId
+    lastTime = it.at
   }
   return out
 }

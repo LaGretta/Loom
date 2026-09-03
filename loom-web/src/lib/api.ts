@@ -1,12 +1,14 @@
 import { http } from './http'
 import { tokenStore } from './tokenStore'
 import {
-  ChatTypeE, MessageTypeE, type ChatType, type MessageType,
+  ChatTypeE, MessageTypeE, RsvpStatusE, type ChatType, type MessageType, type RsvpStatus,
 } from './enums'
 import {
   type AuthResponse, type UserProfile, type UserSummary, type Chat, type ChatMember,
   type Message, type Paged, type StarBalance, type StarTransaction, type GiftCatalogItem, type GiftInstance,
+  type PremiumPlan, type PremiumStatus, type LoomEvent,
   normUser, normUserSummary, normChat, normMember, normMessage, normBalance, normTx,
+  normPremiumStatus, normEvent,
 } from './types'
 
 /* ---------------- Auth ---------------- */
@@ -39,6 +41,7 @@ export const chatsApi = {
   join: (id: number) => http.post<void>(`/api/chats/${id}/join`),
   leave: (id: number) => http.post<void>(`/api/chats/${id}/leave`),
   members: (id: number) => http.get<any[]>(`/api/chats/${id}/members`).then((r) => r.map(normMember)),
+  read: (id: number) => http.post<void>(`/api/chats/${id}/read`),
 }
 
 /* ---------------- Messages ---------------- */
@@ -80,6 +83,25 @@ export const giftsApi = {
   mine: () => http.get<GiftInstance[]>('/api/gifts/my'),
 }
 
+/* ---------------- Premium ---------------- */
+export const premiumApi = {
+  plans: () => http.get<PremiumPlan[]>('/api/premium/plans'),
+  status: () => http.get<any>('/api/premium/status').then(normPremiumStatus),
+  subscribe: (months: number) => http.post<any>('/api/premium/subscribe', { months }).then(normPremiumStatus),
+}
+
+/* ---------------- Events / Calendar ---------------- */
+export const eventsApi = {
+  create: (b: { title: string; description?: string | null; eventDateTime: string; chatId?: number | null }) =>
+    http.post<any>('/api/events', b).then(normEvent),
+  byId: (id: number) => http.get<any>(`/api/events/${id}`).then(normEvent),
+  byChat: (chatId: number) => http.get<any[]>(`/api/events/chat/${chatId}`).then((r) => r.map(normEvent)),
+  my: () => http.get<any[]>('/api/events/my').then((r) => r.map(normEvent)),
+  rsvp: (eventId: number, status: RsvpStatus) =>
+    http.post<any>('/api/events/rsvp', { eventId, status: RsvpStatusE.ord(status) }).then(normEvent),
+  addToCalendar: (id: number) => http.post<void>(`/api/events/${id}/add-to-calendar`),
+}
+
 /* ---------------- Media ---------------- */
 export const mediaApi = {
   upload: (file: File) => {
@@ -96,4 +118,4 @@ export async function logoutEverywhere() {
   tokenStore.clear()
 }
 
-export type { AuthResponse, UserProfile, UserSummary, Chat, ChatMember, Message, Paged, StarBalance, StarTransaction, GiftCatalogItem, GiftInstance }
+export type { AuthResponse, UserProfile, UserSummary, Chat, ChatMember, Message, Paged, StarBalance, StarTransaction, GiftCatalogItem, GiftInstance, PremiumPlan, PremiumStatus, LoomEvent }

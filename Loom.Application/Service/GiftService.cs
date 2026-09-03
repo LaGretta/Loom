@@ -5,6 +5,7 @@ using Loom.Application.Interfaces.Repository;
 using Loom.Application.Interfaces.Security;
 using Loom.Application.Interfaces.Service;
 using Loom.Domain.Entities;
+using Loom.Domain.Entities.Stars;
 using Loom.Domain.Enums;
 
 namespace Loom.Application.Service;
@@ -46,10 +47,10 @@ public class GiftService : IGiftService
         var sender = await _userRepository.GetByIdAsync(userId, ct);
         if(sender == null)
             throw new KeyNotFoundException("Sender not found");
-        if(sender.StarBalance > gift.StarCost)
+        if(sender.StarBalance < gift.StarCost)                       
             throw new InvalidOperationException("Not enough stars");
-        
-        var receiver = await _userRepository.GetByIdAsync(userId, ct);
+
+        var receiver = await _userRepository.GetByIdAsync(dto.ReceiverId, ct);  
         if(receiver == null)
             throw new KeyNotFoundException("Receiver not found");
         

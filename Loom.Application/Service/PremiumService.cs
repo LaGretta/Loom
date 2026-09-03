@@ -3,6 +3,8 @@ using Loom.Application.Interfaces;
 using Loom.Application.Interfaces.Repository;
 using Loom.Application.Interfaces.Service;
 using Loom.Domain.Entities;
+using Loom.Domain.Entities.Stars;
+using Loom.Domain.Entities.Users;
 using Loom.Domain.Enums;
 
 namespace Loom.Application.Service;

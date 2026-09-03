@@ -10,4 +10,5 @@ public interface IChatService
     Task JoinChat(int userId, int chatId, CancellationToken ct);
     Task LeaveChat(int userId, int chatId, CancellationToken ct);
     Task<List<ChatMemberDto>> GetMembers(int userId, int chatId, CancellationToken ct);
+    Task MarkChatRead(int userId, int chatId, CancellationToken ct);
 }

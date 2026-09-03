@@ -1,7 +1,7 @@
-﻿using System.Net.Mail;
+﻿using Loom.Domain.Entities.Users;
 using Loom.Domain.Enums;
 
-namespace Loom.Domain.Entities;
+namespace Loom.Domain.Entities.Chats;
 
 public class Message
 {
@@ -24,7 +24,6 @@ public class Message
     public DateTime? EditedAt { get; set; }
     public bool IsDeleted { get; set; }          
     public DateTime SentAt { get; set; }
-
     public List<Attachment> Attachments { get; set; } = new();
     public List<MessageReaction> Reactions { get; set; } = new();
     public List<MessageReadReceipt> ReadReceipts { get; set; } = new();

@@ -36,4 +36,11 @@ public class ChatsController : BaseController
     [HttpGet("{id}/members")]
     public async Task<IActionResult> Members(int id, CancellationToken ct) =>
         Ok(await _chatService.GetMembers(UserId, id, ct));
+    
+    [HttpPost("{id}/read")]
+    public async Task<IActionResult> MarkRead(int id, CancellationToken ct)
+    {
+        await _chatService.MarkChatRead(UserId, id, ct);
+        return NoContent();
+    }
 }

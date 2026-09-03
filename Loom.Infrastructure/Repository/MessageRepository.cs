@@ -1,5 +1,6 @@
 ﻿using Loom.Application.Interfaces.Repository;
 using Loom.Domain.Entities;
+using Loom.Domain.Entities.Chats;
 using Loom.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -45,10 +46,18 @@ public class MessageRepository : IMessageRepository
 
     public async Task<bool> HasReadReceiptAsync(int messageId, int userId, CancellationToken ct) =>
         await _context.MessageReadReceipts.AnyAsync(r => r.MessageId == messageId && r.UserId == userId, ct);
+    
     public async Task<Message?> GetLastMessageAsync(int chatId, CancellationToken ct) =>
         await _context.Messages
             .Include(m => m.Sender)
             .Where(m => m.ChatId == chatId && !m.IsDeleted)
             .OrderByDescending(m => m.SentAt)
             .FirstOrDefaultAsync(ct);
+    
+    public async Task<int> CountUnreadAsync(int chatId, DateTime? lastReadAt, CancellationToken ct) =>
+        await _context.Messages
+            .Where(m => m.ChatId == chatId
+                        && !m.IsDeleted
+                        && (lastReadAt == null || m.SentAt > lastReadAt))
+            .CountAsync(ct);
 }

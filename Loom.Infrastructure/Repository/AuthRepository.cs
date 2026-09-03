@@ -1,5 +1,6 @@
 ﻿using Loom.Application.Interfaces.Repository;
 using Loom.Domain.Entities;
+using Loom.Domain.Entities.Users;
 using Loom.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 

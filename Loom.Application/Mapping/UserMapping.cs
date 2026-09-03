@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using Loom.Application.DTO;
 using Loom.Domain.Entities;
+using Loom.Domain.Entities.Users;
 
 namespace Loom.Application.Mapping;
 

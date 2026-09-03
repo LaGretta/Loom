@@ -3,8 +3,8 @@ import {
   HubConnection, HubConnectionBuilder, HubConnectionState, LogLevel,
 } from '@microsoft/signalr'
 import { tokenStore } from './tokenStore'
-import { normMessage } from './types'
-import type { Message } from './types'
+import { normMessage, normEvent } from './types'
+import type { Message, LoomEvent } from './types'
 
 const BASE = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
 
@@ -17,6 +17,8 @@ type Handlers = {
   onUserOnline?: (userId: number) => void
   onUserOffline?: (userId: number, lastSeenAt: string) => void
   onUserTyping?: (chatId: number, userId: number) => void
+  onEventShared?: (ev: LoomEvent) => void
+  onEventUpdated?: (ev: LoomEvent) => void
   onStateChange?: (connected: boolean) => void
 }
 
@@ -52,6 +54,8 @@ class SignalRManager {
       this.handlers.onUserOffline?.(Number(userId), lastSeenAt))
     conn.on('UserTyping', (chatId: number, userId: number) =>
       this.handlers.onUserTyping?.(Number(chatId), Number(userId)))
+    conn.on('EventShared', (dto: any) => this.handlers.onEventShared?.(normEvent(dto)))
+    conn.on('EventUpdated', (dto: any) => this.handlers.onEventUpdated?.(normEvent(dto)))
 
     conn.onreconnected(async () => {
       this.handlers.onStateChange?.(true)

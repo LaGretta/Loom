@@ -1,7 +1,7 @@
 import {
   type ChatType, type MemberRole, type MessageStatus, type MessageType,
-  type PremiumTier, type StarTxType, type UserStatus, type AttachmentType,
-  ChatTypeE, MemberRoleE, MessageStatusE, MessageTypeE, PremiumTierE, StarTxTypeE, UserStatusE, AttachmentTypeE,
+  type PremiumTier, type StarTxType, type UserStatus, type AttachmentType, type RsvpStatus,
+  ChatTypeE, MemberRoleE, MessageStatusE, MessageTypeE, PremiumTierE, StarTxTypeE, UserStatusE, AttachmentTypeE, RsvpStatusE,
 } from './enums'
 
 /* ---------- Auth ---------- */
@@ -137,6 +137,42 @@ export interface GiftInstance {
   sentAt: string
 }
 
+/* ---------- Premium ---------- */
+export interface PremiumPlan {
+  name: string
+  months: number
+  starCost: number
+}
+export interface PremiumStatus {
+  tier: PremiumTier
+  until?: string | null
+  isActive: boolean
+}
+
+/* ---------- Events ---------- */
+export interface EventAttendee {
+  userId: number
+  displayName: string
+  avatarUrl?: string | null
+  status: RsvpStatus
+}
+export interface LoomEvent {
+  id: number
+  title: string
+  description?: string | null
+  eventDateTime: string
+  createdById: number
+  creatorName: string
+  chatId?: number | null
+  createdAt: string
+  goingCount: number
+  maybeCount: number
+  notGoingCount: number
+  myStatus?: RsvpStatus | null
+  inMyCalendar: boolean
+  attendees: EventAttendee[]
+}
+
 /* ---------- Normalizers: coerce raw API JSON (numbers-or-strings) into typed models ---------- */
 export const normUser = (r: any): UserProfile => ({
   ...r,
@@ -174,4 +210,16 @@ export const normBalance = (r: any): StarBalance => ({
 export const normTx = (r: any): StarTransaction => ({
   ...r,
   type: StarTxTypeE.from(r?.type, 'Purchase'),
+})
+export const normPremiumStatus = (r: any): PremiumStatus => ({
+  ...r,
+  tier: PremiumTierE.from(r?.tier, 'None'),
+})
+export const normEvent = (r: any): LoomEvent => ({
+  ...r,
+  myStatus: r?.myStatus != null ? RsvpStatusE.from(r.myStatus, 'Going') : null,
+  attendees: (r?.attendees ?? []).map((a: any) => ({
+    ...a,
+    status: RsvpStatusE.from(a?.status, 'Going'),
+  })),
 })

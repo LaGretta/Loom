@@ -24,6 +24,7 @@ public static class DependencyInjection
         services.AddScoped<IMessageRepository, MessageRepository>();
         services.AddScoped<IStarRepository, StarRepository>();
         services.AddScoped<IGiftRepository, GiftRepository>();
+        services.AddScoped<IEventRepository, EventRepository>();
         
         services.AddScoped<IMediaStorage, CloudinaryStorage>();
 

@@ -1,4 +1,5 @@
 ﻿using Loom.Domain.Entities;
+using Loom.Domain.Entities.Stars;
 using Microsoft.EntityFrameworkCore;
 
 namespace Loom.Infrastructure.Data;

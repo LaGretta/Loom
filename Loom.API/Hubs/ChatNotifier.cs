@@ -21,4 +21,10 @@ public class ChatNotifier : IChatNotifier
     
     public async Task MessageRead(int chatId, int messageId, int userId) =>
         await _hub.Clients.Group($"chat-{chatId}").SendAsync("MessageRead", messageId, userId);
+    
+    public async Task EventShared(int chatId, EventResponseDto ev) =>
+        await _hub.Clients.Group($"chat-{chatId}").SendAsync("EventShared", ev);
+
+    public async Task EventUpdated(int chatId, EventResponseDto ev) =>
+        await _hub.Clients.Group($"chat-{chatId}").SendAsync("EventUpdated", ev);
 }

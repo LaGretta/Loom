@@ -1,4 +1,4 @@
-﻿namespace Loom.Domain.Entities;
+﻿namespace Loom.Domain.Entities.Users;
 
 public class RefreshToken
 {

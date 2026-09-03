@@ -1,6 +1,8 @@
-﻿namespace Loom.Domain.Entities;
+﻿using Loom.Domain.Entities.Users;
 
-public class MessageReadReceipt
+namespace Loom.Domain.Entities.Chats;
+
+public class MessageReaction
 {
     public int Id { get; set; }
 
@@ -9,5 +11,7 @@ public class MessageReadReceipt
 
     public int UserId { get; set; }
     public User User { get; set; } = null!;
-    public DateTime ReadAt { get; set; }
+
+    public string Emoji { get; set; } = string.Empty;  
+    public DateTime CreatedAt { get; set; }
 }

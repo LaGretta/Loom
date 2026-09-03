@@ -1,6 +1,6 @@
 ﻿using Loom.Domain.Enums;
 
-namespace Loom.Domain.Entities;
+namespace Loom.Domain.Entities.Chats;
 
 public class Attachment
 {
