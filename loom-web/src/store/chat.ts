@@ -36,7 +36,19 @@ interface ChatState {
   markRead: (messageId: number) => void
   sendTyping: (chatId: number) => void
   ingestMessage: (m: Message) => void
+  applyEdited: (m: Message) => void
+  applyDeleted: (messageId: number) => void
+  applyReactionUpdate: (messageId: number) => Promise<void>
+  applyReadReceipt: (messageId: number, userId: number) => void
   reset: () => void
+}
+
+function findChatIdByMessage(messages: Record<number, Message[]>, messageId: number): number | null {
+  for (const key of Object.keys(messages)) {
+    const cid = Number(key)
+    if ((messages[cid] ?? []).some((m) => m.id === messageId)) return cid
+  }
+  return null
 }
 
 const PAGE = 30
@@ -183,6 +195,56 @@ export const useChat = create<ChatState>((set, get) => ({
 
   markRead: (messageId) => { void messagesApi.markRead(messageId).catch(() => {}) },
 
+  // --- live updates from SignalR (edited/deleted/reaction/read) ---
+  applyEdited: (m) => {
+    set((s) => {
+      const list = s.messages[m.chatId]
+      if (!list) return {}
+      return { messages: { ...s.messages, [m.chatId]: list.map((x) => (x.id === m.id ? m : x)) } }
+    })
+  },
+  applyDeleted: (messageId) => {
+    set((s) => {
+      const chatId = findChatIdByMessage(s.messages, messageId)
+      if (chatId == null) return {}
+      return {
+        messages: {
+          ...s.messages,
+          [chatId]: s.messages[chatId].map((x) => (x.id === messageId ? { ...x, isDeleted: true, content: '' } : x)),
+        },
+      }
+    })
+  },
+  applyReactionUpdate: async (messageId) => {
+    const chatId = findChatIdByMessage(get().messages, messageId)
+    if (chatId == null) return
+    // Backend event carries only messageId; refetch the loaded page to get fresh reaction counts.
+    try {
+      const res = await messagesApi.list(chatId, 1, PAGE)
+      const fresh = new Map(res.items.map((m) => [m.id, m]))
+      set((s) => ({
+        messages: {
+          ...s.messages,
+          [chatId]: (s.messages[chatId] ?? []).map((x) => (fresh.has(x.id) ? { ...x, reactions: fresh.get(x.id)!.reactions } : x)),
+        },
+      }))
+    } catch { /* ignore */ }
+  },
+  applyReadReceipt: (messageId, userId) => {
+    set((s) => {
+      const chatId = findChatIdByMessage(s.messages, messageId)
+      if (chatId == null) return {}
+      const mine = myId()
+      return {
+        messages: {
+          ...s.messages,
+          [chatId]: s.messages[chatId].map((x) =>
+            x.id === messageId && x.senderId === mine && userId !== mine ? { ...x, status: 'Read' as const } : x),
+        },
+      }
+    })
+  },
+
   sendTyping: (chatId) => { void signalr.typing(chatId) },
 
   ingestMessage: (m) => {
@@ -244,6 +306,10 @@ export const useChat = create<ChatState>((set, get) => ({
 export function wireRealtime() {
   signalr.setHandlers({
     onNewMessage: (m) => useChat.getState().ingestMessage(m),
+    onMessageEdited: (m) => useChat.getState().applyEdited(m),
+    onMessageDeleted: (id) => useChat.getState().applyDeleted(id),
+    onReactionUpdated: (id) => void useChat.getState().applyReactionUpdate(id),
+    onMessageRead: (id, userId) => useChat.getState().applyReadReceipt(id, userId),
     onUserOnline: (userId) => useChat.setState((s) => ({
       presence: { ...s.presence, [userId]: { online: true } },
     })),

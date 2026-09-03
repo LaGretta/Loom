@@ -51,7 +51,7 @@ namespace Loom.Infrastructure.Migrations
 
                     b.HasIndex("MessageId");
 
-                    b.ToTable("Attachments");
+                    b.ToTable("Attachments", (string)null);
                 });
 
             modelBuilder.Entity("Loom.Domain.Entities.Chat", b =>
@@ -82,7 +82,7 @@ namespace Loom.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Chats");
+                    b.ToTable("Chats", (string)null);
                 });
 
             modelBuilder.Entity("Loom.Domain.Entities.ChatMember", b =>
@@ -118,7 +118,7 @@ namespace Loom.Infrastructure.Migrations
                     b.HasIndex("ChatId", "UserId")
                         .IsUnique();
 
-                    b.ToTable("ChatMembers");
+                    b.ToTable("ChatMembers", (string)null);
                 });
 
             modelBuilder.Entity("Loom.Domain.Entities.Gift", b =>
@@ -145,7 +145,7 @@ namespace Loom.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Gifts");
+                    b.ToTable("Gifts", (string)null);
                 });
 
             modelBuilder.Entity("Loom.Domain.Entities.GiftInstance", b =>
@@ -181,7 +181,7 @@ namespace Loom.Infrastructure.Migrations
 
                     b.HasIndex("SenderId");
 
-                    b.ToTable("GiftInstances");
+                    b.ToTable("GiftInstances", (string)null);
                 });
 
             modelBuilder.Entity("Loom.Domain.Entities.Message", b =>
@@ -231,7 +231,7 @@ namespace Loom.Infrastructure.Migrations
 
                     b.HasIndex("SenderId");
 
-                    b.ToTable("Messages");
+                    b.ToTable("Messages", (string)null);
                 });
 
             modelBuilder.Entity("Loom.Domain.Entities.MessageReaction", b =>
@@ -262,7 +262,7 @@ namespace Loom.Infrastructure.Migrations
                     b.HasIndex("MessageId", "UserId", "Emoji")
                         .IsUnique();
 
-                    b.ToTable("MessageReactions");
+                    b.ToTable("MessageReactions", (string)null);
                 });
 
             modelBuilder.Entity("Loom.Domain.Entities.MessageReadReceipt", b =>
@@ -289,7 +289,7 @@ namespace Loom.Infrastructure.Migrations
                     b.HasIndex("MessageId", "UserId")
                         .IsUnique();
 
-                    b.ToTable("MessageReadReceipts");
+                    b.ToTable("MessageReadReceipts", (string)null);
                 });
 
             modelBuilder.Entity("Loom.Domain.Entities.RefreshToken", b =>
@@ -323,7 +323,7 @@ namespace Loom.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("RefreshTokens");
+                    b.ToTable("RefreshTokens", (string)null);
                 });
 
             modelBuilder.Entity("Loom.Domain.Entities.StarTransaction", b =>
@@ -356,7 +356,7 @@ namespace Loom.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("StarTransactions");
+                    b.ToTable("StarTransactions", (string)null);
                 });
 
             modelBuilder.Entity("Loom.Domain.Entities.Sticker", b =>
@@ -381,7 +381,7 @@ namespace Loom.Infrastructure.Migrations
 
                     b.HasIndex("StickerPackId");
 
-                    b.ToTable("Stickers");
+                    b.ToTable("Stickers", (string)null);
                 });
 
             modelBuilder.Entity("Loom.Domain.Entities.StickerPack", b =>
@@ -409,7 +409,7 @@ namespace Loom.Infrastructure.Migrations
 
                     b.HasIndex("AuthorId");
 
-                    b.ToTable("StickerPacks");
+                    b.ToTable("StickerPacks", (string)null);
                 });
 
             modelBuilder.Entity("Loom.Domain.Entities.User", b =>
@@ -468,7 +468,7 @@ namespace Loom.Infrastructure.Migrations
                     b.HasIndex("UserName")
                         .IsUnique();
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", (string)null);
                 });
 
             modelBuilder.Entity("Loom.Domain.Entities.Attachment", b =>

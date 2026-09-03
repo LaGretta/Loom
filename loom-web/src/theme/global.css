@@ -20,7 +20,9 @@ body{
 }
 
 h1,h2,h3{ letter-spacing:-0.022em; margin:0; }
-button{ font-family:inherit; letter-spacing:inherit; cursor:pointer; }
+/* color:inherit is critical — native buttons default to canvastext (dark), which is
+   invisible on dark surfaces. Buttons that want another color set it explicitly. */
+button{ font-family:inherit; letter-spacing:inherit; cursor:pointer; color:inherit; }
 input,textarea{ font-family:inherit; letter-spacing:inherit; }
 a{ color:var(--link); text-decoration:none; }
 

@@ -23,7 +23,7 @@ export const authApi = {
 /* ---------------- Users ---------------- */
 export const usersApi = {
   me: () => http.get<any>('/api/users/me').then(normUser),
-  update: (b: { displayName: string; bio?: string | null }) =>
+  update: (b: { displayName: string; bio?: string | null; avatarUrl?: string | null }) =>
     http.put<any>('/api/users/me', b).then(normUser),
   byId: (id: number) => http.get<any>(`/api/users/${id}`).then(normUser),
   search: (query: string) =>

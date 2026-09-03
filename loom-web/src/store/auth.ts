@@ -1,9 +1,19 @@
 import { create } from 'zustand'
 import { authApi, usersApi, logoutEverywhere } from '../lib/api'
-import { tokenStore } from '../lib/tokenStore'
-import { setAuthLostHandler } from '../lib/http'
+import { tokenStore, type StoredUser } from '../lib/tokenStore'
+import { setAuthLostHandler, ApiError } from '../lib/http'
 import { signalr } from '../lib/signalr'
 import { pickAccessToken, type UserProfile } from '../lib/types'
+
+// Minimal profile from the cached identity, used to keep the session alive when the
+// server is briefly unreachable (so a refresh doesn't kick the user to login).
+function cachedToProfile(u: StoredUser): UserProfile {
+  return {
+    id: u.id, userName: u.userName, displayName: u.displayName,
+    bio: null, avatarUrl: null, status: 'Offline',
+    lastSeenAt: new Date().toISOString(), premiumTier: 'None',
+  }
+}
 
 interface AuthState {
   me: UserProfile | null
@@ -30,9 +40,20 @@ export const useAuth = create<AuthState>((set, get) => ({
       const me = await usersApi.me()
       set({ me, authed: true, ready: true })
       void signalr.start()
-    } catch {
-      tokenStore.clear()
-      set({ ready: true, authed: false, me: null })
+    } catch (e) {
+      // Log out ONLY on a definitive auth rejection. `http` already ran silent refresh and,
+      // if the refresh token was rejected, cleared the tokens (so tokenStore.access is now
+      // null). A transient error (server down, 5xx, network) must NOT wipe the session —
+      // keep the cached identity so it recovers on the next load / when the API returns.
+      const authFailed = !tokenStore.access || (e instanceof ApiError && (e.status === 401 || e.status === 403))
+      if (authFailed) {
+        tokenStore.clear()
+        set({ ready: true, authed: false, me: null })
+      } else {
+        const cached = tokenStore.user
+        set({ me: cached ? cachedToProfile(cached) : null, authed: !!cached, ready: true })
+        if (cached) { void signalr.start(); void get().refreshMe() }
+      }
     }
   },
 

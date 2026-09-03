@@ -69,6 +69,7 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<LoomDbContext>();
     await db.Database.MigrateAsync();
+    await GiftSeeder.SeedAsync(db);
 }
 
 app.UseSwagger();

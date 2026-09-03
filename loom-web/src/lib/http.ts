@@ -18,32 +18,41 @@ let onAuthLost: OnAuthLost = () => {}
 export function setAuthLostHandler(fn: OnAuthLost) { onAuthLost = fn }
 
 // ----- single in-flight refresh -----
-let refreshInFlight: Promise<boolean> | null = null
+// 'refreshed'   → got new tokens, caller may retry.
+// 'auth-failed' → server definitively rejected the refresh token (401/403) → log out.
+// 'unreachable' → network error / 5xx / malformed → server problem, DO NOT wipe the session.
+export type RefreshResult = 'refreshed' | 'auth-failed' | 'unreachable'
+let refreshInFlight: Promise<RefreshResult> | null = null
 
-async function doRefresh(): Promise<boolean> {
+async function doRefresh(): Promise<RefreshResult> {
   const rt = tokenStore.refresh
-  if (!rt) return false
+  if (!rt) return 'auth-failed'
+  let res: Response
   try {
-    const res = await fetch(`${BASE}/api/auth/refresh`, {
+    res = await fetch(`${BASE}/api/auth/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       // ⚠️ backend reads a RAW JSON string body ([FromBody] string), not an object.
       body: JSON.stringify(rt),
     })
-    if (!res.ok) return false
+  } catch {
+    return 'unreachable' // network down — keep the session
+  }
+  if (res.status === 401 || res.status === 403) return 'auth-failed' // refresh token rejected
+  if (!res.ok) return 'unreachable' // 5xx etc. — server problem, don't log out
+  try {
     const data = await res.json()
-    // Prefer accessToken; fall back to token. Use || so an empty-string token is skipped.
     const access = data.accessToken || data.token
     const refresh = data.refreshToken
-    if (!access || !refresh) return false
-    tokenStore.setTokens(access, refresh)
-    return true
+    if (!access || !refresh) return 'unreachable' // malformed — don't wipe
+    tokenStore.setTokens(access, refresh) // persist rotated tokens (both) to localStorage
+    return 'refreshed'
   } catch {
-    return false
+    return 'unreachable'
   }
 }
 
-function refreshOnce(): Promise<boolean> {
+function refreshOnce(): Promise<RefreshResult> {
   if (!refreshInFlight) {
     refreshInFlight = doRefresh().finally(() => { refreshInFlight = null })
   }
@@ -80,10 +89,14 @@ async function raw(path: string, opts: ReqOpts, isRetry = false): Promise<Respon
   const res = await fetch(`${BASE}${path}`, { method: opts.method ?? 'GET', headers, body, signal: opts.signal })
 
   if (res.status === 401 && auth && !isRetry) {
-    const ok = await refreshOnce()
-    if (ok) return raw(path, opts, true)
-    tokenStore.clear()
-    onAuthLost()
+    const result = await refreshOnce()
+    if (result === 'refreshed') return raw(path, opts, true)
+    if (result === 'auth-failed') {
+      // Only a definitive rejection wipes the session.
+      tokenStore.clear()
+      onAuthLost()
+    }
+    // 'unreachable' → keep tokens; surface the 401 to the caller, session stays intact.
   }
   return res
 }

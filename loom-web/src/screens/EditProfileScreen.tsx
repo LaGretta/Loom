@@ -25,9 +25,7 @@ export function EditProfileScreen() {
     try {
       const { url } = await mediaApi.upload(file)
       setAvatar(url)
-      // NOTE: backend PUT /users/me only accepts { displayName, bio } — no avatarUrl field.
-      // Avatar preview is local until a backend avatar endpoint exists. // TODO(backend): save avatarUrl
-      toast('Avatar uploaded (preview)')
+      toast('Avatar uploaded — Save to apply')
     } catch { toast('Upload failed') }
     finally { setBusy(false) }
   }
@@ -36,9 +34,9 @@ export function EditProfileScreen() {
     if (!displayName.trim()) { toast('Name cannot be empty'); return }
     setBusy(true)
     try {
-      const updated = await usersApi.update({ displayName: displayName.trim(), bio: bio.trim() || null })
-      // preserve locally-uploaded avatar preview if backend didn't echo it
-      setMe({ ...updated, avatarUrl: updated.avatarUrl ?? avatar })
+      // Backend PUT /users/me now accepts avatarUrl and persists it.
+      const updated = await usersApi.update({ displayName: displayName.trim(), bio: bio.trim() || null, avatarUrl: avatar })
+      setMe(updated)
       toast('Profile saved')
       navigate(-1)
     } catch (e: any) { toast(e?.message ?? 'Could not save') }
@@ -69,7 +67,7 @@ export function EditProfileScreen() {
           <div className="muted" style={{ fontSize: 12, textAlign: 'right', marginTop: 4 }}>{BIO_MAX - bio.length} characters left</div>
         </div>
         <div className="muted" style={{ fontSize: 12.5 }}>
-          Username, website and cover image aren’t editable yet — the backend profile update accepts only name & bio.
+          Username, website and cover image aren’t editable yet.
         </div>
       </div>
 

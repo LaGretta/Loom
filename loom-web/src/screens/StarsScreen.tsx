@@ -26,11 +26,13 @@ export function StarsScreen() {
   const [busy, setBusy] = useState(false)
 
   const load = async () => {
-    try {
-      const [b, h] = await Promise.all([starsApi.balance(), starsApi.history(1, 40)])
-      setBalance(b); setHistory(h.items)
-    } catch { toast('Could not load Stars') }
-    finally { setLoading(false) }
+    // Load balance and history independently — history may be unimplemented (500) on the
+    // backend, and that shouldn't blank the balance/top-up UI. // TODO(backend): stars history + purchase
+    const [b, h] = await Promise.allSettled([starsApi.balance(), starsApi.history(1, 40)])
+    if (b.status === 'fulfilled') setBalance(b.value)
+    else toast('Could not load balance')
+    if (h.status === 'fulfilled') setHistory(h.value.items)
+    setLoading(false)
   }
   useEffect(() => { void load() }, [])
 
@@ -39,9 +41,9 @@ export function StarsScreen() {
     try {
       const b = await starsApi.purchase(amount)
       setBalance(b)
-      const h = await starsApi.history(1, 40)
-      setHistory(h.items)
       toast(`+${amount} Stars added`)
+      // history refetch is best-effort (endpoint may be unimplemented)
+      try { const h = await starsApi.history(1, 40); setHistory(h.items) } catch { /* ignore */ }
     } catch (e: any) { toast(e?.message ?? 'Purchase failed') }
     finally { setBusy(false) }
   }

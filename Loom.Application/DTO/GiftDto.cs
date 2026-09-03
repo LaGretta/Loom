@@ -1,4 +1,6 @@
-﻿namespace Loom.Application.DTO;
+﻿using Loom.Domain.Enums;
+
+namespace Loom.Application.DTO;
 
 public class GiftDto
 {
@@ -6,6 +8,7 @@ public class GiftDto
     public string Name { get; set; } = string.Empty;
     public string ImageUrl { get; set; } = string.Empty;
     public int StarCost { get; set; }
+    
 }
 
 public class SendGiftDto

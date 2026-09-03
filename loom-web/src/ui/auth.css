@@ -1,0 +1,119 @@
+/* =========================================================================
+   Loom — Auth (Log in / Create account) launch gate. Token-driven, both themes.
+   Desktop = 2-column split (dark hero + form). Mobile = stacked (brand band + card).
+   ========================================================================= */
+
+.auth-root{
+  position:fixed; inset:0; z-index:200; display:flex; background:var(--bg);
+  animation:lmFadeIn .3s ease both; overflow:auto;
+}
+
+/* ---------- left hero (desktop) / brand band (mobile) ---------- */
+.auth-hero{
+  flex:0 0 51%; position:relative; overflow:hidden; color:#fff;
+  background:linear-gradient(155deg,#17171B,#070708 62%,#000);
+  display:flex; flex-direction:column;
+}
+.auth-hero .silk{ position:absolute; inset:0; opacity:.46;
+  background:repeating-linear-gradient(135deg,rgba(255,255,255,.10) 0 1px,transparent 1px 15px),
+             repeating-linear-gradient(45deg,rgba(255,255,255,.07) 0 1px,transparent 1px 15px);
+  background-size:220px 220px; animation:lmSilk 14s linear infinite; }
+.auth-hero .blob{ position:absolute; border-radius:50%; filter:blur(70px); mix-blend-mode:screen; }
+.auth-hero .blob.v{ width:44%; height:44%; left:-8%; top:6%; background:radial-gradient(circle,#6E5DD6,transparent 70%); opacity:.5; animation:lmAurora 20s ease-in-out infinite; }
+.auth-hero .blob.g{ width:40%; height:40%; right:-6%; bottom:-6%; background:radial-gradient(circle,#3FA971,transparent 70%); opacity:.32; animation:lmAurora 26s ease-in-out infinite; }
+
+.auth-hero-content{ position:relative; z-index:1; display:flex; flex-direction:column; height:100%; padding:48px 52px; gap:24px; }
+.auth-brand{ display:flex; align-items:center; gap:12px; }
+.auth-logo-chip{ width:46px; height:46px; border-radius:13px; display:grid; place-items:center;
+  background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.14); backdrop-filter:blur(10px); }
+.auth-wordmark{ font-size:22px; font-weight:800; letter-spacing:-.03em; }
+
+.auth-hero-mid{ flex:1; display:flex; flex-direction:column; justify-content:center; gap:20px; }
+.auth-headline{ font-size:44px; font-weight:800; letter-spacing:-.04em; line-height:1.05; max-width:11ch; }
+.auth-subtitle{ font-size:15.5px; line-height:1.55; color:rgba(255,255,255,.62); max-width:42ch; }
+
+/* floating chat-preview cluster */
+.auth-cluster{ display:flex; flex-direction:column; gap:10px; margin-top:6px; max-width:340px; animation:lmFloat 7s ease-in-out infinite; }
+.auth-cluster .pv{ display:flex; align-items:flex-end; gap:8px; }
+.auth-cluster .pv.out{ justify-content:flex-end; }
+.auth-cluster .pv-av{ width:30px; height:30px; border-radius:50%; background:linear-gradient(135deg,#6E5DD6,#3A2E7A); flex:0 0 auto; }
+.auth-bubble{ padding:8px 12px 6px; border-radius:16px 16px 16px 5px; font-size:13.5px; max-width:230px; }
+.auth-bubble.in{ background:rgba(255,255,255,.92); color:#121214; }
+.auth-bubble.out{ background:rgba(255,255,255,.12); color:#fff; border:1px solid rgba(255,255,255,.14); border-radius:16px 16px 5px 16px; }
+.auth-bubble .t{ font-size:10.5px; opacity:.55; margin-top:2px; display:flex; gap:4px; align-items:center; justify-content:flex-end; }
+
+/* feature tiles */
+.auth-features{ display:flex; flex-direction:column; gap:12px; }
+.auth-feature{ display:flex; align-items:center; gap:14px; }
+.auth-feature .tile{ width:46px; height:46px; flex:0 0 auto; border-radius:13px; display:grid; place-items:center;
+  background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); }
+.auth-feature .ft-title{ font-size:14.5px; font-weight:650; }
+.auth-feature .ft-desc{ font-size:12.5px; color:rgba(255,255,255,.55); }
+
+/* mobile brand band extras */
+.auth-mascot{ position:absolute; right:18px; bottom:-6px; opacity:.9; }
+
+/* ---------- right form panel ---------- */
+.auth-form{ flex:1; min-width:0; background:var(--surface-2); display:grid; place-items:center; padding:32px 20px; overflow:auto; }
+.auth-card{
+  width:min(400px,100%); background:var(--glass); backdrop-filter:blur(30px) saturate(1.5); -webkit-backdrop-filter:blur(30px) saturate(1.5);
+  border:1px solid var(--hairline); border-radius:24px; box-shadow:var(--shadow); padding:38px 36px;
+  animation:lmScreenIn .28s cubic-bezier(.2,.7,.2,1) both;
+}
+.auth-card h1{ font-size:24px; font-weight:800; letter-spacing:-.03em; }
+.auth-card .auth-card-sub{ font-size:14px; color:var(--text-2); margin-top:4px; }
+
+/* segmented Log in / Create account with sliding pill */
+.auth-seg{ position:relative; display:flex; background:var(--surface-2); border:1px solid var(--hairline); border-radius:12px; padding:4px; margin:20px 0 18px; }
+.auth-seg .pill{ position:absolute; top:4px; bottom:4px; left:4px; width:calc(50% - 4px); background:var(--surface); border-radius:9px; box-shadow:var(--shadow-sm); transition:transform .26s cubic-bezier(.2,.8,.2,1); }
+.auth-seg.register .pill{ transform:translateX(100%); }
+.auth-seg button{ position:relative; z-index:1; flex:1; border:none; background:transparent; color:var(--text-2); font-size:13.5px; font-weight:650; padding:9px 0; }
+.auth-seg button.on{ color:var(--text); }
+
+/* fields */
+.auth-fields{ display:flex; flex-direction:column; gap:13px; }
+.auth-fields.swap{ animation:lmFadeIn .26s ease both; }
+.auth-field{ position:relative; }
+.auth-field > label{ display:block; font-size:12px; font-weight:600; color:var(--text-2); margin:0 0 6px 2px; }
+.auth-inp{ width:100%; height:50px; border-radius:12px; background:var(--surface-2); border:1px solid var(--hairline); padding:0 14px; font-size:15px; color:var(--text); outline:none; transition:border-color .16s ease, box-shadow .16s ease; }
+.auth-inp.has-prefix{ padding-left:30px; }
+.auth-inp.has-suffix{ padding-right:44px; }
+.auth-inp::placeholder{ color:var(--text-2); }
+.auth-inp:focus{ border-color:var(--accent); box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent); }
+.auth-prefix{ position:absolute; left:13px; top:38px; color:var(--text-2); font-size:15px; pointer-events:none; }
+.auth-suffix{ position:absolute; right:8px; top:30px; width:34px; height:34px; border:none; background:transparent; color:var(--text-2); display:grid; place-items:center; border-radius:9px; }
+.auth-suffix:hover{ background:var(--surface); color:var(--text); }
+.auth-hint{ font-size:11.5px; margin:6px 2px 0; color:var(--text-2); display:flex; align-items:center; gap:5px; }
+.auth-hint.ok{ color:var(--success); }
+.auth-row-between{ display:flex; align-items:center; justify-content:space-between; margin:0 2px 6px; }
+.auth-forgot{ font-size:12.5px; color:var(--accent); background:none; border:none; padding:0; font-weight:600; }
+
+/* password strength meter */
+.auth-strength{ display:flex; gap:5px; margin:8px 2px 0; }
+.auth-strength .seg{ flex:1; height:4px; border-radius:3px; background:var(--hairline); transition:background .2s ease; }
+.auth-strength-label{ font-size:11.5px; margin:5px 2px 0; color:var(--text-2); }
+
+.auth-submit{ width:100%; height:50px; margin-top:20px; border-radius:14px; border:none; background:var(--accent); color:var(--on-accent);
+  font-size:15.5px; font-weight:700; box-shadow:inset 0 1px 0 rgba(255,255,255,.24), inset 0 -2px 3px rgba(0,0,0,.14), 0 6px 16px -6px rgba(0,0,0,.34); transition:transform .16s ease; }
+.auth-submit:active{ transform:scale(.96); }
+.auth-submit:disabled{ opacity:.55; }
+.auth-error{ color:var(--danger); font-size:13px; text-align:center; margin-top:14px; }
+.auth-switch{ text-align:center; font-size:13.5px; color:var(--text-2); margin-top:18px; }
+.auth-switch button{ color:var(--accent); background:none; border:none; font-weight:650; font-size:13.5px; padding:0; }
+
+/* ---------- responsive: mobile stacked ---------- */
+.auth-hero .mobile-band-only{ display:none; }
+@media (max-width: 900px){
+  .auth-root{ flex-direction:column; }
+  .auth-hero{ flex:0 0 auto; border-radius:0 0 28px 28px; }
+  .auth-hero-content{ padding:28px 24px 34px; gap:14px; min-height:auto; }
+  .auth-hero-mid{ flex:0 0 auto; justify-content:flex-start; gap:10px; }
+  .auth-headline{ font-size:29px; max-width:16ch; }
+  .auth-subtitle, .auth-cluster, .auth-features, .auth-hero .desktop-hero-only{ display:none; }
+  .auth-hero .mobile-band-only{ display:block; }
+  .auth-form{ padding:22px 16px 40px; align-items:start; }
+  .auth-card{ padding:28px 22px; border-radius:20px; }
+}
+@media (min-width: 901px){
+  .auth-hero .mobile-band-only{ display:none; }
+}
