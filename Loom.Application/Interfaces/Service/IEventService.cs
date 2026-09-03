@@ -10,4 +10,5 @@ public interface IEventService
     Task<List<EventResponseDto>> GetMyCalendar(int userId, CancellationToken ct);
     Task<EventResponseDto> GetEvent(int userId, int eventId, CancellationToken ct);
     Task<List<EventResponseDto>> GetChatEvents(int userId, int chatId, CancellationToken ct);
+    Task ShareToChat(int userId, int eventId, int chatId, CancellationToken ct);
 }

@@ -6,7 +6,7 @@ import { useChat } from '../store/chat'
 import { mediaApi, messagesApi } from '../lib/api'
 import { toast } from '../ui/toast'
 import { LOOMI_POSES, STAR_POSES } from '../assets/loom'
-import { CreateEventModal } from '../components/CreateEventModal'
+import { EventAttachModal } from '../components/EventAttachModal'
 import type { Message } from '../lib/types'
 
 const QUICK_REACTIONS = ['❤️', '👍', '🔥', '😂', '😮']
@@ -40,7 +40,6 @@ export function Composer({ chatId, replyTo, onCancelReply, editing, onCancelEdit
   const send = useChat((s) => s.send)
   const edit = useChat((s) => s.edit)
   const ingest = useChat((s) => s.ingestMessage)
-  const upsertEvent = useChat((s) => s.upsertEvent)
   const sendTyping = useChat((s) => s.sendTyping)
 
   useEffect(() => {
@@ -157,7 +156,7 @@ export function Composer({ chatId, replyTo, onCancelReply, editing, onCancelEdit
       )}
 
       {eventOpen && (
-        <CreateEventModal chatId={chatId} title="Share an event" onClose={() => setEventOpen(false)} onCreated={(ev) => upsertEvent(ev)} />
+        <EventAttachModal chatId={chatId} onClose={() => setEventOpen(false)} />
       )}
     </>
   )

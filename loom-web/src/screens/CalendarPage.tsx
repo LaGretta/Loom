@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Plus, Users } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Users, Send } from 'lucide-react'
 import { eventsApi } from '../lib/api'
 import { CenterSpinner } from '../ui/primitives'
 import { CreateEventModal } from '../components/CreateEventModal'
+import { ShareToChatModal } from '../components/ShareToChatModal'
 import type { LoomEvent } from '../lib/types'
 
 const WD = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -100,26 +101,34 @@ export function CalendarPage() {
 
 function EventRow({ e, big }: { e: LoomEvent; big?: boolean }) {
   const navigate = useNavigate()
+  const [shareOpen, setShareOpen] = useState(false)
   const d = new Date(e.eventDateTime)
   const clickable = !!e.chatId
   return (
-    <button className="list-row" onClick={() => { if (e.chatId) navigate(`/chat/${e.chatId}`) }}
-      style={{ border: '1px solid var(--hairline)', borderRadius: 14, marginBottom: 8, width: '100%', cursor: clickable ? 'pointer' : 'default' }}>
-      <div style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--accent)', color: 'var(--on-accent)', display: 'grid', placeItems: 'center', flex: '0 0 auto' }}>
-        <div style={{ textAlign: 'center', lineHeight: 1 }}>
-          <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase' }}>{d.toLocaleDateString([], { month: 'short' })}</div>
-          <div style={{ fontSize: 17, fontWeight: 800 }}>{d.getDate()}</div>
+    <>
+      <div className="list-row" onClick={() => { if (e.chatId) navigate(`/chat/${e.chatId}`) }}
+        style={{ border: '1px solid var(--hairline)', borderRadius: 14, marginBottom: 8, cursor: clickable ? 'pointer' : 'default' }}>
+        <div style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--accent)', color: 'var(--on-accent)', display: 'grid', placeItems: 'center', flex: '0 0 auto' }}>
+          <div style={{ textAlign: 'center', lineHeight: 1 }}>
+            <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase' }}>{d.toLocaleDateString([], { month: 'short' })}</div>
+            <div style={{ fontSize: 17, fontWeight: 800 }}>{d.getDate()}</div>
+          </div>
         </div>
-      </div>
-      <div className="grow" style={{ textAlign: 'left' }}>
-        <div className="lr-title" style={{ fontSize: big ? 15 : 14.5 }}>{e.title}</div>
-        <div className="lr-sub" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          {d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          {e.goingCount > 0 && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><Users size={12} /> {e.goingCount}</span>}
-          {e.chatId && <span>· shared</span>}
+        <div className="grow" style={{ textAlign: 'left', minWidth: 0 }}>
+          <div className="lr-title ellipsis" style={{ fontSize: big ? 15 : 14.5 }}>{e.title}</div>
+          <div className="lr-sub" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            {e.goingCount > 0 && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><Users size={12} /> {e.goingCount}</span>}
+            {e.chatId && <span>· shared</span>}
+          </div>
         </div>
+        <button title="Share to a chat" onClick={(ev) => { ev.stopPropagation(); setShareOpen(true) }}
+          style={{ flex: '0 0 auto', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 13px', borderRadius: 11, border: '1px solid var(--accent)', background: 'color-mix(in srgb, var(--accent) 12%, transparent)', color: 'var(--accent)', fontSize: 12.5, fontWeight: 700 }}>
+          <Send size={15} /> Share
+        </button>
       </div>
-    </button>
+      {shareOpen && <ShareToChatModal event={e} onClose={() => setShareOpen(false)} />}
+    </>
   )
 }
 

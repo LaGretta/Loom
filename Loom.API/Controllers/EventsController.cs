@@ -38,4 +38,11 @@ public class EventsController : BaseController
     [HttpGet("chat/{chatId}")]
     public async Task<IActionResult> ChatEvents(int chatId, CancellationToken ct) =>
         Ok(await _eventService.GetChatEvents(UserId, chatId, ct));
+    
+    [HttpPost("{id}/share")]
+    public async Task<IActionResult> Share(int id, [FromBody] ShareEventDto dto, CancellationToken ct)
+    {
+        await _eventService.ShareToChat(UserId, id, dto.ChatId, ct);
+        return NoContent();
+    }
 }

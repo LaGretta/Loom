@@ -19,5 +19,6 @@ public class Event
     public DateTime CreatedAt { get; set; }
 
     public List<EventRsvp> Rsvps { get; set; } = new();
+    public List<EventShare> Shares { get; set; } = new();
     public List<CalendarEntry> CalendarEntries { get; set; } = new();
 }

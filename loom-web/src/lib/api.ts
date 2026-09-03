@@ -100,6 +100,7 @@ export const eventsApi = {
   rsvp: (eventId: number, status: RsvpStatus) =>
     http.post<any>('/api/events/rsvp', { eventId, status: RsvpStatusE.ord(status) }).then(normEvent),
   addToCalendar: (id: number) => http.post<void>(`/api/events/${id}/add-to-calendar`),
+  share: (id: number, chatId: number) => http.post<void>(`/api/events/${id}/share`, { chatId }),
 }
 
 /* ---------------- Media ---------------- */

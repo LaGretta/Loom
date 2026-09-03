@@ -18,20 +18,19 @@ public class GiftService : IGiftService
     private readonly IStarRepository _starRepository;
     private readonly IUserRepository _userRepository;
 
-
-    public GiftService(
-        IMapper mapper
-        , IUnitOfWork unitOfWork
-        , IGiftRepository giftRepository
+    public GiftService(IUserRepository userRepository
         , IStarRepository starRepository
-        , IUserRepository userRepository)
+        , IGiftRepository giftRepository
+        , IUnitOfWork unitOfWork
+        , IMapper mapper)
     {
-        _mapper = mapper;
-        _unitOfWork = unitOfWork;
-        _giftRepository = giftRepository;
-        _starRepository = starRepository;
         _userRepository = userRepository;
+        _starRepository = starRepository;
+        _giftRepository = giftRepository;
+        _unitOfWork = unitOfWork;
+        _mapper = mapper;
     }
+
 
     public async Task<List<GiftDto>> GetCatalog(CancellationToken ct)
     {

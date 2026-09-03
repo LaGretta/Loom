@@ -48,7 +48,14 @@ public class EventRepository : IEventRepository
             .Include(e => e.CreatedBy)
             .Include(e => e.Rsvps).ThenInclude(r => r.User)
             .Include(e => e.CalendarEntries)
-            .Where(e => e.ChatId == chatId)
+            .Include(e => e.Shares)
+            .Where(e => e.ChatId == chatId || e.Shares.Any(s => s.ChatId == chatId))
             .OrderBy(e => e.CreatedAt)
             .ToListAsync(ct);
+    
+    public async Task AddShareAsync(EventShare share, CancellationToken ct) =>
+        await _context.EventShares.AddAsync(share, ct);
+
+    public async Task<bool> IsSharedAsync(int eventId, int chatId, CancellationToken ct) =>
+        await _context.EventShares.AnyAsync(s => s.EventId == eventId && s.ChatId == chatId, ct);
 }

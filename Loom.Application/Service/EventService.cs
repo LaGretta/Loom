@@ -12,15 +12,18 @@ public class EventService : IEventService
     private readonly IEventRepository _eventRepo;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IChatNotifier _notifier;
+    private readonly IChatRepository _chatRepo;
 
     public EventService(
         IEventRepository eventRepo
         , IUnitOfWork unitOfWork
-        , IChatNotifier notifier)
+        , IChatNotifier notifier
+        , IChatRepository chatRepo)
     {
         _eventRepo = eventRepo;
         _unitOfWork = unitOfWork;
         _notifier = notifier;
+        _chatRepo = chatRepo;
     }
 
     public async Task<EventResponseDto> CreateEvent(int userId, CreateEventDto dto, CancellationToken ct)
@@ -107,6 +110,29 @@ public class EventService : IEventService
     {
         var events = await _eventRepo.GetChatEventsAsync(chatId, ct);
         return events.Select(ev => MapDto(userId, ev)).ToList();
+    }
+    public async Task ShareToChat(int userId, int eventId, int chatId, CancellationToken ct)
+    {
+        if (!await _chatRepo.IsMemberAsync(chatId, userId, ct))
+            throw new UnauthorizedAccessException("Not a member of this chat");
+
+        var ev = await _eventRepo.GetByIdAsync(eventId, ct);
+        if (ev == null)
+            throw new KeyNotFoundException("Event not found");
+        if (await _eventRepo.IsSharedAsync(eventId, chatId, ct))
+            return;
+
+        await _eventRepo.AddShareAsync(new EventShare
+        {
+            EventId = eventId,
+            ChatId = chatId,
+            SharedById = userId,
+            SharedAt = DateTime.UtcNow
+        }, ct);
+        await _unitOfWork.SaveChangesAsync(ct);
+
+        var dto = MapDto(userId, ev);
+        await _notifier.EventShared(chatId, dto);
     }
     
     private static EventResponseDto MapDto(int userId, Event ev) => new()

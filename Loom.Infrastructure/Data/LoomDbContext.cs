@@ -28,6 +28,7 @@ public class LoomDbContext : DbContext
     public DbSet<Event> Events { get; set; }
     public DbSet<EventRsvp> EventRsvps { get; set; }
     public DbSet<CalendarEntry> CalendarEntries { get; set; }
+    public DbSet<EventShare> EventShares { get; set; }
 
     protected override void OnModelCreating(ModelBuilder mb)
     {
@@ -129,6 +130,12 @@ public class LoomDbContext : DbContext
                 .HasForeignKey(x => x.EventId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.User).WithMany()
                 .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+        });
+        mb.Entity<EventShare>(e =>
+        {
+            e.HasIndex(x => new { x.EventId, x.ChatId }).IsUnique();   
+            e.HasOne(x => x.Event).WithMany(ev => ev.Shares)
+                .HasForeignKey(x => x.EventId).OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

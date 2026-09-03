@@ -42,3 +42,7 @@ public class EventAttendeeDto
     public string? AvatarUrl { get; set; }
     public RsvpStatus Status { get; set; }
 }
+public class ShareEventDto
+{
+    public int ChatId { get; set; }
+}

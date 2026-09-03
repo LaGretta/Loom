@@ -13,4 +13,6 @@ public interface IEventRepository
     Task<CalendarEntry?> GetCalendarEntryAsync(int userId, int eventId, CancellationToken ct);
     Task AddCalendarEntryAsync(CalendarEntry entry, CancellationToken ct);
     Task<List<Event>> GetChatEventsAsync(int chatId, CancellationToken ct);
+    Task AddShareAsync(EventShare share, CancellationToken ct);
+    Task<bool> IsSharedAsync(int eventId, int chatId, CancellationToken ct);
 }
