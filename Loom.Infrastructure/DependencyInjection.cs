@@ -2,6 +2,7 @@
 using Loom.Application.Interfaces.Repository;
 using Loom.Application.Interfaces.Security;
 using Loom.Infrastructure.Data;
+using Loom.Infrastructure.Media;
 using Loom.Infrastructure.Repository;
 using Loom.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
@@ -23,6 +24,8 @@ public static class DependencyInjection
         services.AddScoped<IMessageRepository, MessageRepository>();
         services.AddScoped<IStarRepository, StarRepository>();
         services.AddScoped<IGiftRepository, GiftRepository>();
+        
+        services.AddScoped<IMediaStorage, CloudinaryStorage>();
 
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         
