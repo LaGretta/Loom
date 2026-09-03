@@ -14,4 +14,5 @@ public interface IMessageRepository
 
     Task AddReadReceiptAsync(MessageReadReceipt receipt, CancellationToken ct);
     Task<bool> HasReadReceiptAsync(int messageId, int userId, CancellationToken ct);
+    Task<Message?> GetLastMessageAsync(int chatId, CancellationToken ct);
 }

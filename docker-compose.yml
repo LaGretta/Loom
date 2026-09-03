@@ -1,0 +1,53 @@
+# One-command stack for Loom: Postgres + ASP.NET Core API + React (nginx) frontend.
+# Usage:  docker compose up --build
+# Frontend:  http://localhost:3000    API (direct):  http://localhost:5036
+# NOTE: Only Docker files were added — no backend source code was changed.
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: loom-db
+    environment:
+      POSTGRES_DB: LoomDb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: loom123
+    ports:
+      # Host 5434 to avoid clashing with a dev Postgres that may already use 5433.
+      # (Internal service-to-service uses db:5432 and is unaffected.)
+      - "5434:5432"
+    volumes:
+      - loom-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d LoomDb"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: loom-api
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_URLS: "http://+:8080"
+      # Override only the connection string to point at the db service (internal port 5432).
+      # Jwt + Cloudinary values come from the image's appsettings.json (unchanged).
+      ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=LoomDb;Username=postgres;Password=loom123"
+    ports:
+      - "5036:8080"
+
+  web:
+    build:
+      context: ./loom-web
+      dockerfile: Dockerfile
+    container_name: loom-web
+    depends_on:
+      - api
+    ports:
+      - "3000:80"
+
+volumes:
+  loom-pgdata:

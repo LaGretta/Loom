@@ -14,15 +14,18 @@ public class ChatService : IChatService
     private readonly IChatRepository _chatRepo;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
+    private readonly IMessageRepository _messageRepo;
 
     public ChatService(
         IChatRepository chatRepo
         , IUnitOfWork unitOfWork
-        , IMapper mapper)
+        , IMapper mapper
+        , IMessageRepository messageRepo)
     {
         _chatRepo = chatRepo;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
+        _messageRepo = messageRepo;
     }
 
     public async Task<ChatResponseDto> CreateChat(int userId, CreateChatDto dto, CancellationToken ct)
@@ -65,12 +68,35 @@ public class ChatService : IChatService
     public async Task<List<ChatResponseDto>> GetMyChats(int userId, CancellationToken ct)
     {
         var chats = await _chatRepo.GetMyChatsAsync(userId, ct);
-        return chats.Select(c =>
+        var result = new List<ChatResponseDto>();
+
+        foreach (var c in chats)
         {
             var dto = _mapper.Map<ChatResponseDto>(c);
             dto.MembersCount = c.Members.Count;
-            return dto;
-        }).ToList();
+            var last = await _messageRepo.GetLastMessageAsync(c.Id, ct);
+            if (last != null)
+            {
+                dto.LastMessage = new MessagePreviewDto
+                {
+                    SenderName = last.Sender.DisplayName,
+                    Content = last.Content,
+                    Type = last.Type,
+                    SentAt = last.SentAt
+                };
+            }
+            if (c.Type == ChatType.Direct)
+            {
+                var other = c.Members.FirstOrDefault(m => m.UserId != userId);
+                if (other?.User != null)
+                {
+                    dto.Title = other.User.DisplayName;
+                    dto.AvatarUrl = other.User.AvatarUrl;
+                }
+            }
+            result.Add(dto);
+        }
+        return result;
     }
     public async Task<ChatResponseDto> GetChatById(int userId, int chatId, CancellationToken ct)
     {

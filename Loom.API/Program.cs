@@ -12,9 +12,12 @@ using Microsoft.IdentityModel.Tokens;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers(options =>
-{
-    options.Filters.Add<Loom.API.Filters.ValidationFilter>();
-});
+    {
+        options.Filters.Add<Loom.API.Filters.ValidationFilter>();
+    })
+    .AddJsonOptions(o =>
+        o.JsonSerializerOptions.Converters.Add(
+            new System.Text.Json.Serialization.JsonStringEnumConverter()));
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

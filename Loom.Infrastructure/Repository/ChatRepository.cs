@@ -14,12 +14,16 @@ public class ChatRepository : IChatRepository
         await _context.Chats.AddAsync(chat, ct);
     public async Task<Chat?> GetByIdAsync(int chatId, CancellationToken ct) =>
         await _context.Chats.Include(c => c.Members)
+            .ThenInclude(m => m.User)
             .FirstOrDefaultAsync(c => c.Id == chatId, ct);
+   
     public async Task<List<Chat>> GetMyChatsAsync(int userId, CancellationToken ct) =>
         await _context.Chats
             .Include(c => c.Members)
+            .ThenInclude(m => m.User)
             .Where(c => c.Members.Any(m => m.UserId == userId))
             .ToListAsync(ct);
+    
     public async Task AddMemberAsync(ChatMember chatMember, CancellationToken ct) =>
         await _context.ChatMembers.AddAsync(chatMember, ct);
     public async Task<ChatMember?> GetMemberAsync(int chatId, int userId, CancellationToken ct) =>

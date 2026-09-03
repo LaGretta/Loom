@@ -46,6 +46,7 @@ public class UserService : IUserService
             throw new KeyNotFoundException("User not found");
         user.DisplayName = dto.DisplayName;
         user.Bio = dto.Bio;
+        user.AvatarUrl = dto.AvatarUrl; 
         await _unitOfWork.SaveChangesAsync(ct);
         return _mapper.Map<UserProfileDto>(user);
     }

@@ -1,0 +1,27 @@
+# syntax=docker/dockerfile:1
+# Builds Loom.API (.NET 10). Created for containerization only — no backend source is modified.
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+
+# Copy project files first for restore-layer caching
+COPY Loom.API/Loom.API.csproj                 Loom.API/
+COPY Loom.Application/Loom.Application.csproj  Loom.Application/
+COPY Loom.Domain/Loom.Domain.csproj           Loom.Domain/
+COPY Loom.Infrastructure/Loom.Infrastructure.csproj Loom.Infrastructure/
+RUN dotnet restore Loom.API/Loom.API.csproj
+
+# Copy the rest and publish
+COPY Loom.API/            Loom.API/
+COPY Loom.Application/    Loom.Application/
+COPY Loom.Domain/         Loom.Domain/
+COPY Loom.Infrastructure/ Loom.Infrastructure/
+RUN dotnet publish Loom.API/Loom.API.csproj -c Release -o /app /p:UseAppHost=false
+
+# ---- runtime ----
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+WORKDIR /app
+COPY --from=build /app ./
+ENV ASPNETCORE_URLS=http://+:8080
+ENV ASPNETCORE_ENVIRONMENT=Production
+EXPOSE 8080
+ENTRYPOINT ["dotnet", "Loom.API.dll"]

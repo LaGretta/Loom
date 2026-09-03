@@ -109,7 +109,7 @@ public class AuthService : IAuthService
         await _unitOfWork.SaveChangesAsync(ct);
 
         var response = _mapper.Map<AuthResponseDto>(user);
-        response.RefreshToken = accessToken;
+        response.AccessToken = accessToken;
         response.RefreshToken = refreshToken;
         return response;
     }

@@ -85,7 +85,9 @@ public class MessageService : IMessageService
         message.EditedAt = DateTime.UtcNow;
         await _unitOfWork.SaveChangesAsync(ct);
 
-        return _mapper.Map<MessageResponseDto>(message);
+        var response = _mapper.Map<MessageResponseDto>(message);
+        await _notifier.MessageEdited(message.ChatId, response);
+        return response;
     }
     public async Task DeleteMessage(int userId, int messageId, CancellationToken ct)
     {
@@ -94,14 +96,18 @@ public class MessageService : IMessageService
             throw new KeyNotFoundException("Message not found");
         if (message.SenderId != userId)
             throw new UnauthorizedAccessException("Can only delete your own messages");
-
-        message.IsDeleted = true;  
+        
+        message.IsDeleted = true;
         await _unitOfWork.SaveChangesAsync(ct);
+        await _notifier.MessageDeleted(message.ChatId, messageId);
     }
     public async Task MarkAsRead(int userId, int messageId, CancellationToken ct)
     {
         if (await _messageRepo.HasReadReceiptAsync(messageId, userId, ct))
-            return; 
+            return;
+
+        var message = await _messageRepo.GetByIdAsync(messageId, ct);
+        if (message == null) return;
 
         await _messageRepo.AddReadReceiptAsync(new MessageReadReceipt
         {
@@ -110,25 +116,28 @@ public class MessageService : IMessageService
             ReadAt = DateTime.UtcNow
         }, ct);
         await _unitOfWork.SaveChangesAsync(ct);
+
+        await _notifier.MessageRead(message.ChatId, messageId, userId);
     }
+    
     public async Task ToggleReaction(int userId, ToggleReactionDto dto, CancellationToken ct)
     {
         var existing = await _messageRepo.GetReactionAsync(dto.MessageId, userId, dto.Emoji, ct);
 
         if (existing != null)
-        {
-            _messageRepo.RemoveReaction(existing); 
-        }
+            _messageRepo.RemoveReaction(existing);
         else
-        {
             await _messageRepo.AddReactionAsync(new MessageReaction
             {
                 MessageId = dto.MessageId,
                 UserId = userId,
                 Emoji = dto.Emoji,
                 CreatedAt = DateTime.UtcNow
-            }, ct); 
-        }
+            }, ct);
         await _unitOfWork.SaveChangesAsync(ct);
+
+        var message = await _messageRepo.GetByIdAsync(dto.MessageId, ct);
+        if (message != null)
+            await _notifier.ReactionUpdated(message.ChatId, dto.MessageId);
     }
 }

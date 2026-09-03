@@ -1,0 +1,96 @@
+/* =========================================================================
+   Loom — global styles, keyframes (§5 verbatim), wallpapers, primitives.
+   ========================================================================= */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body, #root { height: 100%; }
+
+body{
+  margin:0;
+  font-family:'Inter Tight','Inter',system-ui,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  letter-spacing:-0.011em;
+  font-feature-settings:'cv05' 1,'cv11' 1,'ss03' 1;
+  text-rendering:optimizeLegibility;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+  overscroll-behavior:none;
+}
+
+h1,h2,h3{ letter-spacing:-0.022em; margin:0; }
+button{ font-family:inherit; letter-spacing:inherit; cursor:pointer; }
+input,textarea{ font-family:inherit; letter-spacing:inherit; }
+a{ color:var(--link); text-decoration:none; }
+
+::-webkit-scrollbar{ width:9px; height:9px; }
+::-webkit-scrollbar-thumb{ background:var(--hairline); border-radius:8px; border:2px solid transparent; background-clip:padding-box; }
+::-webkit-scrollbar-thumb:hover{ background:var(--text-2); background-clip:padding-box; }
+::-webkit-scrollbar-track{ background:transparent; }
+
+:focus-visible{ outline:2px solid var(--ring); outline-offset:1px; }
+
+.frost{
+  background:var(--glass);
+  backdrop-filter:blur(24px) saturate(1.4);
+  -webkit-backdrop-filter:blur(24px) saturate(1.4);
+}
+.frost-strong{
+  background:var(--glass);
+  backdrop-filter:blur(30px) saturate(1.5);
+  -webkit-backdrop-filter:blur(30px) saturate(1.5);
+}
+
+.hairline{ border:1px solid var(--hairline); }
+
+/* ---------------- keyframes (verbatim §5) ---------------- */
+@keyframes lmScreenIn{ from{ transform:translateX(28px); opacity:0 } to{ transform:translateX(0); opacity:1 } }
+@keyframes lmFadeIn{ from{ opacity:0; transform:translateY(6px) } to{ opacity:1; transform:translateY(0) } }
+@keyframes lmSheetIn{ from{ transform:translateY(100%) } to{ transform:translateY(0) } }
+@keyframes lmScrimIn{ from{ opacity:0 } to{ opacity:1 } }
+@keyframes lmPop{ 0%{ transform:scale(.94) translateY(8px); opacity:0 } 60%{ transform:scale(1.01) translateY(0) } 100%{ transform:scale(1) translateY(0); opacity:1 } }
+@keyframes lmRowIn{ from{ opacity:0; transform:translateY(10px) } to{ opacity:1; transform:translateY(0) } }
+@keyframes lmMenuIn{ from{ opacity:0; transform:scale(.9) } to{ opacity:1; transform:scale(1) } }
+@keyframes lmDot{ 0%,60%,100%{ transform:translateY(0); opacity:.4 } 30%{ transform:translateY(-4px); opacity:1 } }
+@keyframes lmSpin{ to{ transform:rotate(360deg) } }
+@keyframes lmFloat{ 0%,100%{ transform:translateY(0) rotate(-4deg) } 50%{ transform:translateY(-8px) rotate(4deg) } }
+@keyframes lmBob{ 0%,100%{ transform:translateY(0) } 50%{ transform:translateY(-5px) } }
+@keyframes lmGem{ 0%{ transform:rotateY(0) } 100%{ transform:rotateY(360deg) } }
+@keyframes lmShine{ 0%{ background-position:-140% 0 } 100%{ background-position:240% 0 } }
+@keyframes lmPulse{ 0%,100%{ box-shadow:0 0 0 0 rgba(30,30,36,.4) } 50%{ box-shadow:0 0 0 8px rgba(30,30,36,0) } }
+@keyframes lmAurora{ 0%{ transform:translate(0,0) scale(1) } 33%{ transform:translate(6%,-4%) scale(1.15) } 66%{ transform:translate(-5%,5%) scale(1.05) } 100%{ transform:translate(0,0) scale(1) } }
+@keyframes lmTwinkle{ 0%,100%{ opacity:.35 } 50%{ opacity:.9 } }
+@keyframes lmSilk{ 0%{ background-position:0 0 } 100%{ background-position:0 -200px } }
+
+.anim-screen{ animation:lmScreenIn .28s cubic-bezier(.2,.7,.2,1) both; }
+.anim-fade{ animation:lmFadeIn .3s ease both; }
+.anim-pop{ animation:lmPop .4s ease backwards; }
+.anim-menu{ animation:lmMenuIn .22s cubic-bezier(.2,.8,.2,1) both; }
+.anim-sheet{ animation:lmSheetIn .3s cubic-bezier(.2,.8,.2,1) both; }
+.anim-scrim{ animation:lmScrimIn .22s ease both; }
+
+/* ---------------- living wallpapers (§5) ---------------- */
+.wp{ position:absolute; inset:0; z-index:0; overflow:hidden; pointer-events:none; }
+.wp-aurora .blob{ position:absolute; border-radius:50%; filter:blur(60px); opacity:.5; mix-blend-mode:screen; }
+[data-mode="light"] .wp-aurora .blob{ opacity:.32; }
+.wp-aurora .b1{ width:46%; height:46%; left:-6%; top:-8%; background:radial-gradient(circle,var(--accent),transparent 70%); animation:lmAurora 16s ease-in-out infinite; }
+.wp-aurora .b2{ width:52%; height:52%; right:-10%; top:10%; background:radial-gradient(circle,var(--accent-2),transparent 70%); animation:lmAurora 20s ease-in-out infinite; }
+.wp-aurora .b3{ width:44%; height:44%; left:20%; bottom:-14%; background:radial-gradient(circle,var(--blue),transparent 70%); animation:lmAurora 24s ease-in-out infinite; }
+
+.wp-shimmer .star{ position:absolute; width:2px; height:2px; border-radius:50%; background:var(--text); animation:lmTwinkle 3s ease-in-out infinite; }
+
+.wp-silk{ background:repeating-linear-gradient(135deg,var(--hairline) 0 1px,transparent 1px 14px),repeating-linear-gradient(45deg,var(--hairline) 0 1px,transparent 1px 14px); opacity:.5; background-size:200px 200px; animation:lmSilk 12s linear infinite; }
+
+.wp-dither{ background-image:radial-gradient(var(--text-2) 1px,transparent 1px); background-size:8px 8px; opacity:.14; animation:lmTwinkle 4s ease-in-out infinite; }
+
+/* ---------------- reduced motion ---------------- */
+@media (prefers-reduced-motion: reduce){
+  *{ animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important; }
+}
+
+/* ---------------- small helpers ---------------- */
+.ellipsis{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.row-in{ animation:lmRowIn .4s ease backwards; }
+.spin{ animation:lmSpin 1s linear infinite; }
+.sr-only{ position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0; }

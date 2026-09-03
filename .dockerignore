@@ -1,0 +1,10 @@
+**/bin
+**/obj
+**/node_modules
+**/dist
+loom-web/node_modules
+loom-web/dist
+.git
+.idea
+.vs
+**/*.user

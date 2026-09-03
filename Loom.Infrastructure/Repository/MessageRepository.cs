@@ -45,4 +45,10 @@ public class MessageRepository : IMessageRepository
 
     public async Task<bool> HasReadReceiptAsync(int messageId, int userId, CancellationToken ct) =>
         await _context.MessageReadReceipts.AnyAsync(r => r.MessageId == messageId && r.UserId == userId, ct);
+    public async Task<Message?> GetLastMessageAsync(int chatId, CancellationToken ct) =>
+        await _context.Messages
+            .Include(m => m.Sender)
+            .Where(m => m.ChatId == chatId && !m.IsDeleted)
+            .OrderByDescending(m => m.SentAt)
+            .FirstOrDefaultAsync(ct);
 }
