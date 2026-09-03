@@ -38,7 +38,7 @@ public class UserService : IUserService
         return _mapper.Map<UserProfileDto>(user);
     }
 
-    public async Task<UserProfileDto> UpdateProfile(int userid, UserProfileDto dto, CancellationToken ct)
+    public async Task<UserProfileDto> UpdateProfile(int userid, UpdateProfileDto  dto, CancellationToken ct)
     {
         var user = await _userRepository.GetByIdAsync(userid, ct);
         if (user == null)
