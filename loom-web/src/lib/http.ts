@@ -32,7 +32,8 @@ async function doRefresh(): Promise<boolean> {
     })
     if (!res.ok) return false
     const data = await res.json()
-    const access = data.token ?? data.accessToken
+    // Prefer accessToken; fall back to token. Use || so an empty-string token is skipped.
+    const access = data.accessToken || data.token
     const refresh = data.refreshToken
     if (!access || !refresh) return false
     tokenStore.setTokens(access, refresh)

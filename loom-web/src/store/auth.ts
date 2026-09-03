@@ -3,7 +3,7 @@ import { authApi, usersApi, logoutEverywhere } from '../lib/api'
 import { tokenStore } from '../lib/tokenStore'
 import { setAuthLostHandler } from '../lib/http'
 import { signalr } from '../lib/signalr'
-import type { UserProfile } from '../lib/types'
+import { pickAccessToken, type UserProfile } from '../lib/types'
 
 interface AuthState {
   me: UserProfile | null
@@ -39,7 +39,7 @@ export const useAuth = create<AuthState>((set, get) => ({
   login: async (email, password) => {
     set({ error: null })
     const res = await authApi.login({ email, password })
-    tokenStore.setTokens(res.token, res.refreshToken)
+    tokenStore.setTokens(pickAccessToken(res), res.refreshToken)
     tokenStore.setUser({ id: res.id, userName: res.userName, displayName: res.displayName, email: res.email })
     const me = await usersApi.me()
     set({ me, authed: true })
@@ -49,7 +49,7 @@ export const useAuth = create<AuthState>((set, get) => ({
   register: async (b) => {
     set({ error: null })
     const res = await authApi.register(b)
-    tokenStore.setTokens(res.token, res.refreshToken)
+    tokenStore.setTokens(pickAccessToken(res), res.refreshToken)
     tokenStore.setUser({ id: res.id, userName: res.userName, displayName: res.displayName, email: res.email })
     const me = await usersApi.me()
     set({ me, authed: true })

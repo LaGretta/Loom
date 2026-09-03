@@ -10,8 +10,17 @@ export interface AuthResponse {
   userName: string
   displayName: string
   email: string
-  token: string        // ⚠️ backend field is `token`, not `accessToken`
+  // ⚠️ Backend returns the real JWT in `accessToken`; the legacy `token` field is
+  // still present but EMPTY (""). Always read via pickAccessToken() below.
+  accessToken?: string
+  token?: string
   refreshToken: string
+}
+
+/** Pick the non-empty access token regardless of which field the backend uses.
+ *  Uses || (not ??) so an empty-string `token` correctly falls through to `accessToken`. */
+export function pickAccessToken(res: { accessToken?: string | null; token?: string | null }): string {
+  return res.accessToken || res.token || ''
 }
 
 /* ---------- Users ---------- */
