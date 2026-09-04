@@ -44,7 +44,8 @@
 
 /* ----------------- avatar ----------------- */
 .avatar{ position:relative; border-radius:50%; display:grid; place-items:center; color:#fff; font-weight:700; flex:0 0 auto; overflow:visible; user-select:none; }
-.avatar > img{ width:100%; height:100%; border-radius:50%; object-fit:cover; }
+/* absolute fill => always a square box, cropped to a circle regardless of the photo's aspect ratio */
+.avatar > img{ position:absolute; inset:0; width:100%; height:100%; border-radius:50%; object-fit:cover; display:block; }
 .avatar .dot{ position:absolute; right:0; bottom:0; border-radius:50%; background:var(--green); border:2.5px solid var(--surface); }
 .avatar-mono{ background:var(--accent-grad); }
 
@@ -271,15 +272,20 @@ textarea.input{ height:auto; padding:12px 14px; resize:vertical; min-height:80px
 .center-fill{ display:grid; place-items:center; height:100%; width:100%; }
 
 /* ----------------- mobile bottom nav ----------------- */
+/* Fixed bar pinned to the bottom edge (shown only on mobile via the media query below). */
 .bottom-nav{
-  position:absolute; left:12px; right:12px; bottom:calc(12px + env(safe-area-inset-bottom)); z-index:20;
-  display:flex; justify-content:space-around; align-items:center; padding:8px 6px;
-  border-radius:22px; border:1px solid var(--hairline); background:var(--glass);
-  backdrop-filter:blur(24px) saturate(1.4); -webkit-backdrop-filter:blur(24px) saturate(1.4); box-shadow:var(--shadow);
+  display:none;
+  position:fixed; left:0; right:0; bottom:0; z-index:50;
+  justify-content:space-around; align-items:stretch;
+  padding:6px 4px calc(6px + env(safe-area-inset-bottom));
+  background:var(--glass); border-top:1px solid var(--hairline);
+  backdrop-filter:blur(24px) saturate(1.4); -webkit-backdrop-filter:blur(24px) saturate(1.4);
 }
-.nav-item{ display:flex; flex-direction:column; align-items:center; gap:3px; border:none; background:transparent; color:var(--text-2); padding:4px 12px; border-radius:14px; }
+.nav-item{ flex:1 1 0; min-width:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; border:none; background:transparent; color:var(--text-2); padding:6px 2px; border-radius:12px; }
 .nav-item .nl{ font-size:10px; font-weight:600; }
 .nav-item.active{ color:var(--accent); }
+/* height reserved so scrolling content is never hidden behind the fixed bar */
+:root{ --bottomnav-h:60px; }
 
 /* mobile header */
 .m-head{ display:flex; align-items:center; gap:12px; padding:12px 16px 8px; }
@@ -314,6 +320,12 @@ textarea.input{ height:auto; padding:12px 14px; resize:vertical; min-height:80px
   .main-col.mobile-hidden{ display:none; }
   .col-resizer{ display:none; }
   .hide-on-mobile{ display:none !important; }
+  /* restore proper layout for flex elements that also carry .mobile-only
+     (the generic .mobile-only{display:initial} above would force inline) */
+  .bottom-nav{ display:flex; }
+  .m-head{ display:flex; }
+  /* reserve space so scrolling content is never hidden behind the fixed bottom bar */
+  .pane-body{ padding-bottom: calc(var(--bottomnav-h) + 12px + env(safe-area-inset-bottom)); }
 }
 @media (min-width: 901px){
   .mobile-shell-only{ display:none; }
