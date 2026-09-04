@@ -29,7 +29,7 @@ export function ProfileHub() {
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '22px 16px 8px', textAlign: 'center' }}>
             <Avatar name={me.displayName} id={me.id} src={me.avatarUrl} size={96} />
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 14 }}>
-              <span style={{ fontSize: 23, fontWeight: 800, letterSpacing: '-.02em' }}>{me.displayName}</span>
+              <span className={premium ? 'premium-name' : ''} style={{ fontSize: 23, fontWeight: 800, letterSpacing: '-.02em' }}>{me.displayName}</span>
               {premium && <CraftedObject id="s-gem" size={26} />}
             </div>
             <div className="muted" style={{ fontSize: 14, marginTop: 2 }}>@{me.userName}</div>

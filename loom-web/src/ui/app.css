@@ -298,6 +298,15 @@ textarea.input{ height:auto; padding:12px 14px; resize:vertical; min-height:80px
 .chip{ display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border-radius:11px; background:var(--surface-2); border:1px solid var(--hairline); font-size:13px; font-weight:600; }
 .chip.on{ background:var(--accent); color:var(--on-accent); border-color:var(--accent); }
 
+/* Loom Premium "gradient name" perk — animated shimmering display name */
+.premium-name{
+  background:linear-gradient(90deg,var(--accent),#7B6CF6,#C86DD7,var(--danger),#C86DD7,#7B6CF6,var(--accent));
+  background-size:250% auto;
+  -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; color:transparent;
+  animation:lmShine 5s linear infinite;
+}
+@media (prefers-reduced-motion: reduce){ .premium-name{ animation:none; } }
+
 /* utility */
 .hstack{ display:flex; align-items:center; gap:10px; }
 .vstack{ display:flex; flex-direction:column; }

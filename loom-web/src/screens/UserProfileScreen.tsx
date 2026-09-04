@@ -4,7 +4,7 @@ import { Overlay } from '../ui/Overlay'
 import { Avatar } from '../ui/Avatar'
 import { CraftedObject } from '../ui/CraftedObject'
 import { Switch, CenterSpinner } from '../ui/primitives'
-import { usersApi, chatsApi, giftsApi } from '../lib/api'
+import { usersApi, chatsApi } from '../lib/api'
 import { giftByName } from '../assets/loom'
 import { lastSeen } from '../ui/format'
 import { isOnline } from '../lib/enums'
@@ -30,7 +30,8 @@ export function UserProfileScreen() {
   useEffect(() => {
     setLoading(true)
     usersApi.byId(uid).then(setUser).catch(() => toast('Could not load profile')).finally(() => setLoading(false))
-    giftsApi.mine().then((all) => setGifts(all.filter((g) => g.receiverId === uid))).catch(() => {})
+    // This user's received gifts (works for any user, not just me).
+    usersApi.gifts(uid).then(setGifts).catch(() => setGifts([]))
   }, [uid])
 
   const openChat = async () => {
@@ -50,7 +51,7 @@ export function UserProfileScreen() {
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px 16px 6px', textAlign: 'center' }}>
         <Avatar name={user.displayName} id={user.id} src={user.avatarUrl} size={96} online={online} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 14 }}>
-          <span style={{ fontSize: 23, fontWeight: 800, letterSpacing: '-.02em' }}>{user.displayName}</span>
+          <span className={user.premiumTier === 'Premium' ? 'premium-name' : ''} style={{ fontSize: 23, fontWeight: 800, letterSpacing: '-.02em' }}>{user.displayName}</span>
           {user.premiumTier === 'Premium' && <CraftedObject id="s-gem" size={24} />}
         </div>
         <div className="muted" style={{ fontSize: 14, marginTop: 2 }}>@{user.userName}</div>

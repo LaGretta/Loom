@@ -75,6 +75,9 @@ export const useChat = create<ChatState>((set, get) => ({
     try {
       const chats = await chatsApi.list()
       set({ chats, chatsLoading: false })
+      // Join EVERY chat's realtime group so live events (new messages, unread bumps, and
+      // shared event cards via "EventShared") arrive even for chats that aren't open.
+      for (const c of chats) void signalr.joinChat(c.id)
     } catch (e: any) {
       set({ chatsLoading: false, chatsError: e?.message ?? 'Failed to load chats' })
     }
@@ -108,8 +111,9 @@ export const useChat = create<ChatState>((set, get) => ({
   },
 
   closeChat: (chatId) => {
+    // Stay in the chat's realtime group so we keep receiving its live updates
+    // (shared events, messages) while viewing other screens.
     if (get().activeChatId === chatId) set({ activeChatId: null })
-    void signalr.leaveChat(chatId)
   },
 
   loadMore: async (chatId) => {
@@ -311,12 +315,24 @@ export const useChat = create<ChatState>((set, get) => ({
   },
 
   upsertEvent: (ev) => {
-    if (ev.chatId == null) return
     set((s) => {
-      const list = s.events[ev.chatId!] ?? []
-      const exists = list.some((e) => e.id === ev.id)
-      const next = exists ? list.map((e) => (e.id === ev.id ? ev : e)) : [...list, ev]
-      return { events: { ...s.events, [ev.chatId!]: next } }
+      const events = { ...s.events }
+      let changed = false
+      // Keep the card fresh in every list that already shows it (RSVP/EventUpdated).
+      for (const key of Object.keys(events)) {
+        const cid = Number(key)
+        if (events[cid].some((e) => e.id === ev.id)) {
+          events[cid] = events[cid].map((e) => (e.id === ev.id ? { ...e, ...ev } : e))
+          changed = true
+        }
+      }
+      // Ensure it exists in its target chat (EventShared carries the target chatId;
+      // in-chat created events carry their own chatId) — append if not there yet.
+      if (ev.chatId != null) {
+        const list = events[ev.chatId] ?? []
+        if (!list.some((e) => e.id === ev.id)) { events[ev.chatId] = [...list, ev]; changed = true }
+      }
+      return changed ? { events } : {}
     })
   },
 
@@ -334,6 +350,8 @@ export function wireRealtime() {
     onMessageDeleted: (id) => useChat.getState().applyDeleted(id),
     onReactionUpdated: (id) => void useChat.getState().applyReactionUpdate(id),
     onMessageRead: (id, userId) => useChat.getState().applyReadReceipt(id, userId),
+    // EventShared payload.chatId is the TARGET chat → upsertEvent places the card in the
+    // right chat's store live, even if that chat isn't open.
     onEventShared: (ev) => useChat.getState().upsertEvent(ev),
     onEventUpdated: (ev) => useChat.getState().upsertEvent(ev),
     onUserOnline: (userId) => useChat.setState((s) => ({

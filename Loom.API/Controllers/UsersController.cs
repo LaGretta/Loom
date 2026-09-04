@@ -10,7 +10,14 @@ namespace Loom.API.Controllers;
 public class UsersController : BaseController
 {
     private readonly IUserService _userService;
-    public UsersController(IUserService userService) => _userService = userService;
+    private readonly IGiftService _giftService;
+    public UsersController(
+          IUserService userService
+        , IGiftService giftService)
+    {
+        _userService = userService;
+        _giftService = giftService;
+    }
 
     [HttpGet("me")]
     public async Task<IActionResult> GetMe(CancellationToken ct) =>
@@ -26,4 +33,8 @@ public class UsersController : BaseController
     [HttpGet("search")]
     public async Task<IActionResult> Search([FromQuery] string query, CancellationToken ct) =>
         Ok(await _userService.Search(UserId, query, ct));
+    
+    [HttpGet("{id}/gifts")]
+    public async Task<IActionResult> UserGifts(int id, CancellationToken ct) =>
+        Ok(await _giftService.GetUserGifts(id, ct));
 }

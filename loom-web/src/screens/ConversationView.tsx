@@ -7,6 +7,7 @@ import { chatsApi } from '../lib/api'
 import { Avatar } from '../ui/Avatar'
 import { CenterSpinner } from '../ui/primitives'
 import { CraftedObject } from '../ui/CraftedObject'
+import { giftByName } from '../assets/loom'
 import { Wallpaper } from '../ui/Wallpaper'
 import { timeShort, dayLabel, fileSize } from '../ui/format'
 import { isOnline, type UserStatus } from '../lib/enums'
@@ -90,6 +91,13 @@ export function ConversationView({ chatId }: { chatId: number }) {
   }
 
   const grouped = useMemo(() => buildTimeline(messages ?? [], events ?? []), [messages, events])
+  // Resolve sender name/avatar from the members list when a message DTO lacks them
+  // (e.g. live-broadcast messages whose senderName can come back empty).
+  const memberById = useMemo(() => {
+    const m = new Map<number, ChatMember>()
+    for (const mm of members) m.set(mm.userId, mm)
+    return m
+  }, [members])
 
   return (
     <div className="pane" style={{ flex: 1, minWidth: 0, position: 'relative' }}>
@@ -98,7 +106,7 @@ export function ConversationView({ chatId }: { chatId: number }) {
         <button className="icon-btn mobile-only" onClick={() => navigate('/')}><ChevronLeft size={24} /></button>
         <button style={{ display: 'flex', alignItems: 'center', gap: 12, border: 'none', background: 'transparent', padding: 0, flex: 1, minWidth: 0, textAlign: 'left' }}
           onClick={() => { if (isDirect && other) navigate(`/u/${other.userId}`); else navigate(`/chat/${chatId}/members`) }}>
-          <Avatar name={title} id={chatId} src={chat?.avatarUrl} size={42} online={status.online} />
+          <Avatar name={title} id={isDirect ? (other?.userId ?? chatId) : chatId} src={isDirect ? (other?.avatarUrl ?? chat?.avatarUrl) : chat?.avatarUrl} size={42} online={status.online} />
           <div style={{ minWidth: 0 }}>
             <div className="h-name ellipsis">{title}</div>
             <div className={`h-status ellipsis ${status.online ? 'online' : ''}`}>
@@ -133,8 +141,11 @@ export function ConversationView({ chatId }: { chatId: number }) {
                           mine={g.message.senderId === me?.id}
                           showSender={!isDirect && g.showSender}
                           grouped={g.grouped}
+                          senderName={g.message.senderName || memberById.get(g.message.senderId)?.displayName || 'Member'}
+                          senderAvatarUrl={g.message.senderAvatarUrl ?? memberById.get(g.message.senderId)?.avatarUrl}
                           onReply={() => { setEditing(null); setReplyTo(g.message) }}
                           onMenu={() => setMenuFor(g.message)}
+                          onOpenProfile={() => navigate(`/u/${g.message.senderId}`)}
                         />
                 ))}
             <div ref={bottomRef} />
@@ -163,14 +174,55 @@ export function ConversationView({ chatId }: { chatId: number }) {
   )
 }
 
+/* Clickable sender avatar (group chats) → opens the sender's profile. */
+function SenderAvatar({ name, id, src, onClick }: { name: string; id: number; src?: string | null; onClick: () => void }) {
+  return (
+    <span
+      className="msg-sender-av"
+      style={{ cursor: 'pointer', alignSelf: 'flex-end' }}
+      onClick={(e) => { e.stopPropagation(); onClick() }}
+      onMouseDown={(e) => e.stopPropagation()}
+      onTouchStart={(e) => e.stopPropagation()}
+      role="button"
+      aria-label={`Open ${name}'s profile`}
+    >
+      <Avatar name={name} id={id} src={src} size={30} />
+    </span>
+  )
+}
+
+/* Gift-type message → rendered as a gift card (crafted 3D object by name), not plain text. */
+function GiftBubbleCard({ giftName, mine, senderName }: { giftName: string; mine: boolean; senderName: string }) {
+  const meta = giftByName(giftName)
+  const backdrop = meta ? `radial-gradient(120% 100% at 50% 18%, ${meta.g1}, ${meta.g2})` : 'var(--surface-2)'
+  const legendary = meta?.r === 'LEGENDARY'
+  return (
+    <div style={{ width: 224 }}>
+      <div style={{ position: 'relative', height: 124, borderRadius: 12, overflow: 'hidden', display: 'grid', placeItems: 'center', background: backdrop, boxShadow: 'inset 0 1px 0 rgba(255,255,255,.18), inset 0 -14px 26px rgba(0,0,0,.22)' }}>
+        {meta ? <CraftedObject id={meta.sym} kind="gift" size={92} /> : <CraftedObject id="s-gift" size={72} />}
+        {meta && <span className={`rarity ${legendary ? 'legendary' : 'other'}`} style={{ position: 'absolute', top: 8, left: 8 }}>{meta.r}</span>}
+      </div>
+      <div style={{ padding: '9px 2px 0' }}>
+        <div style={{ fontSize: 11.5, color: mine ? 'inherit' : 'var(--text-2)', opacity: mine ? .7 : 1 }}>
+          {mine ? 'You sent a gift 🎁' : `${senderName} sent you a gift 🎁`}
+        </div>
+        <div style={{ fontSize: 15.5, fontWeight: 800, letterSpacing: '-.015em', marginTop: 2 }}>{giftName}</div>
+      </div>
+    </div>
+  )
+}
+
 /* ---------------- Bubble ---------------- */
-function Bubble({ message, mine, showSender, grouped, onReply, onMenu }: {
+function Bubble({ message, mine, showSender, grouped, senderName, senderAvatarUrl, onReply, onMenu, onOpenProfile }: {
   message: Message
   mine: boolean
   showSender: boolean
   grouped: boolean
+  senderName: string          // resolved (message.senderName, falling back to member list)
+  senderAvatarUrl?: string | null
   onReply: () => void
   onMenu: () => void
+  onOpenProfile: () => void   // tap sender avatar/name → open their profile
 }) {
   const react = useChat((s) => s.react)
   const pressTimer = useRef<number>()
@@ -178,8 +230,10 @@ function Bubble({ message, mine, showSender, grouped, onReply, onMenu }: {
   // Stickers render large, no bubble
   if (message.type === 'Sticker' && !message.isDeleted) {
     return (
-      <div className={`msg-row ${mine ? 'out' : ''}`} onContextMenu={(e) => { e.preventDefault(); onMenu() }}>
+      <div className={`msg-row ${mine ? 'out' : ''} ${grouped ? 'grouped' : ''}`} onContextMenu={(e) => { e.preventDefault(); onMenu() }}>
+        {!mine && showSender ? <SenderAvatar name={senderName} id={message.senderId} src={senderAvatarUrl} onClick={onOpenProfile} /> : (!mine ? <span style={{ width: 30, flex: '0 0 30px' }} /> : null)}
         <div style={{ position: 'relative' }} onDoubleClick={onReply}>
+          {!mine && showSender && <div className="sender" style={{ color: 'var(--accent)', cursor: 'pointer', marginBottom: 3 }} onClick={onOpenProfile}>{senderName}</div>}
           <CraftedObject id={message.content} kind="sticker" size={128} />
           {message.reactions.length > 0 && <ReactionRow message={message} mine={mine} onToggle={(e) => react(message.id, message.chatId, e)} />}
         </div>
@@ -189,6 +243,7 @@ function Bubble({ message, mine, showSender, grouped, onReply, onMenu }: {
 
   const isImage = message.type === 'Image'
   const isFile = message.type === 'File' || message.type === 'Video'
+  const isGift = message.type === 'Gift' && !message.isDeleted
 
   const startPress = () => { pressTimer.current = window.setTimeout(onMenu, 480) }
   const endPress = () => window.clearTimeout(pressTimer.current)
@@ -196,9 +251,9 @@ function Bubble({ message, mine, showSender, grouped, onReply, onMenu }: {
   return (
     <div className={`msg-row ${mine ? 'out' : ''} ${grouped ? 'grouped' : ''} anim-pop`}
       onContextMenu={(e) => { e.preventDefault(); onMenu() }}>
-      {!mine && showSender ? <Avatar name={message.senderName} id={message.senderId} src={message.senderAvatarUrl} size={30} className="msg-sender-av" /> : (!mine ? <span style={{ width: 30, flex: '0 0 30px' }} /> : null)}
+      {!mine && showSender ? <SenderAvatar name={senderName} id={message.senderId} src={senderAvatarUrl} onClick={onOpenProfile} /> : (!mine ? <span style={{ width: 30, flex: '0 0 30px' }} /> : null)}
       <div className="bubble" onMouseDown={startPress} onMouseUp={endPress} onMouseLeave={endPress} onTouchStart={startPress} onTouchEnd={endPress} onDoubleClick={onReply}>
-        {!mine && showSender && <div className="sender" style={{ color: 'var(--accent)' }}>{message.senderName}</div>}
+        {!mine && showSender && <div className="sender" style={{ color: 'var(--accent)', cursor: 'pointer' }} onClick={onOpenProfile}>{senderName}</div>}
         {message.replyToPreview && (
           <div className="reply-quote">
             <div className="qt ellipsis">{message.replyToPreview}</div>
@@ -206,7 +261,9 @@ function Bubble({ message, mine, showSender, grouped, onReply, onMenu }: {
         )}
         {message.isDeleted
           ? <div className="text" style={{ fontStyle: 'italic', opacity: .5 }}>Message deleted</div>
-          : isImage
+          : isGift
+            ? <GiftBubbleCard giftName={message.content} mine={mine} senderName={senderName} />
+            : isImage
             ? <div className="card-photo"><img src={message.content} alt="" loading="lazy" /></div>
             : isFile
               ? <a className="card-file" href={message.content} target="_blank" rel="noreferrer" style={{ color: 'inherit' }}>

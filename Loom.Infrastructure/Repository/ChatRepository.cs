@@ -37,4 +37,13 @@ public class ChatRepository : IChatRepository
             .Where(m => m.ChatId == chatId).ToListAsync(ct);
     public void RemoveMember(ChatMember member) =>
         _context.ChatMembers.Remove(member);
+    
+    public async Task<Chat?> GetDirectChatAsync(int userId1, int userId2, CancellationToken ct) =>
+        await _context.Chats
+            .Include(c => c.Members)
+            .FirstOrDefaultAsync(c =>
+                c.Type == Domain.Enums.ChatType.Direct &&
+                c.Members.Count == 2 &&
+                c.Members.Any(m => m.UserId == userId1) &&
+                c.Members.Any(m => m.UserId == userId2), ct);
 }

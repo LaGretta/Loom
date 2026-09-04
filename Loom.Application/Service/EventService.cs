@@ -132,6 +132,7 @@ public class EventService : IEventService
         await _unitOfWork.SaveChangesAsync(ct);
 
         var dto = MapDto(userId, ev);
+        dto.ChatId = chatId;
         await _notifier.EventShared(chatId, dto);
     }
     

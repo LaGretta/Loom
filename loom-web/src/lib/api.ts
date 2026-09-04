@@ -30,6 +30,7 @@ export const usersApi = {
   byId: (id: number) => http.get<any>(`/api/users/${id}`).then(normUser),
   search: (query: string) =>
     http.get<any[]>(`/api/users/search?query=${encodeURIComponent(query)}`).then((r) => r.map(normUserSummary)),
+  gifts: (id: number) => http.get<GiftInstance[]>(`/api/users/${id}/gifts`),
 }
 
 /* ---------------- Chats ---------------- */

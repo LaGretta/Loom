@@ -31,6 +31,20 @@ public class ChatService : IChatService
 
     public async Task<ChatResponseDto> CreateChat(int userId, CreateChatDto dto, CancellationToken ct)
     {
+        if (dto.Type == ChatType.Direct)
+        {
+            var otherId = dto.MemberUserIds.FirstOrDefault(id => id != userId);
+            if (otherId != 0)
+            {
+                var existing = await _chatRepo.GetDirectChatAsync(userId, otherId, ct);
+                if (existing != null)
+                {
+                    var existingDto = _mapper.Map<ChatResponseDto>(existing);
+                    existingDto.MembersCount = existing.Members.Count;
+                    return existingDto;   
+                }
+            }
+        }
         var chat = new Chat
         {
             Type = dto.Type,
@@ -41,22 +55,16 @@ public class ChatService : IChatService
         };
         await _chatRepo.CreateAsync(chat, ct);
         await _unitOfWork.SaveChangesAsync(ct);
-        
+
         await _chatRepo.AddMemberAsync(new ChatMember
         {
-            ChatId = chat.Id,
-            UserId = userId,
-            Role = MemberRole.Owner,
-            JoinedAt = DateTime.UtcNow
+            ChatId = chat.Id, UserId = userId, Role = MemberRole.Owner, JoinedAt = DateTime.UtcNow
         }, ct);
         foreach (var memberId in dto.MemberUserIds.Where(id => id != userId).Distinct())
         {
             await _chatRepo.AddMemberAsync(new ChatMember
             {
-                ChatId = chat.Id,
-                UserId = memberId,
-                Role = MemberRole.Member,
-                JoinedAt = DateTime.UtcNow
+                ChatId = chat.Id, UserId = memberId, Role = MemberRole.Member, JoinedAt = DateTime.UtcNow
             }, ct);
         }
         await _unitOfWork.SaveChangesAsync(ct);
