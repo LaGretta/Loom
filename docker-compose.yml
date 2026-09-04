@@ -46,6 +46,10 @@ services:
     container_name: loom-web
     depends_on:
       - api
+    environment:
+      # nginx renders these at start (envsubst). Locally: listen 80, proxy to the api service.
+      PORT: "80"
+      API_URL: "http://api:8080"
     ports:
       - "3000:80"
 

@@ -1,10 +1,16 @@
+# nginx site template. The nginx:alpine entrypoint runs envsubst on
+# /etc/nginx/templates/*.template → /etc/nginx/conf.d/ at container start,
+# substituting ${PORT} and ${API_URL} from the environment.
+#   PORT     — port to listen on (Railway injects it; defaults to 80 locally)
+#   API_URL  — upstream API origin, scheme+host[:port], NO trailing slash
+#              local:   http://api:8080
+#              Railway: https://<your-api>.up.railway.app
 server {
-    listen 80;
+    listen ${PORT};
     server_name _;
     root /usr/share/nginx/html;
     index index.html;
 
-    # gzip
     gzip on;
     gzip_types text/plain text/css application/javascript application/json image/svg+xml;
     gzip_min_length 1024;
@@ -13,43 +19,37 @@ server {
     location / {
         try_files $uri $uri/ /index.html;
     }
-
-    # Do not cache the shell / service worker
     location = /index.html { add_header Cache-Control "no-cache"; }
     location = /sw.js       { add_header Cache-Control "no-cache"; }
-
-    # Long-cache hashed assets
     location /assets/ {
         add_header Cache-Control "public, max-age=31536000, immutable";
     }
 
-    # Docker's embedded DNS. Using a variable in proxy_pass forces runtime resolution,
-    # so nginx still starts (and returns 502 for /api) even if the api container is down —
-    # instead of refusing to boot with "host not found in upstream".
-    resolver 127.0.0.11 valid=10s ipv6=off;
-
-    # Reverse-proxy the API (same-origin => no CORS needed on the backend)
+    # Reverse-proxy the API (same-origin => no CORS needed on the backend).
+    # Literal proxy_pass => $proxy_host is the API host, so Host + SNI are correct,
+    # which lets Railway's edge route the request to the API service.
     location /api/ {
-        set $loom_api http://api:8080;
-        proxy_pass         $loom_api;
+        proxy_pass         ${API_URL};
         proxy_http_version 1.1;
-        proxy_set_header   Host              $host;
+        proxy_set_header   Host              $proxy_host;
         proxy_set_header   X-Real-IP         $remote_addr;
         proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
         proxy_set_header   X-Forwarded-Proto $scheme;
+        proxy_ssl_server_name on;            # SNI for https upstreams (Railway)
         client_max_body_size 25m;
     }
 
     # Reverse-proxy the SignalR hub (WebSocket upgrade)
     location /hubs/ {
-        set $loom_hub http://api:8080;
-        proxy_pass         $loom_hub;
+        proxy_pass         ${API_URL};
         proxy_http_version 1.1;
         proxy_set_header   Upgrade           $http_upgrade;
         proxy_set_header   Connection        "upgrade";
-        proxy_set_header   Host              $host;
+        proxy_set_header   Host              $proxy_host;
         proxy_set_header   X-Real-IP         $remote_addr;
         proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+        proxy_ssl_server_name on;
         proxy_read_timeout 100s;
     }
 }
