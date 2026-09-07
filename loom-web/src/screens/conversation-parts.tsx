@@ -3,7 +3,7 @@ import { Paperclip, ArrowUp, Mic, X, Reply, Forward, Copy, Pin, Trash2, Pencil }
 import { Sheet } from '../ui/primitives'
 import { CraftedObject } from '../ui/CraftedObject'
 import { useChat } from '../store/chat'
-import { mediaApi, messagesApi } from '../lib/api'
+import { messagesApi } from '../lib/api'
 import { toast } from '../ui/toast'
 import { LOOMI_POSES, STAR_POSES } from '../assets/loom'
 import { EventAttachModal } from '../components/EventAttachModal'
@@ -38,6 +38,7 @@ export function Composer({ chatId, replyTo, onCancelReply, editing, onCancelEdit
   const fileRef = useRef<HTMLInputElement>(null)
   const lastTyping = useRef(0)
   const send = useChat((s) => s.send)
+  const sendMedia = useChat((s) => s.sendMedia)
   const edit = useChat((s) => s.edit)
   const ingest = useChat((s) => s.ingestMessage)
   const sendTyping = useChat((s) => s.sendTyping)
@@ -76,14 +77,10 @@ export function Composer({ chatId, replyTo, onCancelReply, editing, onCancelEdit
   const onFile = async (file: File) => {
     setAttachOpen(false)
     setBusy(true)
-    try {
-      const { url } = await mediaApi.upload(file)
-      const isImg = file.type.startsWith('image/')
-      // Backend Message.content carries the URL; type flags media. // TODO(backend): attachment metadata endpoint
-      const msg = await messagesApi.send({ chatId, content: url, type: isImg ? 'Image' : 'File' })
-      ingest(msg)
-      toast('Sent')
-    } catch { toast('Upload failed') }
+    // sendMedia shows the photo instantly (local blob) then reconciles with the real message.
+    // Backend Message.content carries the URL; type flags media. // TODO(backend): attachment metadata endpoint
+    try { await sendMedia(chatId, file) }
+    catch { toast('Upload failed') }
     finally { setBusy(false) }
   }
 

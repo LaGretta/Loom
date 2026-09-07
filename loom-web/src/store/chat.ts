@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { chatsApi, messagesApi, eventsApi } from '../lib/api'
+import { chatsApi, messagesApi, eventsApi, mediaApi } from '../lib/api'
 import { signalr } from '../lib/signalr'
 import { tokenStore } from '../lib/tokenStore'
 import type { Chat, Message, LoomEvent } from '../lib/types'
@@ -19,6 +19,7 @@ interface ChatState {
   msgLoading: Record<number, boolean>
   msgHasMore: Record<number, boolean>
   msgPage: Record<number, number>
+  msgLoaded: Record<number, boolean>         // true once server history was fetched (vs. only stray live msgs)
 
   presence: Record<number, { online: boolean; lastSeenAt?: string }>
   typing: Record<number, TypingEntry[]>      // chatId -> typing users
@@ -31,6 +32,7 @@ interface ChatState {
   closeChat: (chatId: number) => void
   loadMore: (chatId: number) => Promise<void>
   send: (chatId: number, content: string, replyToMessageId?: number | null) => Promise<void>
+  sendMedia: (chatId: number, file: File) => Promise<void>
   edit: (messageId: number, chatId: number, content: string) => Promise<void>
   remove: (messageId: number, chatId: number) => Promise<void>
   react: (messageId: number, chatId: number, emoji: string) => Promise<void>
@@ -65,6 +67,7 @@ export const useChat = create<ChatState>((set, get) => ({
   msgLoading: {},
   msgHasMore: {},
   msgPage: {},
+  msgLoaded: {},
   presence: {},
   typing: {},
   events: {},
@@ -91,19 +94,30 @@ export const useChat = create<ChatState>((set, get) => ({
     void chatsApi.read(chatId).catch(() => {})
     // load shared event cards for this chat (survives reload)
     void get().loadEvents(chatId)
-    if (get().messages[chatId]) return
+    // Only skip the history fetch once we've actually loaded it from the server.
+    // A thread may already hold a few *live* messages that arrived via SignalR before
+    // it was opened — those must NOT count as "loaded", or we'd show them alone.
+    if (get().msgLoaded[chatId]) return
     set((s) => ({ msgLoading: { ...s.msgLoading, [chatId]: true } }))
     try {
       const res = await messagesApi.list(chatId, 1, PAGE)
       const asc = [...res.items].reverse()
-      set((s) => ({
-        messages: { ...s.messages, [chatId]: asc },
-        msgLoading: { ...s.msgLoading, [chatId]: false },
-        msgHasMore: { ...s.msgHasMore, [chatId]: res.items.length >= PAGE && asc.length < res.totalCount },
-        msgPage: { ...s.msgPage, [chatId]: 1 },
-      }))
+      set((s) => {
+        // Merge server history with any stray live messages, dedupe by id, order by time.
+        const stray = s.messages[chatId] ?? []
+        const ids = new Set(asc.map((m) => m.id))
+        const merged = [...asc, ...stray.filter((m) => !ids.has(m.id))]
+          .sort((a, b) => a.sentAt.localeCompare(b.sentAt) || a.id - b.id)
+        return {
+          messages: { ...s.messages, [chatId]: merged },
+          msgLoading: { ...s.msgLoading, [chatId]: false },
+          msgHasMore: { ...s.msgHasMore, [chatId]: res.items.length >= PAGE && asc.length < res.totalCount },
+          msgPage: { ...s.msgPage, [chatId]: 1 },
+          msgLoaded: { ...s.msgLoaded, [chatId]: true },
+        }
+      })
       // mark newest incoming as read
-      const last = asc[asc.length - 1]
+      const last = get().messages[chatId]?.[get().messages[chatId].length - 1]
       if (last && last.senderId !== myId()) get().markRead(last.id)
     } catch {
       set((s) => ({ msgLoading: { ...s.msgLoading, [chatId]: false } }))
@@ -143,6 +157,42 @@ export const useChat = create<ChatState>((set, get) => ({
   send: async (chatId, content, replyToMessageId) => {
     const msg = await messagesApi.send({ chatId, content, type: 'Text', replyToMessageId: replyToMessageId ?? null })
     get().ingestMessage(msg)
+  },
+
+  // Photo/file send with an optimistic bubble: render the local file instantly (blob URL)
+  // while upload → send runs, then swap the temp message for the real one. So the sender
+  // sees the image immediately instead of staring at nothing through two round-trips.
+  sendMedia: async (chatId, file) => {
+    const tempId = -Date.now()
+    const objectUrl = URL.createObjectURL(file)
+    const isImg = file.type.startsWith('image/')
+    const optimistic: Message = {
+      id: tempId, chatId, senderId: myId() ?? 0, senderName: '', senderAvatarUrl: null,
+      content: objectUrl, type: isImg ? 'Image' : 'File', status: 'Sent',
+      replyToMessageId: null, replyToPreview: null, isEdited: false, isDeleted: false,
+      sentAt: new Date().toISOString(), attachments: [], reactions: [],
+    }
+    set((s) => ({ messages: { ...s.messages, [chatId]: [...(s.messages[chatId] ?? []), optimistic] } }))
+    try {
+      const { url } = await mediaApi.upload(file)
+      const msg = await messagesApi.send({ chatId, content: url, type: isImg ? 'Image' : 'File' })
+      // Drop the temp bubble (and any duplicate the SignalR echo may have added), then ingest
+      // the real message so preview/unread/order update the same way as a normal send.
+      set((s) => ({
+        messages: {
+          ...s.messages,
+          [chatId]: (s.messages[chatId] ?? []).filter((m) => m.id !== tempId && m.id !== msg.id),
+        },
+      }))
+      get().ingestMessage(msg)
+    } catch (e) {
+      set((s) => ({
+        messages: { ...s.messages, [chatId]: (s.messages[chatId] ?? []).filter((m) => m.id !== tempId) },
+      }))
+      throw e
+    } finally {
+      URL.revokeObjectURL(objectUrl)
+    }
   },
 
   edit: async (messageId, chatId, content) => {
@@ -260,14 +310,15 @@ export const useChat = create<ChatState>((set, get) => ({
 
   ingestMessage: (m) => {
     set((s) => {
-      const list = s.messages[m.chatId]
+      // Always land the message in the thread — even if it isn't loaded yet. If we drop it
+      // here, a live NewMessage for an unopened chat would vanish until a refresh. A thread
+      // seeded this way stays flagged as NOT loaded (see openChat), so history still fills in.
+      const list = s.messages[m.chatId] ?? []
       let messages = s.messages
-      if (list) {
-        if (list.some((x) => x.id === m.id)) {
-          messages = { ...s.messages, [m.chatId]: list.map((x) => (x.id === m.id ? m : x)) }
-        } else {
-          messages = { ...s.messages, [m.chatId]: [...list, m] }
-        }
+      if (list.some((x) => x.id === m.id)) {
+        messages = { ...s.messages, [m.chatId]: list.map((x) => (x.id === m.id ? m : x)) }
+      } else {
+        messages = { ...s.messages, [m.chatId]: [...list, m] }
       }
       // update chat list preview / unread / order
       const mine = m.senderId === myId()
@@ -337,7 +388,7 @@ export const useChat = create<ChatState>((set, get) => ({
   },
 
   reset: () => set({
-    chats: [], activeChatId: null, messages: {}, msgLoading: {}, msgHasMore: {}, msgPage: {},
+    chats: [], activeChatId: null, messages: {}, msgLoading: {}, msgHasMore: {}, msgPage: {}, msgLoaded: {},
     presence: {}, typing: {}, events: {},
   }),
 }))

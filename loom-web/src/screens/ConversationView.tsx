@@ -264,7 +264,7 @@ function Bubble({ message, mine, showSender, grouped, senderName, senderAvatarUr
           : isGift
             ? <GiftBubbleCard giftName={message.content} mine={mine} senderName={senderName} />
             : isImage
-            ? <div className="card-photo"><img src={message.content} alt="" loading="lazy" /></div>
+            ? <div className="card-photo"><img src={message.content} alt="" loading="eager" decoding="async" /></div>
             : isFile
               ? <a className="card-file" href={message.content} target="_blank" rel="noreferrer" style={{ color: 'inherit' }}>
                   <span className="file-ic"><Check size={20} /></span>
