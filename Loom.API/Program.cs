@@ -1,6 +1,7 @@
 using System.Text;
 using Loom.API.Hubs;
 using Loom.API.Middleware;
+using Loom.API.Workers;
 using Loom.Application;
 using Loom.Application.Interfaces;
 using Loom.Infrastructure;
@@ -24,6 +25,8 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddSignalR();
 builder.Services.AddScoped<IChatNotifier, ChatNotifier>();
+
+builder.Services.AddHostedService<TokenCleanupWorker>();
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);

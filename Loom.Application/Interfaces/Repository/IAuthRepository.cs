@@ -13,4 +13,5 @@ public interface IAuthRepository
    
    Task AddRefreshTokenAsync(RefreshToken token, CancellationToken ct);
    Task<RefreshToken?> GetRefreshTokenAsync(string token, CancellationToken ct);
+   Task<int> DeleteExpiredRefreshTokensAsync(CancellationToken ct);
 }

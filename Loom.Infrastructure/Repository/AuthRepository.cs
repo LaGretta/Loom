@@ -26,4 +26,12 @@ public class AuthRepository : IAuthRepository
     public async Task<RefreshToken?> GetRefreshTokenAsync(string token, CancellationToken ct)
     => await _context.RefreshTokens.Include(n => n.User)
         .FirstOrDefaultAsync(n => n.Token == token, ct);
+    public async Task<int> DeleteExpiredRefreshTokensAsync(CancellationToken ct)
+    {
+        var expired = await _context.RefreshTokens
+            .Where(rt => rt.ExpiresAt < DateTime.UtcNow || rt.IsRevoked)
+            .ToListAsync(ct);
+        _context.RefreshTokens.RemoveRange(expired);
+        return expired.Count;
+    }
 }
