@@ -6,6 +6,7 @@ import { CenterSpinner } from '../ui/primitives'
 import { chatsApi } from '../lib/api'
 import { useChat } from '../store/chat'
 import { isOnline } from '../lib/enums'
+import { presenceText } from '../ui/format'
 import type { ChatMember } from '../lib/types'
 
 export function MembersScreen() {
@@ -22,13 +23,14 @@ export function MembersScreen() {
       {!members ? <CenterSpinner /> : (
         <div className="list-card" style={{ marginTop: 12 }}>
           {members.map((m) => {
-            const online = presence[m.userId]?.online ?? isOnline(m.status)
+            const live = presence[m.userId]
+            const online = live?.online ?? isOnline(m.status)
             return (
               <button key={m.userId} className="list-row" onClick={() => navigate(`/u/${m.userId}`)}>
                 <Avatar name={m.displayName} id={m.userId} src={m.avatarUrl} size={46} online={online} />
                 <div className="grow" style={{ textAlign: 'left' }}>
                   <div className="lr-title">{m.displayName}</div>
-                  <div className="lr-sub">@{m.userName}</div>
+                  <div className={`lr-sub ${online ? 'online' : ''}`}>{presenceText(m.status, null, live)}</div>
                 </div>
                 {m.role !== 'Member' && <span className="chip" style={{ padding: '3px 10px', fontSize: 11 }}>{m.role}</span>}
               </button>

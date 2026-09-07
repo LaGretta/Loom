@@ -20,6 +20,7 @@ public class UserSummaryDto
     public string DisplayName { get; set; } = string.Empty;
     public string? AvatarUrl { get; set; }
     public UserStatus Status { get; set; }
+    public DateTime LastSeenAt { get; set; }
     public PremiumTier PremiumTier { get; set; }
 }
 public class UpdateProfileDto

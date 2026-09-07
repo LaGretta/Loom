@@ -1,4 +1,5 @@
-// Small formatting helpers: relative time, avatar gradients, initials.
+// Small formatting helpers: relative time, avatar gradients, initials, presence.
+import type { UserStatus } from '../lib/enums'
 
 export function initials(name: string): string {
   const parts = (name || '?').trim().split(/\s+/).filter(Boolean)
@@ -50,17 +51,40 @@ export function dayLabel(iso: string): string {
   return d.toLocaleDateString([], { day: 'numeric', month: 'long', year: d.getFullYear() !== now.getFullYear() ? 'numeric' : undefined })
 }
 
+// Graded "last seen …" text for an offline user (English).
 export function lastSeen(iso?: string | null): string {
   if (!iso) return 'last seen recently'
   const d = new Date(iso)
   if (isNaN(d.getTime())) return 'last seen recently'
   const diff = Date.now() - d.getTime()
+  if (diff < 0) return 'last seen just now'         // clock skew → treat as just now
   const min = Math.floor(diff / 60000)
   if (min < 1) return 'last seen just now'
-  if (min < 60) return `last seen ${min} min ago`
+  if (min < 60) return `last seen ${min} minute${min === 1 ? '' : 's'} ago`
   const hr = Math.floor(min / 60)
-  if (hr < 24) return `last seen ${hr} h ago`
-  return `last seen ${d.toLocaleDateString([], { day: 'numeric', month: 'short' })}`
+  if (hr < 24) return `last seen ${hr} hour${hr === 1 ? '' : 's'} ago`
+  const days = Math.floor(hr / 24)
+  if (days < 7) return `last seen ${days} day${days === 1 ? '' : 's'} ago`
+  return `last seen on ${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`
+}
+
+/**
+ * The single source of truth for presence text shown anywhere a user's status appears.
+ * `live` is the realtime presence entry from the SignalR store (fresher than the REST status)
+ * and, when present, wins. Invisible reads as offline to other users.
+ */
+export function presenceText(
+  status: UserStatus | undefined,
+  lastSeenAt?: string | null,
+  live?: { online: boolean; lastSeenAt?: string } | null,
+): string {
+  if (live) return live.online ? 'online' : lastSeen(live.lastSeenAt ?? lastSeenAt)
+  switch (status) {
+    case 'Online': return 'online'
+    case 'Away': return 'away'
+    case 'Busy': return 'busy'
+    default: return lastSeen(lastSeenAt)   // Offline & Invisible
+  }
 }
 
 export function fileSize(bytes: number): string {

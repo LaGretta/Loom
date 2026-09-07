@@ -9,7 +9,7 @@ import { CenterSpinner } from '../ui/primitives'
 import { CraftedObject } from '../ui/CraftedObject'
 import { giftByName } from '../assets/loom'
 import { Wallpaper } from '../ui/Wallpaper'
-import { timeShort, dayLabel, fileSize } from '../ui/format'
+import { timeShort, dayLabel, fileSize, presenceText } from '../ui/format'
 import { isOnline, type UserStatus } from '../lib/enums'
 import type { Chat, ChatMember, Message, LoomEvent } from '../lib/types'
 import { Composer, MessageContextMenu } from './conversation-parts'
@@ -74,7 +74,8 @@ export function ConversationView({ chatId }: { chatId: number }) {
     if (isDirect && other) {
       const p = presence[other.userId]
       const online = p ? p.online : isOnline(other.status as UserStatus)
-      return { text: online ? 'online' : 'last seen recently', online }
+      // ChatMember carries no lastSeenAt; the live presence entry (p) supplies it when offline.
+      return { text: presenceText(other.status as UserStatus, null, p), online }
     }
     const onlineCount = members.filter((m) => (presence[m.userId]?.online ?? isOnline(m.status as UserStatus))).length
     return { text: `${chat?.membersCount ?? members.length} members${onlineCount ? `, ${onlineCount} online` : ''}`, online: false }

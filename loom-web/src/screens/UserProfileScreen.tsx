@@ -6,8 +6,9 @@ import { CraftedObject } from '../ui/CraftedObject'
 import { Switch, CenterSpinner } from '../ui/primitives'
 import { usersApi, chatsApi } from '../lib/api'
 import { giftByName } from '../assets/loom'
-import { lastSeen } from '../ui/format'
+import { presenceText } from '../ui/format'
 import { isOnline } from '../lib/enums'
+import { useChat } from '../store/chat'
 import { toast } from '../ui/toast'
 import type { UserProfile, GiftInstance } from '../lib/types'
 
@@ -26,6 +27,7 @@ export function UserProfileScreen() {
   const [gifts, setGifts] = useState<GiftInstance[]>([])
   const [muted, setMuted] = useState(false)
   const [loading, setLoading] = useState(true)
+  const presence = useChat((s) => s.presence)
 
   useEffect(() => {
     setLoading(true)
@@ -43,7 +45,8 @@ export function UserProfileScreen() {
 
   if (loading || !user) return <Overlay title="Profile"><CenterSpinner /></Overlay>
 
-  const online = isOnline(user.status)
+  const live = presence[user.id]
+  const online = live ? live.online : isOnline(user.status)
 
   return (
     <Overlay title="">
@@ -56,7 +59,7 @@ export function UserProfileScreen() {
         </div>
         <div className="muted" style={{ fontSize: 14, marginTop: 2 }}>@{user.userName}</div>
         <div className={online ? '' : 'muted'} style={{ fontSize: 13, marginTop: 4, color: online ? 'var(--green)' : undefined }}>
-          {online ? 'online' : lastSeen(user.lastSeenAt)}
+          {presenceText(user.status, user.lastSeenAt, live)}
         </div>
       </div>
 

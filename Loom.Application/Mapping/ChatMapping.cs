@@ -10,14 +10,16 @@ public class ChatMapping : Profile
     public ChatMapping()
     {
         CreateMap<Chat, ChatResponseDto>();
-        CreateMap<ChatMember , ChatMemberDto>()
-            .ForMember(n => n.UserName ,  opt => 
+        CreateMap<ChatMember, ChatMemberDto>()
+            .ForMember(n => n.UserName, opt =>
                 opt.MapFrom(s => s.User.UserName))
-            .ForMember(n => n.DisplayName, opt => 
+            .ForMember(n => n.DisplayName, opt =>
                 opt.MapFrom(s => s.User.DisplayName))
-            .ForMember(d => d.AvatarUrl, o => 
+            .ForMember(d => d.AvatarUrl, o =>
                 o.MapFrom(s => s.User.AvatarUrl))
-            .ForMember(d => d.Status, o => 
-                o.MapFrom(s => s.User.Status));
+            .ForMember(d => d.Status, o =>
+                o.MapFrom(s => s.User.Status))
+            .ForMember(d => d.LastSeenAt, o =>
+                o.MapFrom(s => s.User.LastSeenAt));
     } 
 }

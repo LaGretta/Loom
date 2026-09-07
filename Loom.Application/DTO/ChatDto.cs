@@ -34,4 +34,5 @@ public class ChatMemberDto
     public string? AvatarUrl { get; set; }
     public MemberRole Role { get; set; }
     public UserStatus Status { get; set; }
+    public DateTime LastSeenAt { get; set; }
 }
