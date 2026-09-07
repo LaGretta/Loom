@@ -30,4 +30,15 @@ public class UserRepository : IUserRepository
             await _context.SaveChangesAsync(ct);
         }
     }
+    public async Task<int> MarkStaleUsersOfflineAsync(TimeSpan threshold, CancellationToken ct)
+    {
+        var cutoff = DateTime.UtcNow - threshold;   // наприклад зараз - 5 хв
+        var stale = await _context.Users
+            .Where(u => u.Status == UserStatus.Online && u.LastSeenAt < cutoff)
+            .ToListAsync(ct);
+        
+        foreach (var user in stale)
+            user.Status = UserStatus.Offline;
+        return stale.Count;
+    }
 }

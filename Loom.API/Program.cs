@@ -27,6 +27,7 @@ builder.Services.AddSignalR();
 builder.Services.AddScoped<IChatNotifier, ChatNotifier>();
 
 builder.Services.AddHostedService<TokenCleanupWorker>();
+builder.Services.AddHostedService<PresenceWorker>();
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);

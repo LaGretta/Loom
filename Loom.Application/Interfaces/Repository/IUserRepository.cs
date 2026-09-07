@@ -9,4 +9,5 @@ public interface IUserRepository
     Task<User?> GetByIdAsync(int id, CancellationToken ct);
     Task<List<User>> SearchAsync(string query, CancellationToken ct);
     Task UpdateStatusAsync(int userId, UserStatus status, DateTime lastSeenAt, CancellationToken ct);
+    Task<int> MarkStaleUsersOfflineAsync(TimeSpan threshold, CancellationToken ct);
 }
