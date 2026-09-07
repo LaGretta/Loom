@@ -1,4 +1,5 @@
 using System.Text;
+using System.Threading.RateLimiting;
 using Loom.API.Hubs;
 using Loom.API.Middleware;
 using Loom.API.Workers;
@@ -35,6 +36,9 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<LoomDbContext>();   
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -63,6 +67,20 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 100,
+                Window = TimeSpan.FromMinutes(1)
+            }));
+});                                     
+
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
@@ -82,8 +100,13 @@ app.UseSwaggerUI();
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.UseRateLimiter();
+
 app.MapControllers();
 
 app.MapHub<ChatHub>("/hubs/chat");
+
+//Health checks — ендпоінт /health що перевіряє чи застосунок і БД живі
+app.MapHealthChecks("/health");
 
 app.Run();
