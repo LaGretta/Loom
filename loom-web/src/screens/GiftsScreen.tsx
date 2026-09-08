@@ -119,28 +119,31 @@ function GiftDetail({ gift, balance, onClose, onSend, onBought }: {
 }) {
   const meta = giftByName(gift.name)
   const [busy, setBusy] = useState(false)
-  const buy = async () => {
+  // "Keep for yourself" = gift to my own userId. Backend treats ReceiverId == me as a
+  // profile-only keep (no chat, no message). This is deliberately NOT the "Send to a friend"
+  // path — that one opens the recipient picker (onSend) and posts a Gift message to their chat.
+  const keep = async () => {
     if (balance < gift.starCost) { toast('Not enough Stars — top up first'); return }
-    // Buying-for-self isn't a distinct endpoint; gifting to self via send. // TODO(backend): purchase-to-inventory endpoint
     setBusy(true)
     try {
       const me = (await usersApi.me()).id
-      await giftsApi.send({ giftId: gift.id, receiverId: me })
-      toast('Added to your collection')
+      await giftsApi.send({ giftId: gift.id, receiverId: me }) // receiverId = ME → profile only
+      toast('Kept — added to your profile 🎁')
       onBought()
     } catch (e: any) { toast(e?.message ?? 'Purchase failed') }
     finally { setBusy(false) }
   }
   return (
     <Modal title={gift.name} onClose={onClose}
-      footer={<><Button variant="secondary" onClick={onSend}>Send gift</Button><Button onClick={() => void buy()} disabled={busy}><CraftedObject id="s-coin" size={18} /> {busy ? '…' : fmtNumber(gift.starCost)}</Button></>}>
+      footer={<><Button variant="secondary" onClick={onSend} disabled={busy}>Send to a friend</Button><Button onClick={() => void keep()} disabled={busy}><CraftedObject id="s-coin" size={18} /> {busy ? '…' : `Keep · ${fmtNumber(gift.starCost)}`}</Button></>}>
       <div style={{ height: 200, borderRadius: 16, display: 'grid', placeItems: 'center', background: backdrop(meta), position: 'relative', overflow: 'hidden' }}>
         {meta ? <CraftedObject id={meta.sym} kind="gift" size={150} /> : <img src={gift.imageUrl} width={120} height={120} alt="" />}
         {meta && <span className={`rarity ${meta.r === 'LEGENDARY' ? 'legendary' : 'other'}`} style={{ position: 'absolute', top: 12, left: 12 }}>{meta.r}</span>}
         {meta && <span className="chip" style={{ position: 'absolute', top: 12, right: 12, fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 11 }}>{meta.ed}</span>}
       </div>
       <p className="muted" style={{ fontSize: 14, lineHeight: 1.5, marginTop: 14 }}>
-        A crafted collectible for your profile showcase. {meta?.r === 'LEGENDARY' ? 'One of the rarest pieces in Loom.' : 'Send it to a friend or keep it for yourself.'}
+        A crafted collectible for your profile showcase. {meta?.r === 'LEGENDARY' ? 'One of the rarest pieces in Loom. ' : ''}
+        <b>Keep</b> it — it goes to your profile only, no chat. Or <b>Send to a friend</b> to deliver it in your chat with them.
       </p>
     </Modal>
   )

@@ -46,90 +46,84 @@ public class GiftService : IGiftService
         return _mapper.Map<List<GiftDto>>(gifts);
     }
 
-    public async Task<GiftInstanceDto> SendGift(int userId, SendGiftDto dto, CancellationToken ct)
-    {
-        var gift = await _giftRepository.GetGiftByIdAsync(dto.GiftId, ct);
-        if (gift == null || !gift.IsActive)
-            throw new KeyNotFoundException("Gift not found");
+  public async Task<GiftInstanceDto> SendGift(int userId, SendGiftDto dto, CancellationToken ct)
+{
+    var gift = await _giftRepository.GetGiftByIdAsync(dto.GiftId, ct);
+    if (gift == null || !gift.IsActive)
+        throw new KeyNotFoundException("Gift not found");
 
-        var sender = await _userRepository.GetByIdAsync(userId, ct);
-        if (sender == null)
-            throw new KeyNotFoundException("Sender not found");
-        if (sender.StarBalance < gift.StarCost)
-            throw new InvalidOperationException("Not enough stars");
+    var sender = await _userRepository.GetByIdAsync(userId, ct);
+    if (sender == null)
+        throw new KeyNotFoundException("Sender not found");
+    if (sender.StarBalance < gift.StarCost)
+        throw new InvalidOperationException("Not enough stars");
 
-        var receiver = await _userRepository.GetByIdAsync(dto.ReceiverId, ct);
-        if (receiver == null)
-            throw new KeyNotFoundException("Receiver not found");
+    var receiver = await _userRepository.GetByIdAsync(dto.ReceiverId, ct);
+    if (receiver == null)
+        throw new KeyNotFoundException("Receiver not found");
 
-        await _unitOfWork.BeginTransactionAsync(ct);
-        try
+    await _unitOfWork.BeginTransactionAsync(ct);
+    try
+    { sender.StarBalance -= gift.StarCost;
+        await _starRepository.AddTransactionAsync(new StarTransaction
         {
-            sender.StarBalance -= gift.StarCost;
-            await _starRepository.AddTransactionAsync(new StarTransaction
-            {
-                UserId = userId,
-                Type = StarTransactionType.GiftSent,
-                Amount = -gift.StarCost,
-                BalanceAfter = sender.StarBalance,
-                CreatedAt = DateTime.UtcNow
-            }, ct);
+            UserId = userId,
+            Type = StarTransactionType.GiftSent,
+            Amount = -gift.StarCost,
+            BalanceAfter = sender.StarBalance,
+            CreatedAt = DateTime.UtcNow
+        }, ct);
+
+        int? messageId = null;
+
+        if (dto.ReceiverId != userId)
+        {
             var chat = await _chatRepository.GetDirectChatAsync(userId, dto.ReceiverId, ct);
             if (chat == null)
             {
-                chat = new Chat
-                {
-                    Type = ChatType.Direct,
-                    CreatedById = userId,
-                    CreatedAt = DateTime.UtcNow
-                };
+                chat = new Chat { Type = ChatType.Direct, CreatedById = userId, CreatedAt = DateTime.UtcNow };
                 await _chatRepository.CreateAsync(chat, ct);
                 await _unitOfWork.SaveChangesAsync(ct);
-
-                await _chatRepository.AddMemberAsync(new ChatMember
-                {
-                    ChatId = chat.Id, UserId = userId, Role = MemberRole.Member, JoinedAt = DateTime.UtcNow
-                }, ct);
-                await _chatRepository.AddMemberAsync(new ChatMember
-                {
-                    ChatId = chat.Id, UserId = dto.ReceiverId, Role = MemberRole.Member, JoinedAt = DateTime.UtcNow
-                }, ct);
+                await _chatRepository.AddMemberAsync(new ChatMember { ChatId = chat.Id, UserId = userId, Role = MemberRole.Member, JoinedAt = DateTime.UtcNow }, ct);
+                await _chatRepository.AddMemberAsync(new ChatMember { ChatId = chat.Id, UserId = dto.ReceiverId, Role = MemberRole.Member, JoinedAt = DateTime.UtcNow }, ct);
                 await _unitOfWork.SaveChangesAsync(ct);
             }
             var message = new Message
             {
-                ChatId = chat.Id,
-                SenderId = userId,
-                Content = gift.Name,          
-                Type = MessageType.Gift,
-                Status = MessageStatus.Sent,
-                SentAt = DateTime.UtcNow
+                ChatId = chat.Id, SenderId = userId, Content = gift.Name,
+                Type = MessageType.Gift, Status = MessageStatus.Sent, SentAt = DateTime.UtcNow
             };
             await _messageRepository.CreateAsync(message, ct);
-            await _unitOfWork.SaveChangesAsync(ct);   
-
-            var instance = new GiftInstance
-            {
-                GiftId = dto.GiftId,
-                SenderId = userId,
-                ReceiverId = dto.ReceiverId,
-                MessageId = message.Id,
-                SentAt = DateTime.UtcNow
-            };
-            await _giftRepository.AddGiftInstanceAsync(instance, ct);
             await _unitOfWork.SaveChangesAsync(ct);
-            await _unitOfWork.CommitTransactionAsync(ct);
-            var msgDto = _mapper.Map<MessageResponseDto>(message);
-            await _notifier.MessageSent(chat.Id, msgDto);
-
-            return _mapper.Map<GiftInstanceDto>(instance);
+            messageId = message.Id;
         }
-        catch
+        var instance = new GiftInstance
         {
-            await _unitOfWork.RollbackTransactionAsync(ct);
-            throw;
+            GiftId = dto.GiftId,
+            SenderId = userId,
+            ReceiverId = dto.ReceiverId,
+            MessageId = messageId,       
+            SentAt = DateTime.UtcNow
+        };
+        await _giftRepository.AddGiftInstanceAsync(instance, ct);
+        await _unitOfWork.SaveChangesAsync(ct);
+        await _unitOfWork.CommitTransactionAsync(ct);
+
+        if (messageId != null)
+        {
+            var msgDto = _mapper.Map<MessageResponseDto>(
+                await _messageRepository.GetByIdAsync(messageId.Value, ct));
+            await _notifier.MessageSent(msgDto.ChatId, msgDto);
         }
+
+        return _mapper.Map<GiftInstanceDto>(instance);
     }
+    catch
+    {
+        await _unitOfWork.RollbackTransactionAsync(ct);
+        throw;
+    }
+}
 
     public async Task<List<GiftInstanceDto>> GetMyGifts(int userId, CancellationToken ct)
     {
