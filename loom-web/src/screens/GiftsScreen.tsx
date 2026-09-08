@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Overlay } from '../ui/Overlay'
 import { CraftedObject } from '../ui/CraftedObject'
 import { Modal, Button, Segmented, Spinner } from '../ui/primitives'
@@ -8,6 +8,8 @@ import { giftsApi, starsApi, usersApi } from '../lib/api'
 import { giftByName, GIFT_CATALOG } from '../assets/loom'
 import type { GiftMeta } from '../assets/loom'
 import { fmtNumber } from '../ui/format'
+import { CountUp } from '../ui/CountUp'
+import { celebrate, flyGift } from '../ui/celebrate'
 import { toast } from '../ui/toast'
 import { Search, Check } from 'lucide-react'
 import type { GiftCatalogItem, GiftInstance, UserSummary } from '../lib/types'
@@ -45,7 +47,7 @@ export function GiftsScreen() {
       <div style={{ padding: '8px 16px 0' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, justifyContent: 'center' }}>
           <CraftedObject id="s-coin" size={26} />
-          <span style={{ fontWeight: 800, fontSize: 16 }}>{fmtNumber(balance)}</span>
+          <CountUp value={balance} style={{ fontWeight: 800, fontSize: 16 }} />
           <span className="muted" style={{ fontSize: 13 }}>Stars</span>
         </div>
         <Segmented<Tab> value={tab} onChange={setTab} options={[
@@ -134,6 +136,7 @@ function GiftDetail({ gift, balance, onClose, onSend, onBought, onSpend, onRefun
     try {
       const me = (await usersApi.me()).id
       await giftsApi.send({ giftId: gift.id, receiverId: me }) // receiverId = ME → profile only
+      celebrate(meta?.sym ?? 's-gift', 'Added to your profile')
       toast('Kept — added to your profile 🎁')
       onBought()
     } catch (e: any) { onRefund(gift.starCost); toast(e?.message ?? 'Purchase failed') }
@@ -160,6 +163,7 @@ function SendGiftModal({ gift, onClose, onSent, onSpend, onRefund }: {
   onSpend: (n: number) => void; onRefund: (n: number) => void
 }) {
   const meta = giftByName(gift.name)
+  const artRef = useRef<HTMLDivElement>(null)
   const [q, setQ] = useState('')
   const [results, setResults] = useState<UserSummary[]>([])
   const [picked, setPicked] = useState<UserSummary | null>(null)
@@ -183,6 +187,7 @@ function SendGiftModal({ gift, onClose, onSent, onSpend, onRefund }: {
     onSpend(gift.starCost)   // balance drops instantly; refunded below if the call fails
     try {
       await giftsApi.send({ giftId: gift.id, receiverId: picked.id })
+      flyGift(artRef.current, meta?.sym ?? 'g-fox')   // the gift visibly travels to the chat
       toast(`Gift sent to ${picked.displayName} 🎉`)
       onSent()
     } catch (e: any) { onRefund(gift.starCost); toast(e?.message ?? 'Could not send gift') }
@@ -192,7 +197,7 @@ function SendGiftModal({ gift, onClose, onSent, onSpend, onRefund }: {
   return (
     <Modal title="Send gift" onClose={onClose}
       footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button onClick={() => void send()} disabled={busy || !picked}><CraftedObject id="s-coin" size={18} /> Send · {fmtNumber(gift.starCost)}</Button></>}>
-      <div style={{ height: 130, borderRadius: 14, display: 'grid', placeItems: 'center', background: backdrop(meta), marginBottom: 12 }}>
+      <div ref={artRef} style={{ height: 130, borderRadius: 14, display: 'grid', placeItems: 'center', background: backdrop(meta), marginBottom: 12 }}>
         {meta ? <CraftedObject id={meta.sym} kind="gift" size={100} /> : <img src={gift.imageUrl} width={80} height={80} alt="" />}
       </div>
       <div className="search" style={{ margin: '0 0 10px' }}>

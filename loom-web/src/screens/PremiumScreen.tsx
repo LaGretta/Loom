@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Check } from 'lucide-react'
 import { Overlay } from '../ui/Overlay'
+import { celebrate } from '../ui/celebrate'
 import { CraftedObject } from '../ui/CraftedObject'
 import { Button, CenterSpinner } from '../ui/primitives'
 import { premiumApi } from '../lib/api'
@@ -39,6 +40,7 @@ export function PremiumScreen() {
       const s = await premiumApi.subscribe(selected)
       setStatus(s)
       await refreshMe() // premiumTier → badge shows on profile/avatar
+      celebrate('s-gem', 'Premium activated')
       toast('Welcome to Premium ✨')
     } catch (e: any) {
       toast(e?.status === 400 ? 'Not enough Stars — top up first' : (e?.message ?? 'Could not subscribe'))

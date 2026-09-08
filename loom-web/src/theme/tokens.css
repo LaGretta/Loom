@@ -27,7 +27,10 @@
 /* Neutral bases */
 [data-mode="light"]{
   --bg:#F3F3F5; --surface:#FFFFFF; --surface-2:#FAFAFC;
-  --text:#17171B; --text-2:#86868F; --hairline:#EAEAEF; --bubble-in:#FFFFFF;
+  /* #86868F only reached 3.6:1 on white — secondary text must stay legible (>=4.5) */
+  --text:#17171B; --text-2:#6E6E76; --hairline:#EAEAEF; --bubble-in:#FFFFFF;
+  /* semantic colours darkened for light backgrounds (the :root values are tuned for dark) */
+  --green:#2A7F52; --success:#2A7F52; --danger:#D4374A;
   --shadow:0 4px 16px -3px rgba(18,18,26,.16),0 16px 40px -10px rgba(18,18,26,.13);
   --shadow-sm:0 1px 2px rgba(18,18,26,.06),0 5px 14px -4px rgba(18,18,26,.13);
   --glass:rgba(255,255,255,.72);
@@ -63,7 +66,7 @@
 [data-theme="ink"][data-mode="dark"]{  --accent:#F0F0F2; --accent-2:#C9C9CF; --on-accent:#0F0F12; --bubble-out:#2E2E36; --bubble-out-text:#ECECEF; --ring:#F0F0F2; }
 
 /* THEME: Steel (blue) */
-[data-theme="steel"][data-mode="light"]{ --accent:#3E6FF0; --accent-2:#5B86FF; --on-accent:#FFFFFF; --bubble-out:#E4EBFC; --bubble-out-text:#152036; --ring:#3E6FF0; }
+[data-theme="steel"][data-mode="light"]{ --accent:#3563E0; --accent-2:#5B86FF; --on-accent:#FFFFFF; --bubble-out:#E4EBFC; --bubble-out-text:#152036; --ring:#3E6FF0; }
 [data-theme="steel"][data-mode="dark"]{  --accent:#5B86FF; --accent-2:#7AA0FF; --on-accent:#0F0F12; --bubble-out:#243049; --bubble-out-text:#ECECEF; --ring:#5B86FF; }
 
 /* THEME: Moss (green) */

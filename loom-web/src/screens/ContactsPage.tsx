@@ -46,7 +46,7 @@ export function ContactsPage() {
     <div className="pane" style={{ height: '100%' }}>
       <div className="pane-head">
         <div className="pane-title">Contacts</div>
-        <button className="icon-btn" onClick={() => toast('Add contact — search below')}><UserPlus size={20} /></button>
+        <button className="icon-btn" onClick={() => toast('Add contact — search below')} aria-label="Add contact"><UserPlus size={20} /></button>
       </div>
       <div className="search"><Search size={17} /><input placeholder="Search people" value={q} onChange={(e) => setQ(e.target.value)} /></div>
       <div className="pane-body" style={{ paddingBottom: 100 }}>
@@ -64,7 +64,7 @@ export function ContactsPage() {
                           <div className="name">{u.displayName}</div>
                           <div className="preview">@{u.userName}</div>
                         </div>
-                        <button className="icon-btn" onClick={(e) => { e.stopPropagation(); void message(u) }}><MessageSquare size={18} /></button>
+                        <button className="icon-btn" onClick={(e) => { e.stopPropagation(); void message(u) }} aria-label="Message"><MessageSquare size={18} /></button>
                       </div>
                     ))}
                   </div>

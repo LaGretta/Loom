@@ -38,15 +38,15 @@ export function CalendarPage() {
       <div className="list-col" style={{ display: 'flex', flexDirection: 'column' }}>
         <div className="pane-head">
           <div className="pane-title">Calendar</div>
-          <button className="icon-btn" onClick={() => setAddOpen(true)}><Plus size={20} /></button>
+          <button className="icon-btn" onClick={() => setAddOpen(true)} aria-label="New plan"><Plus size={20} /></button>
         </div>
 
         <div style={{ padding: '0 16px', flex: 1, overflowY: 'auto', paddingBottom: 100 }}>
           {events === null ? <CalendarSkeleton /> : <>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '4px 0 12px' }}>
-              <button className="icon-btn" onClick={() => setCursor((d) => addMonth(d, -1))}><ChevronLeft size={20} /></button>
+              <button className="icon-btn" onClick={() => setCursor((d) => addMonth(d, -1))} aria-label="Previous month"><ChevronLeft size={20} /></button>
               <div style={{ fontSize: 16, fontWeight: 700 }}>{monthLabel}</div>
-              <button className="icon-btn" onClick={() => setCursor((d) => addMonth(d, 1))}><ChevronRight size={20} /></button>
+              <button className="icon-btn" onClick={() => setCursor((d) => addMonth(d, 1))} aria-label="Next month"><ChevronRight size={20} /></button>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4, marginBottom: 6 }}>

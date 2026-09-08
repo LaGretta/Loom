@@ -5,6 +5,7 @@ import { useAuth } from '../store/auth'
 import { Avatar } from '../ui/Avatar'
 import { CraftedObject } from '../ui/CraftedObject'
 import { useDismiss } from '../ui/useDismiss'
+import { useFocusTrap } from '../ui/useFocusTrap'
 import { starsApi } from '../lib/api'
 import { fmtNumber } from '../ui/format'
 import { toast } from '../ui/toast'
@@ -37,12 +38,14 @@ export function BurgerMenu({ onClose, activeTab }: { onClose: () => void; active
   const logout = useAuth((s) => s.logout)
   const { closing, dismiss } = useDismiss(onClose)
   const panelRef = useRef<HTMLDivElement>(null)
+  useFocusTrap(panelRef, !closing)
 
-  // Esc closes; focus moves into the panel so it's immediately keyboard-navigable.
+  // Esc closes. Focus placement/restore is handled by useFocusTrap — focusing the panel
+  // here as well would re-fire on close (dismiss identity changes) and steal focus back
+  // from the trigger right before unmount, dropping focus to <body>.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') dismiss() }
     window.addEventListener('keydown', onKey)
-    panelRef.current?.focus()
     return () => window.removeEventListener('keydown', onKey)
   }, [dismiss])
   const go = (to: string) => { dismiss(); navigate(to) }

@@ -4,6 +4,8 @@ import { CraftedObject } from '../ui/CraftedObject'
 import { CenterSpinner } from '../ui/primitives'
 import { starsApi } from '../lib/api'
 import { fmtNumber, timeShort } from '../ui/format'
+import { CountUp } from '../ui/CountUp'
+import { celebrate } from '../ui/celebrate'
 import { toast } from '../ui/toast'
 import type { StarBalance, StarTransaction } from '../lib/types'
 
@@ -41,6 +43,7 @@ export function StarsScreen() {
     try {
       const b = await starsApi.purchase(amount)
       setBalance(b)
+      celebrate('s-coin', `+${fmtNumber(amount)} Stars`)
       toast(`+${amount} Stars added`)
       // history refetch is best-effort (endpoint may be unimplemented)
       try { const h = await starsApi.history(1, 40); setHistory(h.items) } catch { /* ignore */ }
@@ -57,7 +60,7 @@ export function StarsScreen() {
       {/* hero */}
       <div style={{ margin: '12px 16px', borderRadius: 20, padding: '26px 20px', textAlign: 'center', position: 'relative', overflow: 'hidden', border: '1px solid var(--hairline)', background: 'radial-gradient(120% 100% at 50% 0%, rgba(232,162,76,.18), transparent 70%), var(--surface)' }}>
         <CraftedObject id="s-coin" size={92} style={{ margin: '0 auto' }} />
-        <div style={{ fontSize: 40, fontWeight: 800, letterSpacing: '-1px', marginTop: 8 }}>{fmtNumber(balance?.balance ?? 0)}</div>
+        <CountUp value={balance?.balance ?? 0} style={{ display: 'block', fontSize: 40, fontWeight: 800, letterSpacing: '-1px', marginTop: 8 }} />
         <div className="section-label" style={{ padding: 0, marginTop: 2 }}>Loom Stars Balance</div>
       </div>
 

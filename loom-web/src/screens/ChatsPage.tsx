@@ -116,9 +116,9 @@ function ChatListPane({ activeId }: { activeId: number | null }) {
         </button>
         <div className="search search-inline">
           <Search size={16} />
-          <input placeholder="Search" value={q} onChange={(e) => setQ(e.target.value)} />
+          <input data-search-input placeholder="Search" aria-label="Search chats" value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
-        <button className="icon-btn round" onClick={() => setComposeOpen(true)} title="New chat"><PenSquare size={19} /></button>
+        <button className="icon-btn round" onClick={() => setComposeOpen(true)} title="New chat" aria-label="New chat"><PenSquare size={19} /></button>
       </div>
 
       {/* header (mobile) */}
@@ -127,15 +127,28 @@ function ChatListPane({ activeId }: { activeId: number | null }) {
           <Avatar name={useAuth.getState().me?.displayName ?? '?'} id={useAuth.getState().me?.id} src={useAuth.getState().me?.avatarUrl} size={40} />
         </button>
         <div className="m-title">Chats</div>
-        <button className="icon-btn" onClick={() => setComposeOpen(true)}><PenSquare size={22} /></button>
+        <button className="icon-btn" onClick={() => setComposeOpen(true)} aria-label="New chat"><PenSquare size={22} /></button>
       </div>
 
       <div className="search mobile-only">
         <Search size={17} />
-        <input placeholder="Search" value={q} onChange={(e) => setQ(e.target.value)} />
+        <input data-search-input placeholder="Search" aria-label="Search chats" value={q} onChange={(e) => setQ(e.target.value)} />
       </div>
 
-      <div className="pane-body" style={{ paddingBottom: 90 }}>
+      {/* listbox semantics + roving arrow navigation */}
+      <div className="pane-body" style={{ paddingBottom: 90 }} role="listbox" aria-label="Chats"
+        onKeyDown={(e) => {
+          if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return
+          const rows = Array.from(e.currentTarget.querySelectorAll<HTMLElement>('.chat-row'))
+          if (!rows.length) return
+          e.preventDefault()
+          const i = rows.indexOf(document.activeElement as HTMLElement)
+          const next = e.key === 'Home' ? 0
+            : e.key === 'End' ? rows.length - 1
+              : e.key === 'ArrowDown' ? Math.min(rows.length - 1, i + 1)
+                : Math.max(0, i <= 0 ? 0 : i - 1)
+          rows[next]?.focus()
+        }}>
         {loading && chats.length === 0 ? <ChatListSkeleton />
           : error && chats.length === 0
             ? <ErrorState subtitle="We couldn’t reach the server." onRetry={() => void loadChats()} />
@@ -165,7 +178,15 @@ function ChatRow({ chat, active, index, onClick }: { chat: Chat; active: boolean
   const isTyping = typing && typing.length > 0
 
   return (
-    <div className={`chat-row row-in ${active ? 'active' : ''}`} style={{ animationDelay: `${Math.min(index, 12) * 0.03}s` }} onClick={onClick}>
+    <div
+      className={`chat-row row-in ${active ? 'active' : ''}`}
+      style={{ animationDelay: `${Math.min(index, 12) * 0.03}s` }}
+      onClick={onClick}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } }}
+      role="option"
+      aria-selected={active}
+      tabIndex={0}
+    >
       <Avatar name={title} id={chat.id} src={chat.avatarUrl} size={48} />
       <div className="col">
         <div className="r1">

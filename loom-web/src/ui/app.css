@@ -150,6 +150,10 @@
 
 /* optimistic send states */
 .bubble.pending{ opacity:.72; }
+/* long-press feedback before the menu opens */
+.bubble.is-pressing{ transform:scale(.97); filter:brightness(1.08); }
+.bubble{ transition:transform .14s ease, filter .14s ease; }
+@media (prefers-reduced-motion: reduce){ .bubble.is-pressing{ transform:none; } }
 .bubble.failed{ border-color:color-mix(in srgb, var(--danger) 55%, transparent); }
 .msg-failed{
   display:flex; align-items:center; gap:7px; margin-top:5px; padding-top:5px;
@@ -291,12 +295,21 @@ textarea.input{ height:auto; padding:12px 14px; resize:vertical; min-height:80px
 .sticker-cell svg{ animation:lmBob 2.8s ease-in-out infinite; }
 
 /* context menu */
-.ctx-wrap{ position:fixed; inset:0; z-index:120; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; padding:24px; }
+/* transparent catcher — the message stays visible; the menu is anchored to the tap point */
+.ctx-wrap{ position:fixed; inset:0; z-index:120; }
+.ctx-anchor{ position:absolute; display:flex; flex-direction:column; gap:8px; transform-origin:top left; }
 .quick-react{ display:flex; gap:8px; background:var(--surface); border:1px solid var(--hairline); border-radius:24px; padding:8px 12px; box-shadow:var(--shadow); }
 .quick-react button{ font-size:26px; border:none; background:transparent; transition:transform .14s ease; line-height:1; }
 .quick-react button:hover{ transform:scale(1.3); }
-.ctx-card{ width:min(280px,80vw); background:var(--surface); border:1px solid var(--hairline); border-radius:16px; box-shadow:var(--shadow); overflow:hidden; }
-.ctx-item{ display:flex; align-items:center; gap:12px; width:100%; padding:12px 16px; border:none; background:transparent; color:var(--text); font-size:15px; font-weight:500; text-align:left; }
+.ctx-card{ width:min(248px,82vw); background:var(--surface); border:1px solid var(--hairline); border-radius:16px; box-shadow:var(--shadow); overflow:hidden; }
+.ctx-item{ display:flex; align-items:center; gap:12px; width:100%; padding:11px 15px; border:none; background:transparent; color:var(--text); font-size:14.5px; font-weight:500; text-align:left; }
+.ctx-item:disabled{ color:var(--text-2); background:transparent; }
+.ctx-item:disabled:hover{ background:transparent; }
+.ctx-soon{
+  margin-left:auto; font-size:10.5px; font-weight:700; letter-spacing:.3px;
+  padding:2px 7px; border-radius:999px; background:var(--surface-2);
+  border:1px solid var(--hairline); color:var(--text-2);
+}
 .ctx-item:hover{ background:var(--surface-2); }
 .ctx-item.danger{ color:var(--danger); }
 .ctx-item + .ctx-item{ border-top:1px solid var(--hairline); }
@@ -462,6 +475,50 @@ textarea.input{ height:auto; padding:12px 14px; resize:vertical; min-height:80px
   border:1px solid var(--hairline); border-radius:26px; box-shadow:var(--shadow);
 }
 
+
+/* ----------------- economy animations (gifts & stars) ----------------- */
+.countup{ display:inline-block; transition:color .25s ease, transform .25s ease; }
+.countup.up{ color:var(--success); transform:translateY(-1px); }
+.countup.down{ color:var(--star-gold); transform:translateY(1px); }
+
+/* flying gift on send */
+.gift-fly{ position:fixed; z-index:400; pointer-events:none; transform:translate(-50%,-50%); line-height:0; }
+
+/* confirmation burst */
+.celebrate{
+  position:fixed; inset:0; z-index:400; pointer-events:none;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px;
+}
+.celebrate .cb-obj{ line-height:0; animation:cbPop .6s cubic-bezier(.2,.9,.25,1) both; }
+.celebrate .cb-text{
+  font-size:15px; font-weight:800; letter-spacing:-.01em; color:var(--text);
+  background:var(--glass); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+  border:1px solid var(--hairline); border-radius:999px; padding:7px 16px; box-shadow:var(--shadow);
+  animation:cbText .6s ease both;
+}
+.celebrate .cb-ring{
+  position:absolute; width:120px; height:120px; border-radius:50%;
+  border:2.5px solid var(--accent); animation:cbRing .6s ease-out both;
+}
+@keyframes cbPop{ 0%{ transform:scale(.5); opacity:0 } 55%{ transform:scale(1.08); opacity:1 } 100%{ transform:scale(1); opacity:0 } }
+@keyframes cbText{ 0%{ transform:translateY(8px); opacity:0 } 30%{ transform:translateY(0); opacity:1 } 100%{ opacity:0 } }
+@keyframes cbRing{ 0%{ transform:scale(.4); opacity:.6 } 100%{ transform:scale(2.1); opacity:0 } }
+
+/* gift card arriving in the thread */
+.gift-card-in{ animation:giftIn .5s cubic-bezier(.2,.8,.25,1) both; }
+.gift-card-in .gift-art::after{
+  content:''; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+  background:linear-gradient(115deg, transparent 35%, rgba(255,255,255,.5) 50%, transparent 65%);
+  animation:giftSheen .9s .18s ease-out both;
+}
+@keyframes giftIn{ 0%{ transform:scale(.86) translateY(10px); opacity:0 } 100%{ transform:scale(1) translateY(0); opacity:1 } }
+@keyframes giftSheen{ 0%{ transform:translateX(-120%) } 100%{ transform:translateX(120%) } }
+
+@media (prefers-reduced-motion: reduce){
+  .countup{ transition:none; transform:none; }
+  .gift-card-in, .gift-card-in .gift-art::after{ animation:none; }
+}
+
 /* ----------------- interaction polish (Phase 7) ----------------- */
 /* Kill the 300ms tap delay and the grey flash; nothing interactive feels dead. */
 button, [role="button"], a, .chat-row, .list-row, .obj-cell, .sticker-cell, .bm-item, .bm-profile, .nav-item{
@@ -504,13 +561,15 @@ button:disabled{ cursor:not-allowed; opacity:.55; }
   .desktop-only{ display:none; }
   .mobile-only{ display:initial; }
   .bubble{ max-width:82%; }
-  .main-col.mobile-hidden{ display:none; }
+  /* !important so an inline display:flex on the column can't defeat it (Calendar did) */
+  .main-col.mobile-hidden{ display:none !important; }
   .col-resizer{ display:none; }
   .hide-on-mobile{ display:none !important; }
   /* restore proper layout for flex elements that also carry .mobile-only
      (the generic .mobile-only{display:initial} above would force inline) */
   .bottom-nav{ display:flex; }
   .m-head{ display:flex; }
+  .search.mobile-only{ display:flex; }   /* else the icon and input stack and blow the pill */
   /* reserve space so scrolling content is never hidden behind the fixed bottom bar */
   .pane-body{ padding-bottom: calc(var(--bottomnav-h) + 12px + env(safe-area-inset-bottom)); }
 

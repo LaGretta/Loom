@@ -21,6 +21,7 @@ import { SavedScreen } from './SavedScreen'
 import { BurgerMenu } from './BurgerMenu'
 import { ConnectionStrip } from '../ui/ConnectionStrip'
 import { useKeyboardInset } from '../ui/useKeyboardInset'
+import { useHotkeys } from '../ui/useHotkeys'
 
 type Tab = 'chats' | 'calendar' | 'contacts' | 'calls' | 'profile'
 
@@ -71,6 +72,7 @@ export function AppShell() {
 
   useEffect(() => { void loadChats() }, [loadChats])
   useKeyboardInset()
+  useHotkeys()
   useSessionRestore(pathname)
 
   return (

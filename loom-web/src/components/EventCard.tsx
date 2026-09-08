@@ -19,10 +19,12 @@ function whenLabel(iso: string): string {
   return `${day}, ${date} · ${time}`
 }
 
-const RSVP_BTNS: { label: string; status: RsvpStatus; color: string }[] = [
-  { label: 'Going', status: 'Going', color: 'var(--success)' },
-  { label: 'Maybe', status: 'Maybe', color: 'var(--star-gold)' },
-  { label: "Can't", status: 'NotGoing', color: 'var(--danger)' },
+// `fg` is the foreground used when the pill is active — gold needs dark text
+// (white on #E8A24C is ~2:1), the other two are fine with white.
+const RSVP_BTNS: { label: string; status: RsvpStatus; color: string; fg: string }[] = [
+  { label: 'Going', status: 'Going', color: 'var(--success)', fg: '#fff' },
+  { label: 'Maybe', status: 'Maybe', color: 'var(--star-gold)', fg: '#2A1E0C' },
+  { label: "Can't", status: 'NotGoing', color: 'var(--danger)', fg: '#fff' },
 ]
 
 export function EventCard({ event }: { event: LoomEvent }) {
@@ -109,7 +111,7 @@ export function EventCard({ event }: { event: LoomEvent }) {
               style={{
                 flex: 1, textAlign: 'center', padding: '8px 0', borderRadius: 10, fontSize: 12, fontWeight: 700,
                 background: active ? b.color : 'var(--surface-2)',
-                color: active ? '#fff' : 'var(--text)',
+                color: active ? b.fg : 'var(--text)',
                 border: `1px solid ${active ? b.color : 'var(--hairline)'}`,
                 transition: 'transform .14s ease',
               }}>

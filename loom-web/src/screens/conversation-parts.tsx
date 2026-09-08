@@ -1,7 +1,8 @@
-import { useRef, useState, useEffect } from 'react'
-import { Paperclip, ArrowUp, Mic, X, Reply, Forward, Copy, Pin, Trash2, Pencil } from 'lucide-react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { Paperclip, ArrowUp, Mic, X, Reply, Forward, Copy, Trash2, Pencil } from 'lucide-react'
 import { Sheet } from '../ui/primitives'
 import { useDismiss } from '../ui/useDismiss'
+import { useFocusTrap } from '../ui/useFocusTrap'
 import { CraftedObject } from '../ui/CraftedObject'
 import { useChat } from '../store/chat'
 import { messagesApi } from '../lib/api'
@@ -127,22 +128,24 @@ export function Composer({ chatId, replyTo, onCancelReply, editing, onCancelEdit
               <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)' }}>{editing ? 'Editing' : `Reply to ${replyTo?.senderName}`}</div>
               <div className="ellipsis muted" style={{ fontSize: 12.5 }}>{(editing ?? replyTo)?.content}</div>
             </div>
-            <button className="icon-btn" onClick={() => { onCancelReply?.(); onCancelEdit?.() }}><X size={18} /></button>
+            <button className="icon-btn" onClick={() => { onCancelReply?.(); onCancelEdit?.() }} aria-label="Cancel"><X size={18} /></button>
           </div>
         )}
         <div className="composer">
           {/* one pill: attach + input + sticker (no divider); send is a separate circle */}
           <div className="field">
-            <button className="icon-btn attach-in" onClick={() => setAttachOpen(true)} title="Attach"><Paperclip size={21} /></button>
+            <button className="icon-btn attach-in" onClick={() => setAttachOpen(true)} title="Attach" aria-label="Attach a file"><Paperclip size={21} /></button>
             <textarea
               ref={taRef}
+              data-composer
+              aria-label="Message"
               rows={1}
               placeholder="Message"
               value={text}
               onChange={(e) => onInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit() } }}
             />
-            <button className="icon-btn" style={{ width: 30, height: 30 }} onClick={() => setStickerOpen(true)} title="Stickers">
+            <button className="icon-btn" style={{ width: 30, height: 30 }} onClick={() => setStickerOpen(true)} title="Stickers" aria-label="Stickers">
               <CraftedObject id="loomi-wave" kind="sticker" size={26} />
             </button>
           </div>
@@ -204,9 +207,10 @@ export function StickerPickerBody({ onPick }: { onPick: (id: string) => void }) 
   )
 }
 
-export function MessageContextMenu({ message, mine, onClose, onReply, onEdit }: {
+export function MessageContextMenu({ message, mine, at, onClose, onReply, onEdit }: {
   message: Message
   mine: boolean
+  at: { x: number; y: number }        // tap/click point the menu is anchored to
   onClose: () => void
   onReply: () => void
   onEdit: () => void
@@ -214,21 +218,82 @@ export function MessageContextMenu({ message, mine, onClose, onReply, onEdit }: 
   const react = useChat((s) => s.react)
   const remove = useChat((s) => s.remove)
   const { closing, dismiss } = useDismiss(onClose)
+  const boxRef = useRef<HTMLDivElement>(null)
+  useFocusTrap(boxRef, !closing)
+  const [pos, setPos] = useState<{ left: number; top: number } | null>(null)
+
+  // Anchor at the point, then flip/clamp so the menu never leaves the viewport.
+  useLayoutEffect(() => {
+    const el = boxRef.current
+    if (!el) return
+    const { width, height } = el.getBoundingClientRect()
+    const M = 10
+    let left = at.x
+    let top = at.y
+    if (left + width + M > window.innerWidth) left = at.x - width      // flip to the left
+    if (left < M) left = M
+    if (left + width + M > window.innerWidth) left = Math.max(M, window.innerWidth - width - M)
+    if (top + height + M > window.innerHeight) top = at.y - height     // flip above
+    if (top < M) top = M
+    setPos({ left, top })
+  }, [at.x, at.y])
+
+  // Esc, and any scroll underneath, dismiss the menu.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); dismiss() } }
+    const onScroll = () => dismiss()
+    window.addEventListener('keydown', onKey)
+    window.addEventListener('scroll', onScroll, true)   // capture: also catches the thread's scroller
+    window.addEventListener('resize', onScroll)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('scroll', onScroll, true)
+      window.removeEventListener('resize', onScroll)
+    }
+  }, [dismiss])
+
+  const act = (fn: () => void) => { fn(); dismiss() }
+  const canCopy = !message.isDeleted && message.type === 'Text'
 
   return (
-    <div className={`ctx-wrap anim-scrim ${closing ? 'out-scrim' : ''}`} onMouseDown={dismiss}>
-      <div className={`quick-react anim-menu ${closing ? 'out-menu' : ''}`} onMouseDown={(e) => e.stopPropagation()}>
-        {QUICK_REACTIONS.map((e) => (
-          <button key={e} onClick={() => { void react(message.id, message.chatId, e); onClose() }}>{e}</button>
-        ))}
-      </div>
-      <div className={`ctx-card anim-menu ${closing ? 'out-menu' : ''}`} onMouseDown={(e) => e.stopPropagation()}>
-        <button className="ctx-item" onClick={() => { onReply(); onClose() }}><Reply size={18} /> Reply</button>
-        <button className="ctx-item" onClick={() => { navigator.clipboard?.writeText(message.content); toast('Copied'); onClose() }}><Copy size={18} /> Copy</button>
-        <button className="ctx-item" onClick={() => { toast('Forward — coming soon'); onClose() }}><Forward size={18} /> Forward</button>
-        <button className="ctx-item" onClick={() => { toast('Pinned'); onClose() }}><Pin size={18} /> Pin</button>
-        {mine && <button className="ctx-item" onClick={() => { onEdit(); onClose() }}><Pencil size={18} /> Edit</button>}
-        {mine && <button className="ctx-item danger" onClick={() => { void remove(message.id, message.chatId); onClose() }}><Trash2 size={18} /> Delete</button>}
+    <div className={`ctx-wrap ${closing ? 'out-scrim' : ''}`}
+      onMouseDown={dismiss}
+      onContextMenu={(e) => { e.preventDefault(); dismiss() }}>
+      <div
+        ref={boxRef}
+        role="menu"
+        aria-label="Message actions"
+        className={`ctx-anchor anim-menu ${closing ? 'out-menu' : ''}`}
+        style={pos ? { left: pos.left, top: pos.top } : { left: 0, top: 0, visibility: 'hidden' }}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <div className="quick-react" role="group" aria-label="Quick reactions">
+          {QUICK_REACTIONS.map((e) => (
+            <button key={e} aria-label={`React ${e}`} onClick={() => act(() => void react(message.id, message.chatId, e))}>{e}</button>
+          ))}
+        </div>
+
+        <div className="ctx-card">
+          <button className="ctx-item" role="menuitem" onClick={() => act(onReply)}><Reply size={18} /> Reply</button>
+          {canCopy && (
+            <button className="ctx-item" role="menuitem"
+              onClick={() => act(() => { navigator.clipboard?.writeText(message.content); toast('Copied') })}>
+              <Copy size={18} /> Copy text
+            </button>
+          )}
+          <button className="ctx-item" role="menuitem" disabled aria-disabled="true" title="Forwarding isn’t available yet">
+            <Forward size={18} /> Forward <span className="ctx-soon">Soon</span>
+          </button>
+          {mine && !message.isDeleted && (
+            <button className="ctx-item" role="menuitem" onClick={() => act(onEdit)}><Pencil size={18} /> Edit</button>
+          )}
+          {mine && !message.isDeleted && (
+            <button className="ctx-item danger" role="menuitem"
+              onClick={() => act(() => void remove(message.id, message.chatId))}>
+              <Trash2 size={18} /> Delete
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )

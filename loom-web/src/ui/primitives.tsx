@@ -1,5 +1,6 @@
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { useDismiss } from './useDismiss'
+import { useFocusTrap } from './useFocusTrap'
 import { X, AlertTriangle, RotateCw } from 'lucide-react'
 
 export function Spinner() { return <span className="spinner" /> }
@@ -84,6 +85,8 @@ export function Modal({ title, onClose, children, footer, wide }: {
   wide?: boolean
 }) {
   const { closing, dismiss } = useDismiss(onClose)
+  const cardRef = useRef<HTMLDivElement>(null)
+  useFocusTrap(cardRef, !closing)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') dismiss() }
     window.addEventListener('keydown', onKey)
@@ -91,7 +94,7 @@ export function Modal({ title, onClose, children, footer, wide }: {
   }, [dismiss])
   return (
     <div className={`scrim anim-scrim ${closing ? 'out-scrim' : ''}`} onMouseDown={dismiss}>
-      <div className={`modal-card anim-menu ${closing ? 'out-menu' : ''}`} style={wide ? { width: 'min(680px,calc(100vw - 32px))' } : undefined} onMouseDown={(e) => e.stopPropagation()}>
+      <div ref={cardRef} role="dialog" aria-modal="true" className={`modal-card anim-menu ${closing ? 'out-menu' : ''}`} style={wide ? { width: 'min(680px,calc(100vw - 32px))' } : undefined} onMouseDown={(e) => e.stopPropagation()}>
         {title !== undefined && (
           <div className="modal-head">
             <div className="mt">{title}</div>
@@ -108,6 +111,8 @@ export function Modal({ title, onClose, children, footer, wide }: {
 /** Bottom sheet. */
 export function Sheet({ onClose, children }: { onClose: () => void; children: ReactNode }) {
   const { closing, dismiss } = useDismiss(onClose, 200)
+  const sheetRef = useRef<HTMLDivElement>(null)
+  useFocusTrap(sheetRef, !closing)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') dismiss() }
     window.addEventListener('keydown', onKey)
@@ -115,7 +120,7 @@ export function Sheet({ onClose, children }: { onClose: () => void; children: Re
   }, [dismiss])
   return (
     <div className={`scrim bottom anim-scrim ${closing ? 'out-scrim' : ''}`} onMouseDown={dismiss}>
-      <div className={`sheet anim-sheet ${closing ? 'out-sheet' : ''}`} onMouseDown={(e) => e.stopPropagation()}>
+      <div ref={sheetRef} role="dialog" aria-modal="true" className={`sheet anim-sheet ${closing ? 'out-sheet' : ''}`} onMouseDown={(e) => e.stopPropagation()}>
         <div className="grab" />
         {children}
       </div>

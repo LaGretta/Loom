@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { Overlay } from '../ui/Overlay'
 import { Avatar } from '../ui/Avatar'
 import { CraftedObject } from '../ui/CraftedObject'
-import { Switch, CenterSpinner } from '../ui/primitives'
+import { CenterSpinner } from '../ui/primitives'
 import { usersApi, chatsApi } from '../lib/api'
 import { giftByName } from '../assets/loom'
 import { presenceText } from '../ui/format'
@@ -25,7 +25,6 @@ export function UserProfileScreen() {
   const navigate = useNavigate()
   const [user, setUser] = useState<UserProfile | null>(null)
   const [gifts, setGifts] = useState<GiftInstance[]>([])
-  const [muted, setMuted] = useState(false)
   const [loading, setLoading] = useState(true)
   const presence = useChat((s) => s.presence)
 
@@ -82,14 +81,17 @@ export function UserProfileScreen() {
         </div>
       )}
 
+      {/* Mute and Block have no endpoint yet — shown as explicitly unavailable rather
+          than faking a success toast / a switch that forgets itself on reopen. */}
       <div className="list-card">
-        <div className="list-row" style={{ cursor: 'default' }}>
-          <span className="lr-title grow">Mute notifications</span>
-          <Switch on={muted} onChange={setMuted} />
+        <div className="list-row" style={{ cursor: 'default' }} aria-disabled="true">
+          <span className="lr-title grow" style={{ color: 'var(--text-2)' }}>Mute notifications</span>
+          <span className="ctx-soon">Soon</span>
         </div>
-        <button className="list-row" onClick={() => toast('User blocked')}>
-          <span className="lr-title grow" style={{ color: 'var(--danger)' }}>Block user</span>
-        </button>
+        <div className="list-row" style={{ cursor: 'default' }} aria-disabled="true">
+          <span className="lr-title grow" style={{ color: 'var(--text-2)' }}>Block user</span>
+          <span className="ctx-soon">Soon</span>
+        </div>
       </div>
 
       {/* gifts showcase */}

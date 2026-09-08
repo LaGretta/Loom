@@ -37,7 +37,7 @@ export function ConversationView({ chatId }: { chatId: number }) {
   const [members, setMembers] = useState<ChatMember[]>([])
   const [replyTo, setReplyTo] = useState<Message | null>(null)
   const [editing, setEditing] = useState<Message | null>(null)
-  const [menuFor, setMenuFor] = useState<Message | null>(null)
+  const [menuFor, setMenuFor] = useState<{ message: Message; x: number; y: number } | null>(null)
 
   // Phase 4: anchoring, per-chat position memory and the "new messages" pill.
   const { threadRef, onScroll, newCount, scrollToBottom } = useThreadScroll({
@@ -78,7 +78,7 @@ export function ConversationView({ chatId }: { chatId: number }) {
   // Stable handlers: inline closures would change identity every render and defeat
   // the memo on Bubble, re-rendering the whole thread on each incoming message.
   const handleReply = useCallback((m: Message) => { setEditing(null); setReplyTo(m) }, [])
-  const handleMenu = useCallback((m: Message) => setMenuFor(m), [])
+  const handleMenu = useCallback((m: Message, pt: { x: number; y: number }) => setMenuFor({ message: m, ...pt }), [])
   const handleProfile = useCallback((id: number) => navigate(`/u/${id}`), [navigate])
   const handleRetry = useCallback((id: number) => { void retrySend(chatId, id) }, [chatId, retrySend])
   const handleDiscard = useCallback((id: number) => discardMessage(chatId, id), [chatId, discardMessage])
@@ -95,7 +95,7 @@ export function ConversationView({ chatId }: { chatId: number }) {
     <div className="pane conv" style={{ flex: 1, minWidth: 0, position: 'relative' }}>
       {/* header */}
       <div className="chat-header frost">
-        <button className="icon-btn mobile-only" onClick={() => navigate('/')}><ChevronLeft size={24} /></button>
+        <button className="icon-btn mobile-only" onClick={() => navigate('/')} aria-label="Back to chats"><ChevronLeft size={24} /></button>
         <button style={{ display: 'flex', alignItems: 'center', gap: 12, border: 'none', background: 'transparent', padding: 0, flex: 1, minWidth: 0, textAlign: 'left' }}
           onClick={() => { if (isDirect && other) navigate(`/u/${other.userId}`); else navigate(`/chat/${chatId}/members`) }}>
           <Avatar name={title} id={isDirect ? (other?.userId ?? chatId) : chatId} src={isDirect ? (other?.avatarUrl ?? chat?.avatarUrl) : chat?.avatarUrl} size={34} online={status.online} />
@@ -107,10 +107,10 @@ export function ConversationView({ chatId }: { chatId: number }) {
           </div>
         </button>
         <div className="h-actions">
-          <button className="icon-btn desktop-only" onClick={() => toast('Voice call — coming soon')}><Phone size={19} /></button>
-          <button className="icon-btn" onClick={() => toast('Video call — coming soon')}><Video size={19} /></button>
-          <button className="icon-btn desktop-only" onClick={() => toast('In-chat search — coming soon')}><Search size={19} /></button>
-          <button className="icon-btn" onClick={() => navigate(`/chat/${chatId}/members`)}><MoreVertical size={19} /></button>
+          <button className="icon-btn desktop-only" onClick={() => toast('Voice call — coming soon')} aria-label="Voice call"><Phone size={19} /></button>
+          <button className="icon-btn" onClick={() => toast('Video call — coming soon')} aria-label="Video call"><Video size={19} /></button>
+          <button className="icon-btn desktop-only" onClick={() => toast('In-chat search — coming soon')} aria-label="Search in chat"><Search size={19} /></button>
+          <button className="icon-btn" onClick={() => navigate(`/chat/${chatId}/members`)} aria-label="Chat info"><MoreVertical size={19} /></button>
         </div>
       </div>
 
@@ -164,11 +164,12 @@ export function ConversationView({ chatId }: { chatId: number }) {
 
       {menuFor && (
         <MessageContextMenu
-          message={menuFor}
-          mine={menuFor.senderId === me?.id}
+          message={menuFor.message}
+          mine={menuFor.message.senderId === me?.id}
+          at={{ x: menuFor.x, y: menuFor.y }}
           onClose={() => setMenuFor(null)}
-          onReply={() => { setEditing(null); setReplyTo(menuFor) }}
-          onEdit={() => { setReplyTo(null); setEditing(menuFor) }}
+          onReply={() => { setEditing(null); setReplyTo(menuFor.message) }}
+          onEdit={() => { setReplyTo(null); setEditing(menuFor.message) }}
         />
       )}
     </div>
@@ -193,13 +194,13 @@ function SenderAvatar({ name, id, src, onClick }: { name: string; id: number; sr
 }
 
 /* Gift-type message → rendered as a gift card (crafted 3D object by name), not plain text. */
-function GiftBubbleCard({ giftName, mine, senderName }: { giftName: string; mine: boolean; senderName: string }) {
+function GiftBubbleCard({ giftName, mine, senderName, isNew }: { giftName: string; mine: boolean; senderName: string; isNew: boolean }) {
   const meta = giftByName(giftName)
   const backdrop = meta ? `radial-gradient(120% 100% at 50% 18%, ${meta.g1}, ${meta.g2})` : 'var(--surface-2)'
   const legendary = meta?.r === 'LEGENDARY'
   return (
-    <div style={{ width: 224 }}>
-      <div style={{ position: 'relative', height: 124, borderRadius: 12, overflow: 'hidden', display: 'grid', placeItems: 'center', background: backdrop, boxShadow: 'inset 0 1px 0 rgba(255,255,255,.18), inset 0 -14px 26px rgba(0,0,0,.22)' }}>
+    <div style={{ width: 224 }} className={isNew ? 'gift-card-in' : ''}>
+      <div className="gift-art" style={{ position: 'relative', height: 124, borderRadius: 12, overflow: 'hidden', display: 'grid', placeItems: 'center', background: backdrop, boxShadow: 'inset 0 1px 0 rgba(255,255,255,.18), inset 0 -14px 26px rgba(0,0,0,.22)' }}>
         {meta ? <CraftedObject id={meta.sym} kind="gift" size={92} /> : <CraftedObject id="s-gift" size={72} />}
         {meta && <span className={`rarity ${legendary ? 'legendary' : 'other'}`} style={{ position: 'absolute', top: 8, left: 8 }}>{meta.r}</span>}
       </div>
@@ -234,20 +235,32 @@ const Bubble = memo(function Bubble({ message, mine, showSender, grouped, sender
   senderAvatarUrl?: string | null
   isNew: boolean                              // arrived after the chat was opened → slides in
   onReply: (m: Message) => void
-  onMenu: (m: Message) => void
+  onMenu: (m: Message, pt: { x: number; y: number }) => void
   onOpenProfile: (senderId: number) => void   // tap sender avatar/name → open their profile
   onRetry: (id: number) => void               // failed optimistic send → try again
   onDiscard: (id: number) => void             // failed optimistic send → drop it
 }) {
   const react = useChat((s) => s.react)
   const pressTimer = useRef<number>()
+  const [pressing, setPressing] = useState(false)
+
+  // Long-press is a touch gesture only — desktop opens the menu with right-click.
+  const startPress = (e: React.TouchEvent) => {
+    const t = e.touches[0]
+    const pt = { x: t.clientX, y: t.clientY }
+    setPressing(true)
+    pressTimer.current = window.setTimeout(() => { setPressing(false); onMenu(message, pt) }, 480)
+  }
+  const endPress = () => { window.clearTimeout(pressTimer.current); setPressing(false) }
+
 
   // Stickers render large, no bubble
   if (message.type === 'Sticker' && !message.isDeleted) {
     return (
-      <div className={`msg-row ${mine ? 'out' : ''} ${grouped ? 'grouped' : ''} ${isNew ? 'msg-in' : ''}`} onContextMenu={(e) => { e.preventDefault(); onMenu(message) }}>
+      <div className={`msg-row ${mine ? 'out' : ''} ${grouped ? 'grouped' : ''} ${isNew ? 'msg-in' : ''}`} onContextMenu={(e) => { e.preventDefault(); onMenu(message, { x: e.clientX, y: e.clientY }) }}>
         {!mine && showSender ? <SenderAvatar name={senderName} id={message.senderId} src={senderAvatarUrl} onClick={() => onOpenProfile(message.senderId)} /> : (!mine ? <span style={{ width: 30, flex: '0 0 30px' }} /> : null)}
-        <div style={{ position: 'relative' }} onDoubleClick={() => onReply(message)}>
+        <div style={{ position: 'relative' }} onDoubleClick={() => onReply(message)}
+          onTouchStart={startPress} onTouchEnd={endPress} onTouchMove={endPress} onTouchCancel={endPress}>
           {!mine && showSender && <div className="sender" style={{ color: 'var(--accent)', cursor: 'pointer', marginBottom: 3 }} onClick={() => onOpenProfile(message.senderId)}>{senderName}</div>}
           <CraftedObject id={message.content} kind="sticker" size={128} />
           {message.reactions.length > 0 && <ReactionRow message={message} mine={mine} onToggle={(e) => react(message.id, message.chatId, e)} />}
@@ -260,14 +273,12 @@ const Bubble = memo(function Bubble({ message, mine, showSender, grouped, sender
   const isFile = message.type === 'File' || message.type === 'Video'
   const isGift = message.type === 'Gift' && !message.isDeleted
 
-  const startPress = () => { pressTimer.current = window.setTimeout(() => onMenu(message), 480) }
-  const endPress = () => window.clearTimeout(pressTimer.current)
 
   return (
     <div className={`msg-row ${mine ? 'out' : ''} ${grouped ? 'grouped' : ''} ${isNew ? 'msg-in' : ''}`}
-      onContextMenu={(e) => { e.preventDefault(); onMenu(message) }}>
+      onContextMenu={(e) => { e.preventDefault(); onMenu(message, { x: e.clientX, y: e.clientY }) }}>
       {!mine && showSender ? <SenderAvatar name={senderName} id={message.senderId} src={senderAvatarUrl} onClick={() => onOpenProfile(message.senderId)} /> : (!mine ? <span style={{ width: 30, flex: '0 0 30px' }} /> : null)}
-      <div className={`bubble ${message.pending ? 'pending' : ''} ${message.failed ? 'failed' : ''}`} onMouseDown={startPress} onMouseUp={endPress} onMouseLeave={endPress} onTouchStart={startPress} onTouchEnd={endPress} onDoubleClick={() => onReply(message)}>
+      <div className={`bubble ${message.pending ? 'pending' : ''} ${message.failed ? 'failed' : ''} ${pressing ? 'is-pressing' : ''}`} onTouchStart={startPress} onTouchEnd={endPress} onTouchMove={endPress} onTouchCancel={endPress} onDoubleClick={() => onReply(message)}>
         {!mine && showSender && <div className="sender" style={{ color: 'var(--accent)', cursor: 'pointer' }} onClick={() => onOpenProfile(message.senderId)}>{senderName}</div>}
         {message.replyToPreview && (
           <div className="reply-quote">
@@ -277,7 +288,7 @@ const Bubble = memo(function Bubble({ message, mine, showSender, grouped, sender
         {message.isDeleted
           ? <div className="text" style={{ fontStyle: 'italic', opacity: .5 }}>Message deleted</div>
           : isGift
-            ? <GiftBubbleCard giftName={message.content} mine={mine} senderName={senderName} />
+            ? <GiftBubbleCard giftName={message.content} mine={mine} senderName={senderName} isNew={isNew} />
             : isImage
             ? <ChatImage src={message.content} />
             : isFile
