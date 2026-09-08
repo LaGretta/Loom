@@ -54,10 +54,11 @@ public class MessageRepository : IMessageRepository
             .OrderByDescending(m => m.SentAt)
             .FirstOrDefaultAsync(ct);
     
-    public async Task<int> CountUnreadAsync(int chatId, DateTime? lastReadAt, CancellationToken ct) =>
+    public async Task<int> CountUnreadAsync(int chatId, int userId, DateTime? lastReadAt, CancellationToken ct) =>
         await _context.Messages
             .Where(m => m.ChatId == chatId
                         && !m.IsDeleted
+                        && m.SenderId != userId        
                         && (lastReadAt == null || m.SentAt > lastReadAt))
             .CountAsync(ct);
 }

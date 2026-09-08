@@ -96,7 +96,7 @@ public class ChatService : IChatService
                 };
             }
             var myMembership = c.Members.FirstOrDefault(m => m.UserId == userId);
-            dto.UnreadCount = await _messageRepo.CountUnreadAsync(c.Id, myMembership?.LastReadAt, ct);
+            dto.UnreadCount = await _messageRepo.CountUnreadAsync(c.Id, userId, myMembership?.LastReadAt, ct);
             if (c.Type == ChatType.Direct)
             {
                 var other = c.Members.FirstOrDefault(m => m.UserId != userId);
