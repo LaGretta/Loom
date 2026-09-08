@@ -8,9 +8,6 @@ public static class GiftSeeder
 {
     public static async Task SeedAsync(LoomDbContext context)
     {
-        if (await context.Gifts.AnyAsync())
-            return;
-
         var gifts = new List<Gift>
         {
             new() { Name = "Thread Spool",       StarCost = 250,  IsActive = true },
@@ -24,10 +21,18 @@ public static class GiftSeeder
             new() { Name = "Emerald Dragon Egg", StarCost = 650,  IsActive = true },
             new() { Name = "Sunset Balloon",     StarCost = 150,  IsActive = true },
             new() { Name = "Retro Cassette",     StarCost = 120,  IsActive = true },
-            new() { Name = "Ocean Pearl",        StarCost = 400,  IsActive = true }
+            new() { Name = "Ocean Pearl",        StarCost = 400,  IsActive = true },
+            new() { Name = "Poor Rabbit",        StarCost = 1500,  IsActive = true },  
+            new() { Name = "Happy Rabbit",       StarCost = 1500,  IsActive = true } 
         };
+        var existing = await context.Gifts.Select(g => g.Name).ToListAsync();
 
-        await context.Gifts.AddRangeAsync(gifts);
-        await context.SaveChangesAsync();
+        var toAdd = gifts.Where(g => !existing.Contains(g.Name)).ToList();
+
+        if (toAdd.Count > 0)
+        {
+            await context.Gifts.AddRangeAsync(toAdd);
+            await context.SaveChangesAsync();
+        }
     }
 }

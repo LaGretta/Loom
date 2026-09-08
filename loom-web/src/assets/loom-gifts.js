@@ -96,6 +96,20 @@
     <clipPath id="clipPearl"><circle cx="100" cy="104" r="30"/></clipPath>
     <clipPath id="clipCass"><rect x="34" y="54" width="132" height="94" rx="14"/></clipPath>
 
+    <!-- ===== RABBIT (Happy / Poor) palette — shared by g-bunny + g-bunny-broke.
+         Reuses the shared soft/soft2/glow/shimmer/giftPat defined above. plushU is one
+         userSpaceOnUse lighting ramp so the whole figure reads as a single plush object. -->
+    <radialGradient id="plushU" gradientUnits="userSpaceOnUse" cx="74" cy="50" r="150"><stop offset="0" stop-color="#FFFFFF"/><stop offset="0.42" stop-color="#FDF6FA"/><stop offset="0.74" stop-color="#F3DFEC"/><stop offset="1" stop-color="#E2C4DA"/></radialGradient>
+    <linearGradient id="earPink" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FBD3E4"/><stop offset="1" stop-color="#F2A8C8"/></linearGradient>
+    <radialGradient id="cheekPink" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#F79CBC" stop-opacity="0.85"/><stop offset="0.7" stop-color="#F79CBC" stop-opacity="0.35"/><stop offset="1" stop-color="#F79CBC" stop-opacity="0"/></radialGradient>
+    <radialGradient id="eyeG" cx="0.35" cy="0.28" r="0.85"><stop offset="0" stop-color="#5A3A56"/><stop offset="0.55" stop-color="#2E1A2E"/><stop offset="1" stop-color="#160B18"/></radialGradient>
+    <linearGradient id="tongueG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FF8092"/><stop offset="1" stop-color="#DA3A54"/></linearGradient>
+    <radialGradient id="bubbleG" cx="0.34" cy="0.28" r="0.85"><stop offset="0" stop-color="#FFE2EF"/><stop offset="0.45" stop-color="#F79EC6"/><stop offset="1" stop-color="#E4589C"/></radialGradient>
+    <radialGradient id="bunnyAura" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#F58CC4" stop-opacity="0.45"/><stop offset="0.55" stop-color="#C063A8" stop-opacity="0.18"/><stop offset="1" stop-color="#C063A8" stop-opacity="0"/></radialGradient>
+    <radialGradient id="mauveAura" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#B9A6C8" stop-opacity="0.4"/><stop offset="0.55" stop-color="#8A7A9C" stop-opacity="0.16"/><stop offset="1" stop-color="#8A7A9C" stop-opacity="0"/></radialGradient>
+    <linearGradient id="liningG" x1="0" y1="0" x2="0.3" y2="1"><stop offset="0" stop-color="#FBF2F7"/><stop offset="1" stop-color="#DCC6D6"/></linearGradient>
+    <clipPath id="clipBun"><path d="M82 50 C74 34, 70 14, 79 9 C86 5, 91 14, 93 28 C94 34, 95 40, 96 44 C98 42, 102 42, 104 44 C105 40, 106 34, 107 28 C109 14, 114 5, 121 9 C130 14, 126 34, 118 50 C132 58, 140 70, 139 86 C139 100, 132 112, 122 116 C128 120, 133 130, 133 142 C133 152, 130 158, 128 162 C129 170, 132 177, 126 179 C118 182, 106 180, 106 170 C106 164, 105 158, 104 156 C102 154, 98 154, 96 156 C94 158, 94 164, 94 170 C94 180, 82 182, 74 179 C68 177, 71 170, 72 162 C70 158, 67 152, 67 142 C67 130, 72 120, 78 116 C68 112, 61 100, 61 86 C60 70, 68 58, 82 50 Z"/></clipPath>
+
     <!-- ===== 1 THREAD SPOOL (Epic) — spins; thread unwinds, weaves an L, rewinds ===== -->
     <symbol id="g-spool" viewBox="0 0 200 200">
       <ellipse cx="100" cy="176" rx="46" ry="8" fill="#241653" opacity="0.26" filter="url(#soft2)"><animate attributeName="rx" values="46;40;46" dur="5s" repeatCount="indefinite"/></ellipse>
@@ -433,6 +447,142 @@
       </g>
     </symbol>
 
+    <!-- ===== 13 HAPPY RABBIT (Legendary) — snappy hop w/ squash & stretch, lean, peace sign + wink ===== -->
+    <symbol id="g-bunny" viewBox="0 0 200 200">
+      <ellipse cx="100" cy="186" rx="38" ry="6.5" fill="#5E2A52" opacity="0.24" filter="url(#soft2)">
+        <animate attributeName="rx" values="38;42;26;26;38;36;38" keyTimes="0;0.12;0.38;0.5;0.72;0.84;1" dur="1.1s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0.24;0.28;0.1;0.1;0.26;0.22;0.24" keyTimes="0;0.12;0.38;0.5;0.72;0.84;1" dur="1.1s" repeatCount="indefinite"/>
+      </ellipse>
+      <circle cx="100" cy="100" r="90" fill="url(#bunnyAura)"><animate attributeName="opacity" values="0.8;1;0.8" dur="3.6s" repeatCount="indefinite"/></circle>
+      <circle cx="100" cy="100" r="74" fill="none" stroke="#FFC0E2" stroke-width="2.5"><animate attributeName="r" values="70;94;94" keyTimes="0;0.7;1" dur="3.2s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.5;0;0" keyTimes="0;0.7;1" dur="3.2s" repeatCount="indefinite"/></circle>
+      <g>
+        <g><animateTransform attributeName="transform" type="translate" values="0 6;0 -10;0 6" dur="4.6s" calcMode="spline" keySplines="0.42 0 0.58 1;0.42 0 0.58 1" repeatCount="indefinite"/><circle cx="38" cy="66" r="10" fill="url(#bubbleG)"/><circle cx="34" cy="61" r="3" fill="#fff" opacity="0.9"/></g>
+        <g><animateTransform attributeName="transform" type="translate" values="0 -8;0 8;0 -8" dur="6s" calcMode="spline" keySplines="0.42 0 0.58 1;0.42 0 0.58 1" repeatCount="indefinite"/><circle cx="164" cy="70" r="13" fill="url(#bubbleG)"/><circle cx="159" cy="64" r="4" fill="#fff" opacity="0.9"/></g>
+        <g><animateTransform attributeName="transform" type="translate" values="0 5;0 -9;0 5" dur="5.4s" calcMode="spline" keySplines="0.42 0 0.58 1;0.42 0 0.58 1" repeatCount="indefinite"/><circle cx="160" cy="146" r="8" fill="url(#bubbleG)"/><circle cx="157" cy="142" r="2.6" fill="#fff" opacity="0.9"/></g>
+      </g>
+      <g><g transform="translate(40 136)"><path d="M0 -7 L4 0 L0 7 L-4 0 Z" fill="#FF9EC8"><animateTransform attributeName="transform" type="scale" values="0;1;0" dur="2.4s" repeatCount="indefinite"/><animate attributeName="opacity" values="0;1;0" dur="2.4s" repeatCount="indefinite"/></path></g>
+        <g transform="translate(150 40)"><path d="M0 -9 L2.2 -2.2 L9 0 L2.2 2.2 L0 9 L-2.2 2.2 L-9 0 L-2.2 -2.2 Z" fill="#FFE79A"><animateTransform attributeName="transform" type="scale" values="0;1;0" dur="2.8s" begin="0.7s" repeatCount="indefinite"/><animate attributeName="opacity" values="0;1;0" dur="2.8s" begin="0.7s" repeatCount="indefinite"/></path></g>
+        <g transform="translate(52 28)"><path d="M0 -6 L1.5 -1.5 L6 0 L1.5 1.5 L0 6 L-1.5 1.5 L-6 0 L-1.5 -1.5 Z" fill="#fff"><animateTransform attributeName="transform" type="scale" values="0;1;0" dur="2.6s" begin="1.5s" repeatCount="indefinite"/><animate attributeName="opacity" values="0;1;0" dur="2.6s" begin="1.5s" repeatCount="indefinite"/></path></g>
+      </g>
+
+      <!-- HOP: anticipation dip -> spring -> hang -> land -> settle -->
+      <g><animateTransform attributeName="transform" type="translate" values="0 0;0 3;0 -22;0 -22;0 0;0 -3;0 0" keyTimes="0;0.12;0.38;0.5;0.72;0.84;1" dur="1.1s" calcMode="spline" keySplines="0.4 0 0.6 1;0.2 0.7 0.3 1;0.4 0 0.6 1;0.5 0 0.8 0.6;0.3 0 0.5 1;0.4 0 0.6 1" repeatCount="indefinite" additive="sum"/>
+      <g><animateTransform attributeName="transform" type="rotate" values="-7 100 181;7 100 181;-7 100 181" dur="4.4s" calcMode="spline" keySplines="0.42 0 0.58 1;0.42 0 0.58 1" repeatCount="indefinite" additive="sum"/>
+      <g transform="translate(100 181)"><animateTransform attributeName="transform" type="scale" values="1 1;1.1 0.88;0.93 1.09;1 1;1.13 0.86;0.98 1.03;1 1" keyTimes="0;0.12;0.38;0.5;0.72;0.84;1" dur="1.1s" calcMode="spline" keySplines="0.4 0 0.6 1;0.2 0.7 0.3 1;0.4 0 0.6 1;0.5 0 0.8 0.6;0.3 0 0.5 1;0.4 0 0.6 1" repeatCount="indefinite" additive="sum"/>
+      <g transform="translate(-100 -181)">
+
+        <path d="M82 50 C74 34, 70 14, 79 9 C86 5, 91 14, 93 28 C94 34, 95 40, 96 44 C98 42, 102 42, 104 44 C105 40, 106 34, 107 28 C109 14, 114 5, 121 9 C130 14, 126 34, 118 50 C132 58, 140 70, 139 86 C139 100, 132 112, 122 116 C128 120, 133 130, 133 142 C133 152, 130 158, 128 162 C129 170, 132 177, 126 179 C118 182, 106 180, 106 170 C106 164, 105 158, 104 156 C102 154, 98 154, 96 156 C94 158, 94 164, 94 170 C94 180, 82 182, 74 179 C68 177, 71 170, 72 162 C70 158, 67 152, 67 142 C67 130, 72 120, 78 116 C68 112, 61 100, 61 86 C60 70, 68 58, 82 50 Z" fill="url(#plushU)" stroke="#B0648F" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+        <path d="M84 46 C79 32, 77 18, 82 15 C87 13, 90 26, 91 42 Z" fill="url(#earPink)" opacity="0.9"/>
+        <path d="M116 46 C121 32, 123 18, 118 15 C113 13, 110 26, 109 42 Z" fill="url(#earPink)" opacity="0.9"/>
+        <ellipse cx="84" cy="62" rx="13" ry="7" fill="#fff" opacity="0.6" transform="rotate(-25 84 62)"/>
+        <ellipse cx="100" cy="120" rx="20" ry="5" fill="#D6B4CC" opacity="0.45" filter="url(#soft)"/>
+        <ellipse cx="100" cy="138" rx="19" ry="17" fill="#FFFFFF" opacity="0.5"/>
+        <path d="M80 176 C82 179, 86 179, 88 176 M112 176 C114 179, 118 179, 120 176" fill="none" stroke="#B0648F" stroke-width="2" stroke-linecap="round" opacity="0.7"/>
+        <ellipse cx="100" cy="176" rx="6" ry="3" fill="#D6B4CC" opacity="0.4" filter="url(#soft)"/>
+
+        <!-- right arm: follow-through swing (fill shape + open outline, root buried in body) -->
+        <g><animateTransform attributeName="transform" type="rotate" values="0 124 124;4 124 124;-12 124 124;-12 124 124;8 124 124;-3 124 124;0 124 124" keyTimes="0;0.12;0.38;0.5;0.72;0.84;1" dur="1.1s" calcMode="spline" keySplines="0.4 0 0.6 1;0.2 0.7 0.3 1;0.4 0 0.6 1;0.5 0 0.8 0.6;0.3 0 0.5 1;0.4 0 0.6 1" repeatCount="indefinite"/>
+          <path d="M116 122 C128 118, 138 122, 142 132 C146 142, 144 152, 136 155 C128 158, 122 150, 124 142 C125 136, 120 130, 116 122 Z" fill="url(#plushU)"/>
+          <path d="M122 124 C132 121, 139 126, 142 133 C146 143, 143 152, 136 155 C129 158, 123 151, 124 143" fill="none" stroke="#B0648F" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+          <ellipse cx="128" cy="140" rx="5" ry="8" fill="#D6B4CC" opacity="0.3" filter="url(#soft)"/>
+        </g>
+
+        <!-- left arm: peace sign — ONE flowing fill (forearm + palm + two fingers) + open outline; pumps with the wink -->
+        <g><animateTransform attributeName="transform" type="rotate" values="0 86 124;0 86 124;-17 86 124;4 86 124;-2 86 124;0 86 124;0 86 124" keyTimes="0;0.26;0.32;0.38;0.44;0.5;1" dur="4.4s" calcMode="spline" keySplines="0.5 0 0.5 1;0.2 0.8 0.3 1;0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.5 0 0.5 1" repeatCount="indefinite"/>
+          <path d="M82 128 C68 124, 60 110, 60 96 C58 88, 56 80, 58 74 C55 66, 54 58, 58 54 C62 51, 65 56, 64 64 L64 72 C65 73, 67 73, 68 72 C69 64, 72 56, 76 54 C80 52, 81 58, 78 66 L74 74 C78 78, 80 84, 78 92 C78 100, 84 110, 92 118 C92 124, 88 130, 82 128 Z" fill="url(#plushU)"/>
+          <path d="M92 118 C84 110, 78 100, 78 92 C80 84, 78 78, 74 74 L78 66 C81 58, 80 52, 76 54 C72 56, 69 64, 68 72 C67 73, 65 73, 64 72 L64 64 C65 56, 62 51, 58 54 C54 58, 55 66, 58 74 C56 80, 58 88, 60 96 C60 110, 68 124, 78 128" fill="none" stroke="#B0648F" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+          <path d="M66 72 C66 78, 70 82, 74 80" fill="none" stroke="#B0648F" stroke-width="2" stroke-linecap="round" opacity="0.7"/>
+        </g>
+
+        <ellipse cx="74" cy="98" rx="10" ry="6.5" fill="url(#cheekPink)"/>
+        <ellipse cx="126" cy="98" rx="10" ry="6.5" fill="url(#cheekPink)"/>
+        <ellipse cx="83" cy="64" rx="5" ry="2.4" fill="#3E2438" transform="rotate(-22 83 64)"/>
+        <ellipse cx="117" cy="62" rx="5" ry="2.4" fill="#3E2438" transform="rotate(20 117 62)"/>
+        <g><ellipse cx="114" cy="86" rx="11.5" ry="13" fill="url(#eyeG)" stroke="#2A1626" stroke-width="2.4"/><circle cx="110" cy="80.5" r="4.14" fill="#fff" opacity="0.96"/><circle cx="117.5" cy="92" r="2.53" fill="#6FB4FF" opacity="0.9"/><circle cx="118" cy="81" r="1.3" fill="#fff" opacity="0.8"/></g>
+        <g><animate attributeName="opacity" values="1;1;0;0;1;1" keyTimes="0;0.3;0.33;0.48;0.51;1" dur="4.4s" repeatCount="indefinite"/><ellipse cx="86" cy="87" rx="10.5" ry="12" fill="url(#eyeG)" stroke="#2A1626" stroke-width="2.4"/><circle cx="82" cy="81.5" r="3.78" fill="#fff" opacity="0.96"/><circle cx="89.5" cy="93" r="2.31" fill="#6FB4FF" opacity="0.9"/><circle cx="90" cy="82" r="1.3" fill="#fff" opacity="0.8"/></g>
+        <g><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.3;0.33;0.48;0.51;1" dur="4.4s" repeatCount="indefinite"/>
+          <path d="M76 90 C81 82, 92 82, 96 90" fill="none" stroke="#2A1626" stroke-width="3.4" stroke-linecap="round"/>
+        </g>
+        <ellipse cx="100" cy="95" rx="3.4" ry="2.4" fill="#E4689A"/>
+        <path d="M93 101 C96 106, 104 106, 107 101" fill="none" stroke="#2A1626" stroke-width="2.4" stroke-linecap="round"/>
+        <path d="M97 103 C95 112, 105 114, 105 103 Z" fill="url(#tongueG)" stroke="#B0648F" stroke-width="1.6"><animateTransform attributeName="transform" type="rotate" values="-5 101 103;5 101 103;-5 101 103" dur="1.1s" calcMode="spline" keySplines="0.42 0 0.58 1;0.42 0 0.58 1" repeatCount="indefinite"/></path>
+
+        <g clip-path="url(#clipBun)"><rect x="-60" y="0" width="34" height="200" fill="url(#shimmer)" transform="rotate(14 100 100)"><animate attributeName="x" values="-70;-70;220;220" keyTimes="0;0.5;0.8;1" dur="4.4s" repeatCount="indefinite"/></rect></g>
+      </g></g></g></g>
+    </symbol>
+
+    <!-- ===== 14 POOR RABBIT (Rare) — stands on two legs, digs hip pockets, turns them out, shrugs ===== -->
+    <symbol id="g-bunny-broke" viewBox="0 0 200 200">
+      <ellipse cx="100" cy="186" rx="38" ry="6.5" fill="#2E2838" opacity="0.22" filter="url(#soft2)"><animate attributeName="rx" values="38;34;38" dur="2s" repeatCount="indefinite"/></ellipse>
+      <circle cx="100" cy="100" r="88" fill="url(#mauveAura)"><animate attributeName="opacity" values="0.75;1;0.75" dur="4s" repeatCount="indefinite"/></circle>
+      <g opacity="0.9">
+        <g><animateTransform attributeName="transform" type="translate" values="0 5;0 -8;0 5" dur="6s" calcMode="spline" keySplines="0.42 0 0.58 1;0.42 0 0.58 1" repeatCount="indefinite"/><circle cx="40" cy="70" r="8" fill="url(#bubbleG)" opacity="0.7"/><circle cx="37" cy="66" r="2.4" fill="#fff" opacity="0.85"/></g>
+        <g><animateTransform attributeName="transform" type="translate" values="0 -6;0 7;0 -6" dur="7s" calcMode="spline" keySplines="0.42 0 0.58 1;0.42 0 0.58 1" repeatCount="indefinite"/><circle cx="164" cy="86" r="10" fill="url(#bubbleG)" opacity="0.65"/><circle cx="160" cy="81" r="3" fill="#fff" opacity="0.85"/></g>
+        <g transform="translate(158 138)"><path d="M0 -6 L3 0 L0 6 L-3 0 Z" fill="#FF9EC8"><animateTransform attributeName="transform" type="scale" values="0;1;0" dur="3.2s" repeatCount="indefinite"/><animate attributeName="opacity" values="0;0.9;0" dur="3.2s" repeatCount="indefinite"/></path></g>
+      </g>
+
+      <g><animateTransform attributeName="transform" type="translate" values="0 0;0 -6;0 0" keyTimes="0;0.5;1" dur="2s" calcMode="spline" keySplines="0.3 0 0.4 1;0.6 0 0.7 1" repeatCount="indefinite" additive="sum"/>
+      <g><animateTransform attributeName="transform" type="rotate" values="-3 100 181;3 100 181;-3 100 181" dur="6s" calcMode="spline" keySplines="0.42 0 0.58 1;0.42 0 0.58 1" repeatCount="indefinite" additive="sum"/>
+      <g transform="translate(100 181)"><animateTransform attributeName="transform" type="scale" values="1 1;0.98 1.03;1 1;1.03 0.97;1 1" keyTimes="0;0.3;0.5;0.62;1" dur="2s" calcMode="spline" keySplines="0.3 0 0.4 1;0.6 0 0.7 1;0.4 0 0.6 1;0.4 0 0.6 1" repeatCount="indefinite" additive="sum"/>
+      <g transform="translate(-100 -181)">
+
+        <path d="M82 50 C74 34, 70 14, 79 9 C86 5, 91 14, 93 28 C94 34, 95 40, 96 44 C98 42, 102 42, 104 44 C105 40, 106 34, 107 28 C109 14, 114 5, 121 9 C130 14, 126 34, 118 50 C132 58, 140 70, 139 86 C139 100, 132 112, 122 116 C128 120, 133 130, 133 142 C133 152, 130 158, 128 162 C129 170, 132 177, 126 179 C118 182, 106 180, 106 170 C106 164, 105 158, 104 156 C102 154, 98 154, 96 156 C94 158, 94 164, 94 170 C94 180, 82 182, 74 179 C68 177, 71 170, 72 162 C70 158, 67 152, 67 142 C67 130, 72 120, 78 116 C68 112, 61 100, 61 86 C60 70, 68 58, 82 50 Z" fill="url(#plushU)" stroke="#B0648F" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+        <path d="M84 46 C79 32, 77 18, 82 15 C87 13, 90 26, 91 42 Z" fill="url(#earPink)" opacity="0.9"/>
+        <path d="M116 46 C121 32, 123 18, 118 15 C113 13, 110 26, 109 42 Z" fill="url(#earPink)" opacity="0.9"/>
+        <ellipse cx="84" cy="62" rx="13" ry="7" fill="#fff" opacity="0.6" transform="rotate(-25 84 62)"/>
+        <ellipse cx="100" cy="120" rx="20" ry="5" fill="#D6B4CC" opacity="0.45" filter="url(#soft)"/>
+        <ellipse cx="100" cy="138" rx="19" ry="17" fill="#FFFFFF" opacity="0.5"/>
+        <path d="M80 176 C82 179, 86 179, 88 176 M112 176 C114 179, 118 179, 120 176" fill="none" stroke="#B0648F" stroke-width="2" stroke-linecap="round" opacity="0.7"/>
+        <ellipse cx="100" cy="176" rx="6" ry="3" fill="#D6B4CC" opacity="0.4" filter="url(#soft)"/>
+
+        <!-- little shorts: clipped band + hem, so the pockets read unmistakably as hip pockets -->
+        <g clip-path="url(#clipBun)"><path d="M50 140 C76 152, 124 152, 150 140 L150 190 L50 190 Z" fill="#EEDBEA"/><path d="M96 156 C98 162, 102 162, 104 156" fill="none" stroke="#B0648F" stroke-width="2.2" opacity="0.7"/></g>
+        <path d="M67 141 C84 150, 116 150, 133 141" fill="none" stroke="#B0648F" stroke-width="2.6" stroke-linecap="round"/>
+        <path d="M72 150 C78 146, 86 147, 90 152 C89 160, 84 165, 77 164 C72 162, 70 156, 72 150 Z" fill="#E2CBDF" stroke="#B0648F" stroke-width="2.2" stroke-linejoin="round"/>
+        <path d="M72 150 C78 146, 86 147, 90 152" fill="none" stroke="#B0648F" stroke-width="3.2" stroke-linecap="round"/>
+        <path d="M128 150 C122 146, 114 147, 110 152 C111 160, 116 165, 123 164 C128 162, 130 156, 128 150 Z" fill="#E2CBDF" stroke="#B0648F" stroke-width="2.2" stroke-linejoin="round"/>
+        <path d="M128 150 C122 146, 114 147, 110 152" fill="none" stroke="#B0648F" stroke-width="3.2" stroke-linecap="round"/>
+
+        <!-- pocket linings pulled inside-out (empty) -->
+        <g><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.44;0.48;0.86;0.9;1" dur="6s" repeatCount="indefinite"/>
+          <g><animateTransform attributeName="transform" type="rotate" values="0 74 158;8 74 158;0 74 158" dur="1.6s" calcMode="spline" keySplines="0.42 0 0.58 1;0.42 0 0.58 1" repeatCount="indefinite"/><path d="M72 156 C66 166, 68 176, 76 178 C83 180, 88 173, 86 164 C82 160, 76 158, 72 156 Z" fill="url(#liningG)" stroke="#B0648F" stroke-width="2.2" stroke-linejoin="round"/></g>
+          <g><animateTransform attributeName="transform" type="rotate" values="0 126 158;-8 126 158;0 126 158" dur="1.6s" calcMode="spline" keySplines="0.42 0 0.58 1;0.42 0 0.58 1" repeatCount="indefinite"/><path d="M128 156 C134 166, 132 176, 124 178 C117 180, 112 173, 114 164 C118 160, 124 158, 128 156 Z" fill="url(#liningG)" stroke="#B0648F" stroke-width="2.2" stroke-linejoin="round"/></g>
+        </g>
+        <!-- dust puffs -->
+        <g fill="#C9BFCE">
+          <circle cx="78" cy="176"><animate attributeName="r" values="0;0;3.5;5;5" keyTimes="0;0.45;0.5;0.62;1" dur="6s" repeatCount="indefinite"/><animate attributeName="cy" values="176;176;178;190;190" keyTimes="0;0.45;0.5;0.62;1" dur="6s" repeatCount="indefinite"/><animate attributeName="opacity" values="0;0;0.9;0;0" keyTimes="0;0.45;0.5;0.62;1" dur="6s" repeatCount="indefinite"/></circle>
+          <circle cx="84" cy="177"><animate attributeName="r" values="0;0;2;3.5;3.5" keyTimes="0;0.46;0.51;0.63;1" dur="6s" repeatCount="indefinite"/><animate attributeName="cy" values="177;177;180;192;192" keyTimes="0;0.46;0.51;0.63;1" dur="6s" repeatCount="indefinite"/><animate attributeName="opacity" values="0;0;0.8;0;0" keyTimes="0;0.46;0.51;0.63;1" dur="6s" repeatCount="indefinite"/></circle>
+          <circle cx="122" cy="176"><animate attributeName="r" values="0;0;3.5;5;5" keyTimes="0;0.45;0.5;0.62;1" dur="6s" repeatCount="indefinite"/><animate attributeName="cy" values="176;176;178;190;190" keyTimes="0;0.45;0.5;0.62;1" dur="6s" repeatCount="indefinite"/><animate attributeName="opacity" values="0;0;0.9;0;0" keyTimes="0;0.45;0.5;0.62;1" dur="6s" repeatCount="indefinite"/></circle>
+        </g>
+
+        <!-- left arm: idle -> dig (overshoot) -> pull out -> shrug (overshoot) -> settle -->
+        <g><animateTransform attributeName="transform" type="rotate" values="0 80 126;0 80 126;-28 80 126;-22 80 126;-22 80 126;-6 80 126;48 80 126;40 80 126;40 80 126;-3 80 126;0 80 126" keyTimes="0;0.18;0.27;0.31;0.42;0.49;0.6;0.64;0.84;0.93;1" dur="6s" calcMode="spline" keySplines="0.5 0 0.5 1;0.2 0.8 0.3 1;0.4 0 0.6 1;0.5 0 0.5 1;0.4 0 0.6 1;0.2 0.8 0.3 1;0.4 0 0.6 1;0.5 0 0.5 1;0.3 0 0.6 1;0.4 0 0.6 1" repeatCount="indefinite"/>
+          <path d="M82 126 C70 124, 62 134, 62 146 C62 156, 70 162, 78 160 C84 158, 86 152, 84 146 C83 138, 86 130, 82 126 Z" fill="url(#plushU)"/>
+          <path d="M74 126 C66 128, 62 136, 62 146 C62 156, 70 162, 78 160 C84 158, 86 152, 84 146" fill="none" stroke="#B0648F" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+          <path d="M70 154 C72 158, 76 158, 78 155" fill="none" stroke="#B0648F" stroke-width="1.8" stroke-linecap="round" opacity="0.7"/>
+        </g>
+        <!-- right arm (mirror) -->
+        <g><animateTransform attributeName="transform" type="rotate" values="0 120 126;0 120 126;28 120 126;22 120 126;22 120 126;6 120 126;-48 120 126;-40 120 126;-40 120 126;3 120 126;0 120 126" keyTimes="0;0.18;0.27;0.31;0.42;0.49;0.6;0.64;0.84;0.93;1" dur="6s" calcMode="spline" keySplines="0.5 0 0.5 1;0.2 0.8 0.3 1;0.4 0 0.6 1;0.5 0 0.5 1;0.4 0 0.6 1;0.2 0.8 0.3 1;0.4 0 0.6 1;0.5 0 0.5 1;0.3 0 0.6 1;0.4 0 0.6 1" repeatCount="indefinite"/>
+          <path d="M118 126 C130 124, 138 134, 138 146 C138 156, 130 162, 122 160 C116 158, 114 152, 116 146 C117 138, 114 130, 118 126 Z" fill="url(#plushU)"/>
+          <path d="M126 126 C134 128, 138 136, 138 146 C138 156, 130 162, 122 160 C116 158, 114 152, 116 146" fill="none" stroke="#B0648F" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+          <path d="M130 154 C128 158, 124 158, 122 155" fill="none" stroke="#B0648F" stroke-width="1.8" stroke-linecap="round" opacity="0.7"/>
+        </g>
+
+        <ellipse cx="74" cy="98" rx="10" ry="6.5" fill="url(#cheekPink)"/>
+        <ellipse cx="126" cy="98" rx="10" ry="6.5" fill="url(#cheekPink)"/>
+        <ellipse cx="82" cy="64" rx="5.4" ry="2.4" fill="#3E2438" transform="rotate(18 82 64)"/>
+        <ellipse cx="118" cy="64" rx="5.4" ry="2.4" fill="#3E2438" transform="rotate(-18 118 64)"/>
+        <g><animateTransform attributeName="transform" type="translate" values="0 0;0 0;-1 3;-1 3;0 -2;0 -2;0 0" keyTimes="0;0.2;0.3;0.48;0.6;0.86;1" dur="6s" calcMode="spline" keySplines="0.5 0 0.5 1;0.3 0 0.5 1;0.5 0 0.5 1;0.3 0 0.5 1;0.5 0 0.5 1;0.4 0 0.6 1" repeatCount="indefinite"/>
+          <g><ellipse cx="86" cy="87" rx="11" ry="12.5" fill="url(#eyeG)" stroke="#2A1626" stroke-width="2.4"/><circle cx="82" cy="81.5" r="3.96" fill="#fff" opacity="0.96"/><circle cx="89.5" cy="93" r="2.42" fill="#6FB4FF" opacity="0.9"/><circle cx="90" cy="82" r="1.3" fill="#fff" opacity="0.8"/></g>
+          <g><ellipse cx="114" cy="87" rx="11" ry="12.5" fill="url(#eyeG)" stroke="#2A1626" stroke-width="2.4"/><circle cx="110" cy="81.5" r="3.96" fill="#fff" opacity="0.96"/><circle cx="117.5" cy="93" r="2.42" fill="#6FB4FF" opacity="0.9"/><circle cx="118" cy="82" r="1.3" fill="#fff" opacity="0.8"/></g>
+        </g>
+        <ellipse cx="100" cy="97" rx="3.2" ry="2.2" fill="#E4689A"/>
+        <path d="M94 106 C97 101, 103 101, 106 106" fill="none" stroke="#2A1626" stroke-width="2.4" stroke-linecap="round"/>
+
+        <g clip-path="url(#clipBun)"><rect x="-60" y="0" width="28" height="200" fill="url(#shimmer)" transform="rotate(14 100 100)"><animate attributeName="x" values="-70;-70;220;220" keyTimes="0;0.55;0.85;1" dur="5s" repeatCount="indefinite"/></rect></g>
+      </g></g></g></g>
+    </symbol>
+
   </defs></svg>`;
 
   var CATALOG = [
@@ -447,7 +597,9 @@
     {n:9, name:'Emerald Dragon Egg', sym:'g-egg',      g1:'#2E9C5A', g2:'#154A2E', r:'EPIC',      ed:'#0071', pr:'650'},
     {n:10,name:'Sunset Balloon',     sym:'g-balloon',  g1:'#E0774A', g2:'#5E2E32', r:'UNCOMMON',  ed:'#0310', pr:'150'},
     {n:11,name:'Retro Cassette',     sym:'g-cassette', g1:'#3E9A80', g2:'#1E4A40', r:'UNCOMMON',  ed:'#0288', pr:'120'},
-    {n:12,name:'Ocean Pearl',        sym:'g-pearl',    g1:'#4C8DC4', g2:'#243E5E', r:'RARE',      ed:'#0155', pr:'400'}
+    {n:12,name:'Ocean Pearl',        sym:'g-pearl',    g1:'#4C8DC4', g2:'#243E5E', r:'RARE',      ed:'#0155', pr:'400'},
+    {n:13,name:'Happy Rabbit',       sym:'g-bunny',       g1:'#D57FB8', g2:'#4E2A5E', r:'LEGENDARY', ed:'#0021', pr:'1,500'},
+    {n:14,name:'Poor Rabbit',        sym:'g-bunny-broke', g1:'#8C7A9C', g2:'#2E2838', r:'RARE',      ed:'#0404', pr:'1,500'}
   ];
 
   var BY_NAME = {}, BY_SYM = {};
