@@ -1,13 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom'
-import { MessageCircle, Calendar, Users, Phone, User } from 'lucide-react'
-import { useAuth } from '../store/auth'
+import { MessageCircle, Calendar, Users, User } from 'lucide-react'
 import { useChat } from '../store/chat'
-import { Avatar } from '../ui/Avatar'
 import { ChatsPage } from './ChatsPage'
 import { CalendarPage } from './CalendarPage'
 import { ContactsPage } from './ContactsPage'
-import { CallsPage } from './CallsPage'
 import { ProfileHub } from './ProfileHub'
 import { SettingsScreen } from './SettingsScreen'
 import { AppearanceScreen } from './AppearanceScreen'
@@ -19,32 +16,22 @@ import { UserProfileScreen } from './UserProfileScreen'
 import { EditProfileScreen } from './EditProfileScreen'
 import { MembersScreen } from './MembersScreen'
 import { SavedScreen } from './SavedScreen'
-import { AccountMenu } from './AccountMenu'
+import { BurgerMenu } from './BurgerMenu'
 
-type Tab = 'chats' | 'calendar' | 'contacts' | 'calls' | 'profile'
-
-const RAIL_TABS: { id: Tab; icon: typeof MessageCircle; to: string; label: string }[] = [
-  { id: 'chats', icon: MessageCircle, to: '/', label: 'Chats' },
-  { id: 'calendar', icon: Calendar, to: '/calendar', label: 'Calendar' },
-  { id: 'contacts', icon: Users, to: '/contacts', label: 'Contacts' },
-  { id: 'calls', icon: Phone, to: '/calls', label: 'Calls' },
-]
+type Tab = 'chats' | 'calendar' | 'contacts' | 'profile'
 
 function tabFromPath(p: string): Tab | null {
   if (p === '/' || p.startsWith('/chat')) return 'chats'
   if (p.startsWith('/calendar')) return 'calendar'
   if (p.startsWith('/contacts')) return 'contacts'
-  if (p.startsWith('/calls')) return 'calls'
   if (p === '/profile') return 'profile'
   return null
 }
 
 export function AppShell() {
   const { pathname } = useLocation()
-  const navigate = useNavigate()
-  const me = useAuth((s) => s.me)
   const loadChats = useChat((s) => s.loadChats)
-  const [accountOpen, setAccountOpen] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
 
   const derived = tabFromPath(pathname)
   const lastTab = useRef<Tab>('chats')
@@ -55,22 +42,14 @@ export function AppShell() {
 
   return (
     <div className="app-shell">
-      {/* Desktop left rail */}
-      <nav className="rail desktop-only">
-        <div className="rail-top">
-          {RAIL_TABS.map((t) => {
-            const Icon = t.icon
-            return (
-              <button key={t.id} className={`rail-btn ${activeTab === t.id ? 'active' : ''}`} title={t.label} onClick={() => navigate(t.to)}>
-                <Icon size={22} />
-              </button>
-            )
-          })}
-        </div>
-        <button className="rail-btn" title="Account" onClick={() => setAccountOpen(true)} style={{ width: 44, height: 44 }}>
-          <Avatar name={me?.displayName ?? '?'} id={me?.id} src={me?.avatarUrl} size={38} />
+      {/* Desktop nav — a single burger button (all destinations live in the burger menu) */}
+      <div className="nav-dock desktop-only">
+        <button className="burger-btn" title="Menu" aria-label="Open menu" onClick={() => setMenuOpen(true)}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+            <path d="M4 7h16M4 12h16M4 17h16" />
+          </svg>
         </button>
-      </nav>
+      </div>
 
       {/* Main content */}
       <div className="pane" style={{ flex: 1, minWidth: 0 }}>
@@ -80,8 +59,8 @@ export function AppShell() {
       {/* Mobile bottom nav */}
       <MobileNav activeTab={derived} />
 
-      {/* Account menu popover (desktop) */}
-      {accountOpen && <AccountMenu onClose={() => setAccountOpen(false)} />}
+      {/* Burger menu popover (desktop) */}
+      {menuOpen && <BurgerMenu onClose={() => setMenuOpen(false)} activeTab={activeTab} />}
     </div>
   )
 }
@@ -93,8 +72,7 @@ function TabContent({ tab, pathname }: { tab: Tab; pathname: string }) {
     tab === 'chats' ? <ChatsPage />
       : tab === 'calendar' ? <CalendarPage />
         : tab === 'contacts' ? <ContactsPage />
-          : tab === 'calls' ? <CallsPage />
-            : <ProfileHub />
+          : <ProfileHub />
 
   return (
     <>
@@ -129,7 +107,6 @@ function MobileNav({ activeTab }: { activeTab: Tab | null }) {
     { id: 'chats', icon: MessageCircle, to: '/', label: 'Chats', badge: totalUnread },
     { id: 'calendar', icon: Calendar, to: '/calendar', label: 'Calendar' },
     { id: 'contacts', icon: Users, to: '/contacts', label: 'Contacts' },
-    { id: 'calls', icon: Phone, to: '/calls', label: 'Calls' },
     { id: 'profile', icon: User, to: '/profile', label: 'Profile' },
   ]
   return (

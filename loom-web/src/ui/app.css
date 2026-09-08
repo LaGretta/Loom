@@ -5,18 +5,47 @@
 /* ----------------- shell ----------------- */
 .app-shell{ height:100dvh; width:100vw; display:flex; overflow:hidden; background:var(--bg); color:var(--text); }
 
-/* desktop left rail */
-.rail{
-  width:66px; flex:0 0 66px; display:flex; flex-direction:column; align-items:center;
-  padding:14px 0; gap:6px; border-right:1px solid var(--hairline); background:var(--surface);
+/* desktop nav dock — holds a single burger button (all destinations live in the burger menu) */
+.nav-dock{
+  width:60px; flex:0 0 60px; display:flex; flex-direction:column; align-items:center;
+  padding:12px 0;
 }
-.rail-top{ display:flex; flex-direction:column; align-items:center; gap:6px; flex:1; }
-.rail-btn{
-  width:44px; height:44px; border-radius:13px; display:grid; place-items:center;
-  background:transparent; border:none; color:var(--text-2); transition:background .16s ease, color .16s ease;
+/* burger trigger — island button: hairline + soft shadow + fully round */
+.burger-btn{
+  width:40px; height:40px; border-radius:50%; display:grid; place-items:center;
+  background:var(--surface); border:1px solid var(--hairline); color:var(--text);
+  box-shadow:var(--shadow-sm); cursor:pointer; transition:background .16s ease, transform .16s ease;
 }
-.rail-btn:hover{ background:var(--surface-2); color:var(--text); }
-.rail-btn.active{ background:var(--surface-2); color:var(--accent); }
+.burger-btn:hover{ background:var(--surface-2); }
+.burger-btn:active{ transform:scale(.94); }
+
+/* burger menu — frosted island popover, anchored top-left, capped height + scrollable */
+.burger-scrim{ background:rgba(0,0,0,.22); align-items:flex-start; justify-content:flex-start; }
+.burger-menu{
+  position:absolute; left:12px; top:12px; width:264px;
+  max-height:calc(100dvh - 24px); overflow-y:auto; padding:7px;
+  background:var(--glass); backdrop-filter:blur(30px) saturate(1.5); -webkit-backdrop-filter:blur(30px) saturate(1.5);
+  border:1px solid var(--hairline); border-radius:22px; box-shadow:var(--shadow);
+  transform-origin:top left;
+}
+.bm-profile,.bm-item{
+  display:flex; align-items:center; gap:10px; width:100%; padding:7px 9px;
+  border:none; background:transparent; color:var(--text); border-radius:13px;
+  cursor:pointer; text-align:left; transition:background .16s ease;
+}
+.bm-profile{ padding:8px 9px; }
+.bm-profile:hover,.bm-item:hover{ background:var(--surface-2); }
+.bm-item.active{ background:color-mix(in srgb, var(--accent) 12%, transparent); }
+.bm-item.active .bm-label{ color:var(--accent); font-weight:650; }
+.bm-id{ min-width:0; }
+.bm-name{ font-size:14.5px; font-weight:700; letter-spacing:-.01em; line-height:1.2; }
+.bm-sub{ font-size:12px; color:var(--text-2); line-height:1.25; }
+.bm-ic{ width:30px; height:30px; flex:0 0 auto; display:grid; place-items:center; color:var(--text-2); }
+.bm-label{ font-size:14px; font-weight:500; }
+.bm-muted .bm-label{ color:var(--text-2); }
+.bm-val{ font-size:12.5px; font-weight:700; margin-left:auto; }
+.bm-div{ height:1px; background:var(--hairline); margin:5px 4px; }
+.bm-danger .bm-label,.bm-danger .bm-ic{ color:var(--danger); }
 
 /* generic pane column */
 .pane{ display:flex; flex-direction:column; min-width:0; height:100%; }
@@ -321,7 +350,7 @@ textarea.input{ height:auto; padding:12px 14px; resize:vertical; min-height:80px
 /* ----------------- responsive (mobile) ----------------- */
 .mobile-only{ display:none; }
 @media (max-width: 900px){
-  .rail, .info-col{ display:none; }
+  .nav-dock, .info-col{ display:none; }
   .list-col{ width:100%; flex:1 1 auto; border-right:none; }
   .desktop-only{ display:none; }
   .mobile-only{ display:initial; }
