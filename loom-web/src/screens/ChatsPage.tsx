@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { useMatch, useNavigate } from 'react-router-dom'
+import { useLocation, useMatch, useNavigate } from 'react-router-dom'
 import { Search, PenSquare } from 'lucide-react'
 import { useChat, previewText } from '../store/chat'
 import { useNav } from '../store/nav'
@@ -14,15 +14,29 @@ import { ConversationView } from './ConversationView'
 import { NewChatModal } from './NewChatModal'
 import { MessageCircle } from 'lucide-react'
 
-const LIST_MIN = 280
+// Chat-list island width: design default 304, draggable within sane bounds, persisted.
+const LIST_MIN = 260
+const LIST_MAX = 460
+const LIST_DEFAULT = 304
+const GUTTER = 10                       // island inset from the frame edge
+const clampW = (n: number) => Math.max(LIST_MIN, Math.min(LIST_MAX, n))
 const readListWidth = () => {
-  try { const v = Number(localStorage.getItem('loom.listWidth')); return v >= LIST_MIN ? v : 340 } catch { return 340 }
+  try {
+    const v = Number(localStorage.getItem('loom.listWidth'))
+    return Number.isFinite(v) && v >= LIST_MIN ? clampW(v) : LIST_DEFAULT
+  } catch { return LIST_DEFAULT }
 }
 
 export function ChatsPage() {
+  const { pathname } = useLocation()
   const match = useMatch('/chat/:id')
-  const id = match?.params.id
-  const activeId = id ? Number(id) : null
+  const routeId = match?.params.id ? Number(match.params.id) : null
+  // Overlay routes (/u/:id, /settings, /gifts …) render ON TOP of this screen. Keep the
+  // conversation mounted underneath so closing the overlay drops straight back into it —
+  // same scroll position, same draft, no refetch. Only the chats root clears it.
+  const lastChatId = useRef<number | null>(null)
+  if (routeId) lastChatId.current = routeId
+  const activeId = routeId ?? (pathname === '/' ? null : lastChatId.current)
 
   const rowRef = useRef<HTMLDivElement>(null)
   const [listWidth, setListWidth] = useState(readListWidth)
@@ -37,8 +51,8 @@ export function ChatsPage() {
     const move = (ev: PointerEvent) => {
       const rect = rowRef.current?.getBoundingClientRect()
       if (!rect) return
-      const max = Math.max(340, window.innerWidth - 520)
-      latest = Math.max(LIST_MIN, Math.min(max, ev.clientX - rect.left))
+      // island starts at GUTTER from the pane's left edge
+      latest = clampW(ev.clientX - rect.left - GUTTER)
       setListWidth(latest)
     }
     const up = () => {
@@ -61,7 +75,7 @@ export function ChatsPage() {
       <div
         className={`col-resizer desktop-only ${dragging ? 'dragging' : ''}`}
         onPointerDown={startDrag}
-        onDoubleClick={() => { setListWidth(340); try { localStorage.setItem('loom.listWidth', '340') } catch { /* ignore */ } }}
+        onDoubleClick={() => { setListWidth(LIST_DEFAULT); try { localStorage.setItem('loom.listWidth', String(LIST_DEFAULT)) } catch { /* ignore */ } }}
         title="Drag to resize · double-click to reset"
         role="separator"
         aria-orientation="vertical"

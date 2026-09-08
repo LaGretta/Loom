@@ -50,7 +50,7 @@ export function PremiumScreen() {
   if (loading) return <Overlay title="Loom Premium"><CenterSpinner /></Overlay>
 
   return (
-    <Overlay title="Loom Premium">
+    <Overlay title="Loom Premium" wide>
       {/* hero */}
       <div style={{ margin: '12px 16px', borderRadius: 20, padding: '30px 20px', textAlign: 'center', color: 'var(--on-accent)', background: 'var(--accent-grad)', position: 'relative', overflow: 'hidden' }}>
         <div style={{ animation: 'lmGem 7s linear infinite', display: 'inline-block' }}><CraftedObject id="s-gem" size={92} /></div>

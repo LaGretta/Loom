@@ -30,7 +30,7 @@ export function SettingsScreen() {
         <ChevronRight size={18} className="chev" />
       </button>
 
-      <div className="list-card">
+      <div className="list-card settings-list">
         {ROWS.map((r) => (
           <button key={r.label} className="list-row" onClick={() => r.to ? navigate(r.to) : toast(`${r.label} — coming soon`)}>
             <span className="obj-ic"><CraftedObject id={r.sym} size={34} /></span>

@@ -43,13 +43,13 @@ export function UserProfileScreen() {
     } catch (e: any) { toast(e?.message ?? 'Could not open chat') }
   }
 
-  if (loading || !user) return <Overlay title="Profile"><CenterSpinner /></Overlay>
+  if (loading || !user) return <Overlay title="Profile" floating><CenterSpinner /></Overlay>
 
   const live = presence[user.id]
   const online = live ? live.online : isOnline(user.status)
 
   return (
-    <Overlay title="">
+    <Overlay title="" floating>
       {/* gradient header */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px 16px 6px', textAlign: 'center' }}>
         <Avatar name={user.displayName} id={user.id} src={user.avatarUrl} size={96} online={online} />

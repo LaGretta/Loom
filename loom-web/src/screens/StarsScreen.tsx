@@ -51,7 +51,9 @@ export function StarsScreen() {
   if (loading) return <Overlay title="My Stars"><CenterSpinner /></Overlay>
 
   return (
-    <Overlay title="My Stars">
+    <Overlay title="My Stars" wide>
+      <div className="dt-cols">
+      <div className="dt-col">
       {/* hero */}
       <div style={{ margin: '12px 16px', borderRadius: 20, padding: '26px 20px', textAlign: 'center', position: 'relative', overflow: 'hidden', border: '1px solid var(--hairline)', background: 'radial-gradient(120% 100% at 50% 0%, rgba(232,162,76,.18), transparent 70%), var(--surface)' }}>
         <CraftedObject id="s-coin" size={92} style={{ margin: '0 auto' }} />
@@ -73,6 +75,9 @@ export function StarsScreen() {
         ))}
       </div>
 
+      </div>
+
+      <div className="dt-col">
       {/* ledger */}
       <div className="section-label">Recent activity</div>
       {history.length === 0
@@ -91,6 +96,8 @@ export function StarsScreen() {
               </div>
             ))}
           </div>}
+      </div>
+      </div>
     </Overlay>
   )
 }

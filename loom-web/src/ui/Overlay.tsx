@@ -3,14 +3,20 @@ import { useNavigate } from 'react-router-dom'
 import { ChevronLeft, X } from 'lucide-react'
 import { useDismiss } from './useDismiss'
 
-/** Overlay screen: centered card on desktop, full-screen push on mobile. */
-export function Overlay({ title, children, onClose, right, wide, noPad }: {
+/**
+ * Overlay screen. Mobile: full-screen push (unchanged). Desktop: a centred island panel
+ * over a blurred, dimmed backdrop — whatever is behind (a conversation, a pane) stays
+ * mounted and visible, so closing returns to it exactly as it was.
+ */
+export function Overlay({ title, children, onClose, right, wide, noPad, floating }: {
   title?: ReactNode
   children: ReactNode
   onClose?: () => void
   right?: ReactNode
   wide?: boolean
   noPad?: boolean
+  /** float as an island over a blurred backdrop on EVERY size (not just desktop) */
+  floating?: boolean
 }) {
   const navigate = useNavigate()
   const close = onClose ?? (() => navigate(-1))
@@ -20,35 +26,25 @@ export function Overlay({ title, children, onClose, right, wide, noPad }: {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') dismiss() }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [dismiss])
 
   return (
-    <div className={`scrim anim-scrim ${closing ? 'out-scrim' : ''}`} onMouseDown={dismiss} style={{ alignItems: 'stretch', justifyContent: 'center' }}>
+    <div className={`scrim ov-scrim anim-scrim ${floating ? 'ov-floating' : ''} ${closing ? 'out-scrim' : ''}`} onMouseDown={dismiss}>
       <div
-        className={`overlay-card anim-fade ${closing ? 'out-fade' : ''}`}
+        className={`overlay-card anim-fade ${wide ? 'ov-wide' : ''} ${closing ? 'out-fade' : ''}`}
         onMouseDown={(e) => e.stopPropagation()}
-        style={{
-          background: 'var(--bg)',
-          width: wide ? 'min(760px,100vw)' : 'min(560px,100vw)',
-          maxHeight: '100dvh',
-          height: '100dvh',
-          display: 'flex',
-          flexDirection: 'column',
-          borderLeft: '1px solid var(--hairline)',
-          borderRight: '1px solid var(--hairline)',
-          overflow: 'hidden',
-        }}
+        role="dialog"
+        aria-modal="true"
       >
-        <div className="frost" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderBottom: '1px solid var(--hairline)', position: 'sticky', top: 0, zIndex: 3 }}>
+        <div className="ov-head frost">
           <button className="icon-btn" onClick={dismiss} aria-label="Back">
             <ChevronLeft size={22} className="mobile-only" />
             <X size={20} className="desktop-only" />
           </button>
-          <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: '-.3px', flex: 1 }}>{title}</div>
+          <div className="ov-title">{title}</div>
           {right}
         </div>
-        <div className="scroll-y" style={{ flex: 1, padding: noPad ? 0 : '4px 0 24px' }}>{children}</div>
+        <div className={`ov-body scroll-y ${noPad ? 'nopad' : ''}`}>{children}</div>
       </div>
     </div>
   )

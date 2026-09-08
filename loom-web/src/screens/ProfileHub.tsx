@@ -25,7 +25,7 @@ export function ProfileHub() {
     <div className="pane" style={{ height: '100%' }}>
       <div className="pane-head desktop-only"><div className="pane-title">Profile</div></div>
       <div className="pane-body" style={{ paddingBottom: 100 }}>
-        <div style={{ maxWidth: 620, margin: '0 auto' }}>
+        <div className="profile-wrap" style={{ maxWidth: 620, margin: '0 auto' }}>
           {/* hero */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '22px 16px 8px', textAlign: 'center' }}>
             <Avatar name={me.displayName} id={me.id} src={me.avatarUrl} size={96} />

@@ -56,7 +56,7 @@ export function GiftsScreen() {
       {loading ? <div style={{ padding: 16 }}><GiftsSkeleton /></div> : (
         <div style={{ padding: 16 }}>
           {tab === 'catalog' && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 12 }}>
+            <div className="gift-grid">
               {catalog.length === 0 && <div className="muted" style={{ gridColumn: '1/-1', textAlign: 'center', padding: 20 }}>Catalog is empty.</div>}
               {catalog.map((g) => {
                 const meta = giftByName(g.name)
@@ -81,7 +81,7 @@ export function GiftsScreen() {
           {tab === 'mine' && (
             mine.length === 0
               ? <div className="empty" style={{ height: 'auto', padding: 40 }}><CraftedObject id="s-gift" size={72} /><div className="et">No gifts yet</div><div>Gifts you receive appear here.</div></div>
-              : <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12 }}>
+              : <div className="gift-grid mine">
                   {mine.map((g) => {
                     const meta = giftByName(g.giftName)
                     return (

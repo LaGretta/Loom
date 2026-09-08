@@ -424,6 +424,44 @@ textarea.input{ height:auto; padding:12px 14px; resize:vertical; min-height:80px
 .err-state .es-s{ font-size:13px; color:var(--text-2); max-width:280px; }
 
 
+
+/* ----------------- overlay screens ----------------- */
+/* Mobile keeps the existing full-screen push; desktop becomes a centred island. */
+.ov-scrim{ align-items:stretch; justify-content:center; }
+.overlay-card{
+  background:var(--bg); width:min(560px,100vw); height:100dvh; max-height:100dvh;
+  display:flex; flex-direction:column; overflow:hidden;
+  border-left:1px solid var(--hairline); border-right:1px solid var(--hairline);
+}
+.ov-head{
+  display:flex; align-items:center; gap:10px; padding:12px 14px;
+  border-bottom:1px solid var(--hairline); position:sticky; top:0; z-index:3;
+}
+.ov-title{ font-size:18px; font-weight:800; letter-spacing:-.3px; flex:1; min-width:0; }
+.ov-body{ flex:1; padding:4px 0 24px; }
+.ov-body.nopad{ padding:0; }
+
+
+/* ----------------- desktop layout for secondary screens -----------------
+   `.dt-cols`/`.dt-col` are display:contents on mobile, so the markup lays out
+   EXACTLY as if the wrappers weren't there. Columns only exist on desktop. */
+.dt-cols, .dt-col{ display:contents; }
+
+/* gift grids (class instead of inline so a media query can restyle them) */
+.gift-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
+.gift-grid.mine{ grid-template-columns:repeat(3,1fr); }
+
+/* Floating variant: island over a blurred backdrop at every size, so the conversation
+   stays visible behind the person-profile overlay on mobile as well as desktop. */
+.ov-floating{
+  align-items:center; background:rgba(0,0,0,.38);
+  backdrop-filter:blur(10px) saturate(1.05); -webkit-backdrop-filter:blur(10px) saturate(1.05);
+}
+.ov-floating .overlay-card{
+  width:calc(100vw - 20px); height:auto; max-height:86dvh;
+  border:1px solid var(--hairline); border-radius:26px; box-shadow:var(--shadow);
+}
+
 /* ----------------- interaction polish (Phase 7) ----------------- */
 /* Kill the 300ms tap delay and the grey flash; nothing interactive feels dead. */
 button, [role="button"], a, .chat-row, .list-row, .obj-cell, .sticker-cell, .bm-item, .bm-profile, .nav-item{
@@ -511,16 +549,67 @@ button:disabled{ cursor:not-allowed; opacity:.55; }
 @media (min-width: 901px){
   .mobile-shell-only{ display:none; }
 
+
+  /* ---- secondary screens: use the width, breathe a bit ---- */
+  .dt-cols{
+    display:grid; grid-template-columns:1.05fr .95fr; gap:4px 30px;
+    align-items:start; padding:0 10px;
+  }
+  .dt-col{ display:block; min-width:0; }
+  .ov-body .section-label{ padding:18px 24px 8px; }
+  .ov-body .list-card{ margin:0 24px 20px; border-radius:18px; }
+  .ov-body .list-row{ padding:14px 18px; }
+  .ov-body .list-row .lr-title{ font-size:15.5px; }
+  .ov-body .empty{ padding:60px 20px; }
+
+  /* settings rows in two columns */
+  .ov-body .settings-list{ display:grid; grid-template-columns:1fr 1fr; }
+  .ov-body .settings-list .list-row + .list-row{ border-top:none; }
+  .ov-body .settings-list .list-row{ border-bottom:1px solid var(--hairline); }
+  .ov-body .settings-list .list-row:nth-last-child(-n+2){ border-bottom:none; }
+
+  /* gift catalog as a real grid instead of two stretched columns */
+  .gift-grid{ grid-template-columns:repeat(auto-fill, minmax(196px,1fr)); gap:16px; }
+  .gift-grid.mine{ grid-template-columns:repeat(auto-fill, minmax(150px,1fr)); gap:14px; }
+
+  /* own profile: wider column, roomier hero */
+  .profile-wrap{ max-width:860px !important; }
+  .profile-wrap .obj-grid, .profile-wrap .gift-grid{ gap:16px; }
+
+  /* ---- overlay screens as centred islands over a blurred backdrop ---- */
+  .ov-scrim{
+    align-items:center;
+    background:rgba(0,0,0,.38);
+    backdrop-filter:blur(10px) saturate(1.05); -webkit-backdrop-filter:blur(10px) saturate(1.05);
+  }
+  .overlay-card{
+    width:min(760px, calc(100vw - 96px)); height:auto; max-height:88dvh;
+    border:1px solid var(--hairline); border-radius:26px; box-shadow:var(--shadow);
+  }
+  .overlay-card.ov-wide{ width:min(1120px, calc(100vw - 96px)); }
+  .ov-head{ padding:16px 24px; }
+  .ov-title{ font-size:21px; }
+  .ov-body{ padding:10px 0 30px; }
+
   /* ============ Main chat screen — full-bleed canvas + floating islands ============ */
-  .chat-islands{ position:relative; display:block; }
+  .chat-islands{
+    position:relative; display:block;
+    /* everything right of the island follows its width (304 + 64 = design's 368) */
+    --conv-left:calc(var(--list-w, 304px) + 64px);
+  }
 
   /* chat-list island (solid, rounded, hairline + shadow) */
   .chat-islands > .list-col{
-    position:absolute; left:10px; top:10px; bottom:10px; width:304px; flex:none;
+    position:absolute; left:10px; top:10px; bottom:10px; width:var(--list-w, 304px); flex:none;
     background:var(--panel); border:1px solid var(--hairline); border-radius:26px;
     box-shadow:var(--shadow); overflow:hidden; z-index:6;
   }
-  .chat-islands > .col-resizer{ display:none; }
+  /* drag handle pinned to the island's right edge */
+  .chat-islands > .col-resizer{
+    display:block; position:absolute; top:10px; bottom:10px; z-index:7;
+    left:calc(var(--list-w, 304px) + 10px); width:12px; margin:0; flex:none;
+  }
+  .chat-islands > .col-resizer::after{ left:5px; }
   /* conversation = full-bleed base layer under the islands */
   .chat-islands > .main-col{ position:absolute; inset:0; z-index:1; background:transparent; }
 
@@ -537,17 +626,17 @@ button:disabled{ cursor:not-allowed; opacity:.55; }
 
   /* conversation islands — header (frosted) + thread (behind) + composer (pill) */
   .conv .thread-wrap{ position:absolute; inset:0; z-index:1; }
-  .conv .thread{ padding:62px 52px 70px 368px; }
+  .conv .thread{ padding:62px 52px 70px var(--conv-left); }
   .conv .thread-inner{ max-width:none; margin:0; }
 
   .conv .chat-header{
-    position:absolute; left:368px; right:52px; top:10px; z-index:8;
+    position:absolute; left:var(--conv-left); right:52px; top:10px; z-index:8;
     min-height:0; padding:6px 8px 6px 10px; gap:10px;
     border:1px solid var(--hairline); border-radius:24px; box-shadow:var(--shadow);
   }
   .conv .chat-header .h-actions .icon-btn{ width:34px; height:34px; border-radius:50%; }
 
-  .conv .composer-dock{ position:absolute; left:368px; right:52px; bottom:12px; z-index:8; }
+  .conv .composer-dock{ position:absolute; left:var(--conv-left); right:52px; bottom:12px; z-index:8; }
   .conv .new-msgs{ bottom:80px; }
   .conv .composer{ border-top:none; padding:0; background:transparent; }
   .conv .composer-reply{
