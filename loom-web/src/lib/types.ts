@@ -97,6 +97,10 @@ export interface Message {
   sentAt: string
   attachments: Attachment[]
   reactions: Reaction[]
+  /* ---- client-only (optimistic UI); never sent by the server ---- */
+  pending?: boolean   // rendered instantly, still in flight
+  failed?: boolean    // send failed — stays visible with a retry affordance
+  clientId?: string   // correlates the optimistic bubble with its SignalR echo
 }
 export interface Paged<T> {
   items: T[]

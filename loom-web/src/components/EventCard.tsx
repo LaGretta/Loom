@@ -30,26 +30,38 @@ export function EventCard({ event }: { event: LoomEvent }) {
   const [busy, setBusy] = useState(false)
   const going = event.attendees.filter((a) => a.status === 'Going')
 
+  // Optimistic RSVP: the button and the counts flip on the tap, then reconcile with the
+  // server's card. The previous card is restored if the call fails.
   const rsvp = async (status: RsvpStatus) => {
-    if (busy) return
+    if (busy || event.myStatus === status) return
+    const before = event
+    const delta = (s: RsvpStatus) => (event.myStatus === s ? -1 : 0) + (status === s ? 1 : 0)
+    upsertEvent({
+      ...event,
+      myStatus: status,
+      goingCount: Math.max(0, event.goingCount + delta('Going')),
+      maybeCount: Math.max(0, event.maybeCount + delta('Maybe')),
+      notGoingCount: Math.max(0, event.notGoingCount + delta('NotGoing')),
+    })
     setBusy(true)
-    // optimistic: toggle off if tapping the current one is not supported by API; just set
     try {
-      const updated = await eventsApi.rsvp(event.id, status)
-      upsertEvent(updated)
+      upsertEvent(await eventsApi.rsvp(event.id, status))
     } catch (e: any) {
+      upsertEvent(before)
       toast(e?.message ?? 'Could not RSVP')
     } finally { setBusy(false) }
   }
 
   const addToCalendar = async () => {
     if (event.inMyCalendar || busy) return
+    const before = event
+    upsertEvent({ ...event, inMyCalendar: true })   // instant "Added ✓"
+    toast('Added to your calendar')
     setBusy(true)
     try {
       await eventsApi.addToCalendar(event.id)
-      upsertEvent({ ...event, inMyCalendar: true })
-      toast('Added to your calendar')
     } catch (e: any) {
+      upsertEvent(before)
       toast(e?.message ?? 'Could not add')
     } finally { setBusy(false) }
   }

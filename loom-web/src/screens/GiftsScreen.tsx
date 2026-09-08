@@ -104,18 +104,22 @@ export function GiftsScreen() {
 
       {detail && (
         <GiftDetail gift={detail} balance={balance} onClose={() => setDetail(null)}
+          onSpend={(n) => setBalance((b) => b - n)} onRefund={(n) => setBalance((b) => b + n)}
           onSend={() => { setSendFor(detail); setDetail(null) }}
           onBought={async () => { await refresh(); setDetail(null) }} />
       )}
       {sendFor && (
-        <SendGiftModal gift={sendFor} onClose={() => setSendFor(null)} onSent={async () => { await refresh(); setSendFor(null) }} />
+        <SendGiftModal gift={sendFor} onClose={() => setSendFor(null)}
+          onSpend={(n) => setBalance((b) => b - n)} onRefund={(n) => setBalance((b) => b + n)}
+          onSent={async () => { await refresh(); setSendFor(null) }} />
       )}
     </Overlay>
   )
 }
 
-function GiftDetail({ gift, balance, onClose, onSend, onBought }: {
+function GiftDetail({ gift, balance, onClose, onSend, onBought, onSpend, onRefund }: {
   gift: GiftCatalogItem; balance: number; onClose: () => void; onSend: () => void; onBought: () => void
+  onSpend: (n: number) => void; onRefund: (n: number) => void
 }) {
   const meta = giftByName(gift.name)
   const [busy, setBusy] = useState(false)
@@ -125,12 +129,13 @@ function GiftDetail({ gift, balance, onClose, onSend, onBought }: {
   const keep = async () => {
     if (balance < gift.starCost) { toast('Not enough Stars — top up first'); return }
     setBusy(true)
+    onSpend(gift.starCost)   // balance drops instantly; refunded below if the call fails
     try {
       const me = (await usersApi.me()).id
       await giftsApi.send({ giftId: gift.id, receiverId: me }) // receiverId = ME → profile only
       toast('Kept — added to your profile 🎁')
       onBought()
-    } catch (e: any) { toast(e?.message ?? 'Purchase failed') }
+    } catch (e: any) { onRefund(gift.starCost); toast(e?.message ?? 'Purchase failed') }
     finally { setBusy(false) }
   }
   return (
@@ -149,7 +154,10 @@ function GiftDetail({ gift, balance, onClose, onSend, onBought }: {
   )
 }
 
-function SendGiftModal({ gift, onClose, onSent }: { gift: GiftCatalogItem; onClose: () => void; onSent: () => void }) {
+function SendGiftModal({ gift, onClose, onSent, onSpend, onRefund }: {
+  gift: GiftCatalogItem; onClose: () => void; onSent: () => void
+  onSpend: (n: number) => void; onRefund: (n: number) => void
+}) {
   const meta = giftByName(gift.name)
   const [q, setQ] = useState('')
   const [results, setResults] = useState<UserSummary[]>([])
@@ -171,11 +179,12 @@ function SendGiftModal({ gift, onClose, onSent }: { gift: GiftCatalogItem; onClo
   const send = async () => {
     if (!picked) { toast('Pick a recipient'); return }
     setBusy(true)
+    onSpend(gift.starCost)   // balance drops instantly; refunded below if the call fails
     try {
       await giftsApi.send({ giftId: gift.id, receiverId: picked.id })
       toast(`Gift sent to ${picked.displayName} 🎉`)
       onSent()
-    } catch (e: any) { toast(e?.message ?? 'Could not send gift') }
+    } catch (e: any) { onRefund(gift.starCost); toast(e?.message ?? 'Could not send gift') }
     finally { setBusy(false) }
   }
 

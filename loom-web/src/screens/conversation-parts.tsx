@@ -61,17 +61,22 @@ export function Composer({ chatId, replyTo, onCancelReply, editing, onCancelEdit
     if (now - lastTyping.current > 1500) { lastTyping.current = now; sendTyping(chatId) }
   }
 
-  const submit = async () => {
+  // Fire-and-forget: the bubble is already in the thread optimistically, so the composer
+  // clears on the same frame. Failures surface on the bubble itself (Retry), not here.
+  const submit = () => {
     const content = text.trim()
-    if (!content || busy) return
-    setBusy(true)
-    try {
-      if (editing) { await edit(editing.id, chatId, content); onCancelEdit?.() }
-      else { await send(chatId, content, replyTo?.id ?? null); onCancelReply?.() }
-      setText('')
-      requestAnimationFrame(grow)
-    } catch { toast('Could not send message') }
-    finally { setBusy(false) }
+    if (!content) return
+    setText('')
+    requestAnimationFrame(grow)
+    if (editing) {
+      const target = editing
+      onCancelEdit?.()
+      void edit(target.id, chatId, content)
+    } else {
+      const replyId = replyTo?.id ?? null
+      onCancelReply?.()
+      void send(chatId, content, replyId)
+    }
   }
 
   const onFile = async (file: File) => {
@@ -96,34 +101,37 @@ export function Composer({ chatId, replyTo, onCancelReply, editing, onCancelEdit
 
   return (
     <>
-      {(replyTo || editing) && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 16px 0' }}>
-          <div style={{ width: 3, alignSelf: 'stretch', background: 'var(--accent)', borderRadius: 3 }} />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)' }}>{editing ? 'Editing' : `Reply to ${replyTo?.senderName}`}</div>
-            <div className="ellipsis muted" style={{ fontSize: 12.5 }}>{(editing ?? replyTo)?.content}</div>
+      <div className="composer-dock">
+        {(replyTo || editing) && (
+          <div className="composer-reply" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 3, alignSelf: 'stretch', background: 'var(--accent)', borderRadius: 3 }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)' }}>{editing ? 'Editing' : `Reply to ${replyTo?.senderName}`}</div>
+              <div className="ellipsis muted" style={{ fontSize: 12.5 }}>{(editing ?? replyTo)?.content}</div>
+            </div>
+            <button className="icon-btn" onClick={() => { onCancelReply?.(); onCancelEdit?.() }}><X size={18} /></button>
           </div>
-          <button className="icon-btn" onClick={() => { onCancelReply?.(); onCancelEdit?.() }}><X size={18} /></button>
+        )}
+        <div className="composer">
+          {/* one pill: attach + input + sticker (no divider); send is a separate circle */}
+          <div className="field">
+            <button className="icon-btn attach-in" onClick={() => setAttachOpen(true)} title="Attach"><Paperclip size={21} /></button>
+            <textarea
+              ref={taRef}
+              rows={1}
+              placeholder="Message"
+              value={text}
+              onChange={(e) => onInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit() } }}
+            />
+            <button className="icon-btn" style={{ width: 30, height: 30 }} onClick={() => setStickerOpen(true)} title="Stickers">
+              <CraftedObject id="loomi-wave" kind="sticker" size={26} />
+            </button>
+          </div>
+          {text.trim()
+            ? <button className="send-btn" onClick={submit} aria-label="Send"><ArrowUp size={22} /></button>
+            : <button className="send-btn" onClick={() => toast('Voice recording — coming soon')} aria-label="Record"><Mic size={20} /></button>}
         </div>
-      )}
-      <div className="composer">
-        <button className="icon-btn" onClick={() => setAttachOpen(true)} title="Attach"><Paperclip size={22} /></button>
-        <div className="field">
-          <textarea
-            ref={taRef}
-            rows={1}
-            placeholder="Message"
-            value={text}
-            onChange={(e) => onInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void submit() } }}
-          />
-          <button className="icon-btn" style={{ width: 30, height: 30 }} onClick={() => setStickerOpen(true)} title="Stickers">
-            <CraftedObject id="loomi-wave" kind="sticker" size={26} />
-          </button>
-        </div>
-        {text.trim()
-          ? <button className="send-btn" onClick={() => void submit()} disabled={busy} aria-label="Send"><ArrowUp size={22} /></button>
-          : <button className="send-btn" onClick={() => toast('Voice recording — coming soon')} aria-label="Record"><Mic size={20} /></button>}
       </div>
 
       <input ref={fileRef} type="file" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void onFile(f); e.currentTarget.value = '' }} />

@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { useMatch, useNavigate } from 'react-router-dom'
 import { Search, PenSquare } from 'lucide-react'
 import { useChat, previewText } from '../store/chat'
+import { useNav } from '../store/nav'
 import { useAuth } from '../store/auth'
 import { Avatar } from '../ui/Avatar'
 import { EmptyState, CenterSpinner } from '../ui/primitives'
@@ -52,7 +53,7 @@ export function ChatsPage() {
   }
 
   return (
-    <div className="pane" ref={rowRef} style={{ flexDirection: 'row', height: '100%', '--list-w': `${listWidth}px` } as React.CSSProperties}>
+    <div className="pane chat-islands" ref={rowRef} style={{ flexDirection: 'row', height: '100%', '--list-w': `${listWidth}px` } as React.CSSProperties}>
       <div className={`list-col ${activeId ? 'hide-on-mobile' : ''}`} style={{ display: 'flex', flexDirection: 'column' }}>
         <ChatListPane activeId={activeId} />
       </div>
@@ -77,6 +78,7 @@ export function ChatsPage() {
 
 function ChatListPane({ activeId }: { activeId: number | null }) {
   const navigate = useNavigate()
+  const openMenu = useNav((s) => s.openMenu)
   const chats = useChat((s) => s.chats)
   const loading = useChat((s) => s.chatsLoading)
   const [q, setQ] = useState('')
@@ -88,11 +90,20 @@ function ChatListPane({ activeId }: { activeId: number | null }) {
 
   return (
     <>
-      {/* header (desktop) */}
-      <div className="pane-head desktop-only">
-        <div className="pane-title">Chats</div>
-        <button className="icon-btn" onClick={() => setComposeOpen(true)} title="New chat"><PenSquare size={20} /></button>
+      {/* list-island header (desktop): burger + search + new-chat */}
+      <div className="list-head desktop-only">
+        <button className="burger-btn" title="Menu" aria-label="Open menu" onClick={openMenu}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+            <path d="M4 7h16M4 12h16M4 17h16" />
+          </svg>
+        </button>
+        <div className="search search-inline">
+          <Search size={16} />
+          <input placeholder="Search" value={q} onChange={(e) => setQ(e.target.value)} />
+        </div>
+        <button className="icon-btn round" onClick={() => setComposeOpen(true)} title="New chat"><PenSquare size={19} /></button>
       </div>
+
       {/* header (mobile) */}
       <div className="m-head mobile-only">
         <button onClick={() => navigate('/profile')} style={{ border: 'none', background: 'transparent', padding: 0 }}>
@@ -102,7 +113,7 @@ function ChatListPane({ activeId }: { activeId: number | null }) {
         <button className="icon-btn" onClick={() => setComposeOpen(true)}><PenSquare size={22} /></button>
       </div>
 
-      <div className="search">
+      <div className="search mobile-only">
         <Search size={17} />
         <input placeholder="Search" value={q} onChange={(e) => setQ(e.target.value)} />
       </div>
@@ -131,7 +142,7 @@ function ChatRow({ chat, active, index, onClick }: { chat: Chat; active: boolean
 
   return (
     <div className={`chat-row row-in ${active ? 'active' : ''}`} style={{ animationDelay: `${Math.min(index, 12) * 0.03}s` }} onClick={onClick}>
-      <Avatar name={title} id={chat.id} src={chat.avatarUrl} size={52} />
+      <Avatar name={title} id={chat.id} src={chat.avatarUrl} size={48} />
       <div className="col">
         <div className="r1">
           <span className="name ellipsis">{title}</span>

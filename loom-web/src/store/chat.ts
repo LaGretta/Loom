@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { chatsApi, messagesApi, eventsApi, mediaApi } from '../lib/api'
 import { signalr } from '../lib/signalr'
 import { tokenStore } from '../lib/tokenStore'
+import { toast } from '../ui/toast'
 import type { Chat, Message, LoomEvent } from '../lib/types'
 import { MessageTypeE } from '../lib/enums'
 
@@ -33,6 +34,8 @@ interface ChatState {
   loadMore: (chatId: number) => Promise<void>
   send: (chatId: number, content: string, replyToMessageId?: number | null) => Promise<void>
   sendMedia: (chatId: number, file: File) => Promise<void>
+  retrySend: (chatId: number, tempId: number) => Promise<void>
+  discardMessage: (chatId: number, tempId: number) => void
   edit: (messageId: number, chatId: number, content: string) => Promise<void>
   remove: (messageId: number, chatId: number) => Promise<void>
   react: (messageId: number, chatId: number, emoji: string) => Promise<void>
@@ -57,6 +60,43 @@ function findChatIdByMessage(messages: Record<number, Message[]>, messageId: num
 }
 
 const PAGE = 30
+
+let seq = 0
+const nextTempId = () => -(Date.now() * 1000 + (++seq % 1000))
+
+/** Chat-list preview/order bump for a message we just rendered optimistically. */
+function bumpPreview(chats: Chat[], m: Message): Chat[] {
+  let found = false
+  const next = chats.map((c) => {
+    if (c.id !== m.chatId) return c
+    found = true
+    return { ...c, lastMessage: { senderName: m.senderName, content: m.content, type: m.type, sentAt: m.sentAt } }
+  })
+  return found ? [...next].sort((a, b) => (a.id === m.chatId ? -1 : b.id === m.chatId ? 1 : 0)) : next
+}
+
+/** Build the optimistic bubble shown the instant the user hits send. */
+function draftMessage(chatId: number, content: string, type: Message['type'], replyTo: Message | null): Message {
+  return {
+    id: nextTempId(),
+    clientId: `c${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    pending: true,
+    chatId,
+    senderId: myId() ?? 0,
+    senderName: '',
+    senderAvatarUrl: null,
+    content,
+    type,
+    status: 'Sent',
+    replyToMessageId: replyTo?.id ?? null,
+    replyToPreview: replyTo?.content ?? null,
+    isEdited: false,
+    isDeleted: false,
+    sentAt: new Date().toISOString(),
+    attachments: [],
+    reactions: [],
+  }
+}
 
 export const useChat = create<ChatState>((set, get) => ({
   chats: [],
@@ -154,9 +194,37 @@ export const useChat = create<ChatState>((set, get) => ({
     }
   },
 
+  // Optimistic text send: the bubble lands in the thread on the same frame as the keypress,
+  // then reconciles with the server message (deduping the SignalR echo). Never throws —
+  // a failure is surfaced on the bubble itself (failed + Retry), not as a lost message.
   send: async (chatId, content, replyToMessageId) => {
-    const msg = await messagesApi.send({ chatId, content, type: 'Text', replyToMessageId: replyToMessageId ?? null })
-    get().ingestMessage(msg)
+    const replyTo = replyToMessageId
+      ? (get().messages[chatId] ?? []).find((m) => m.id === replyToMessageId) ?? null
+      : null
+    const draft = draftMessage(chatId, content, 'Text', replyTo)
+    set((s) => ({
+      messages: { ...s.messages, [chatId]: [...(s.messages[chatId] ?? []), draft] },
+      chats: bumpPreview(s.chats, draft),
+    }))
+    await deliver(chatId, draft)
+  },
+
+  retrySend: async (chatId, tempId) => {
+    const msg = (get().messages[chatId] ?? []).find((m) => m.id === tempId)
+    if (!msg || !msg.failed) return
+    set((s) => ({
+      messages: {
+        ...s.messages,
+        [chatId]: (s.messages[chatId] ?? []).map((m) => (m.id === tempId ? { ...m, pending: true, failed: false } : m)),
+      },
+    }))
+    await deliver(chatId, { ...msg, pending: true, failed: false })
+  },
+
+  discardMessage: (chatId, tempId) => {
+    set((s) => ({
+      messages: { ...s.messages, [chatId]: (s.messages[chatId] ?? []).filter((m) => m.id !== tempId) },
+    }))
   },
 
   // Photo/file send with an optimistic bubble: render the local file instantly (blob URL)
@@ -195,18 +263,33 @@ export const useChat = create<ChatState>((set, get) => ({
     }
   },
 
+  // Optimistic edit: new text + "edited" render immediately; the original is restored on failure.
   edit: async (messageId, chatId, content) => {
-    const updated = await messagesApi.edit({ messageId, content })
+    const before = (get().messages[chatId] ?? []).find((m) => m.id === messageId)
+    if (!before) return
     set((s) => ({
       messages: {
         ...s.messages,
-        [chatId]: (s.messages[chatId] ?? []).map((m) => (m.id === messageId ? updated : m)),
+        [chatId]: (s.messages[chatId] ?? []).map((m) => (m.id === messageId ? { ...m, content, isEdited: true } : m)),
       },
     }))
+    try {
+      const updated = await messagesApi.edit({ messageId, content })
+      set((s) => ({
+        messages: { ...s.messages, [chatId]: (s.messages[chatId] ?? []).map((m) => (m.id === messageId ? updated : m)) },
+      }))
+    } catch {
+      set((s) => ({
+        messages: { ...s.messages, [chatId]: (s.messages[chatId] ?? []).map((m) => (m.id === messageId ? before : m)) },
+      }))
+      toast('Could not edit message')
+    }
   },
 
+  // Optimistic delete: the bubble collapses to "Message deleted" at once, restored on failure.
   remove: async (messageId, chatId) => {
-    await messagesApi.remove(messageId)
+    const before = (get().messages[chatId] ?? []).find((m) => m.id === messageId)
+    if (!before) return
     set((s) => ({
       messages: {
         ...s.messages,
@@ -214,9 +297,18 @@ export const useChat = create<ChatState>((set, get) => ({
           m.id === messageId ? { ...m, isDeleted: true, content: '' } : m),
       },
     }))
+    try {
+      await messagesApi.remove(messageId)
+    } catch {
+      set((s) => ({
+        messages: { ...s.messages, [chatId]: (s.messages[chatId] ?? []).map((m) => (m.id === messageId ? before : m)) },
+      }))
+      toast('Could not delete message')
+    }
   },
 
   react: async (messageId, chatId, emoji) => {
+    const before = (get().messages[chatId] ?? []).find((m) => m.id === messageId)?.reactions ?? []
     // optimistic toggle
     set((s) => ({
       messages: {
@@ -241,16 +333,14 @@ export const useChat = create<ChatState>((set, get) => ({
     try {
       await messagesApi.react({ messageId, emoji })
     } catch {
-      // resync this chat's first page on failure
-      try {
-        const res = await messagesApi.list(chatId, 1, PAGE)
-        const asc = [...res.items].reverse()
-        set((s) => {
-          const existing = s.messages[chatId] ?? []
-          const older = existing.filter((m) => !asc.some((a) => a.id === m.id) && m.id < (asc[0]?.id ?? Infinity))
-          return { messages: { ...s.messages, [chatId]: [...older, ...asc] } }
-        })
-      } catch { /* ignore */ }
+      // straight rollback to the pre-toggle reactions — no refetch, no flicker
+      set((s) => ({
+        messages: {
+          ...s.messages,
+          [chatId]: (s.messages[chatId] ?? []).map((m) => (m.id === messageId ? { ...m, reactions: before } : m)),
+        },
+      }))
+      toast('Could not react')
     }
   },
 
@@ -315,8 +405,15 @@ export const useChat = create<ChatState>((set, get) => ({
       // seeded this way stays flagged as NOT loaded (see openChat), so history still fills in.
       const list = s.messages[m.chatId] ?? []
       let messages = s.messages
+      // A pending draft of ours whose echo this is → replace it in place, so the bubble
+      // never duplicates when the SignalR echo beats the HTTP response.
+      const draftIdx = m.senderId === myId()
+        ? list.findIndex((x) => x.pending && x.type === m.type && x.content === m.content)
+        : -1
       if (list.some((x) => x.id === m.id)) {
         messages = { ...s.messages, [m.chatId]: list.map((x) => (x.id === m.id ? m : x)) }
+      } else if (draftIdx >= 0) {
+        messages = { ...s.messages, [m.chatId]: list.map((x, i) => (i === draftIdx ? m : x)) }
       } else {
         messages = { ...s.messages, [m.chatId]: [...list, m] }
       }
@@ -392,6 +489,37 @@ export const useChat = create<ChatState>((set, get) => ({
     presence: {}, typing: {}, events: {},
   }),
 }))
+
+/**
+ * POST an optimistic draft and reconcile it with the server message.
+ * Swaps the temp bubble for the real one (dropping any duplicate the SignalR echo
+ * already added). On failure the bubble stays put, flagged `failed` for retry.
+ */
+async function deliver(chatId: number, draft: Message): Promise<void> {
+  try {
+    const msg = await messagesApi.send({
+      chatId,
+      content: draft.content,
+      type: draft.type,
+      replyToMessageId: draft.replyToMessageId ?? null,
+    })
+    useChat.setState((s) => ({
+      messages: {
+        ...s.messages,
+        [chatId]: (s.messages[chatId] ?? []).filter((m) => m.id !== draft.id && m.id !== msg.id),
+      },
+    }))
+    useChat.getState().ingestMessage(msg)
+  } catch {
+    useChat.setState((s) => ({
+      messages: {
+        ...s.messages,
+        [chatId]: (s.messages[chatId] ?? []).map((m) =>
+          m.id === draft.id ? { ...m, pending: false, failed: true } : m),
+      },
+    }))
+  }
+}
 
 /* ---------------- SignalR wiring ---------------- */
 export function wireRealtime() {

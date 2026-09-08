@@ -12,18 +12,8 @@ export interface CallRecord {
   at: string
 }
 
-function seedCalls(): CallRecord[] {
-  const now = Date.now()
-  const at = (minAgo: number) => new Date(now - minAgo * 60000).toISOString()
-  return [
-    { id: '1', name: 'Mira Chen', direction: 'incoming', video: true, at: at(35) },
-    { id: '2', name: 'Devon Park', direction: 'outgoing', video: false, at: at(180) },
-    { id: '3', name: 'Aria Voss', direction: 'missed', video: false, at: at(600) },
-    { id: '4', name: 'Team Loom', direction: 'outgoing', video: true, at: at(1500) },
-  ]
-}
-
 interface MockState {
+  // Empty until a real calls endpoint exists — we do NOT invent call history.
   calls: CallRecord[]
   // Saved gifts to profile (local collection, layered on top of API "my gifts")
   savedGiftInstanceIds: number[]
@@ -31,7 +21,7 @@ interface MockState {
 }
 
 export const useMock = create<MockState>((set) => ({
-  calls: seedCalls(),
+  calls: [],
   savedGiftInstanceIds: [],
   saveGift: (id) => set((s) => (s.savedGiftInstanceIds.includes(id) ? s : { savedGiftInstanceIds: [...s.savedGiftInstanceIds, id] })),
 }))

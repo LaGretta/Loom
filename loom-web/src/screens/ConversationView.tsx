@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useLayoutEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronLeft, Phone, Video, Search, MoreVertical, CheckCheck, Check } from 'lucide-react'
+import { ChevronLeft, Phone, Video, Search, MoreVertical, CheckCheck, Check, Clock, AlertCircle } from 'lucide-react'
 import { useChat } from '../store/chat'
 import { useAuth } from '../store/auth'
 import { chatsApi } from '../lib/api'
@@ -29,6 +29,8 @@ export function ConversationView({ chatId }: { chatId: number }) {
   const closeChat = useChat((s) => s.closeChat)
   const loadMore = useChat((s) => s.loadMore)
   const hasMore = useChat((s) => s.msgHasMore[chatId])
+  const retrySend = useChat((s) => s.retrySend)
+  const discardMessage = useChat((s) => s.discardMessage)
 
   const [chat, setChat] = useState<Chat | null>(null)
   const [members, setMembers] = useState<ChatMember[]>([])
@@ -101,13 +103,13 @@ export function ConversationView({ chatId }: { chatId: number }) {
   }, [members])
 
   return (
-    <div className="pane" style={{ flex: 1, minWidth: 0, position: 'relative' }}>
+    <div className="pane conv" style={{ flex: 1, minWidth: 0, position: 'relative' }}>
       {/* header */}
       <div className="chat-header frost">
         <button className="icon-btn mobile-only" onClick={() => navigate('/')}><ChevronLeft size={24} /></button>
         <button style={{ display: 'flex', alignItems: 'center', gap: 12, border: 'none', background: 'transparent', padding: 0, flex: 1, minWidth: 0, textAlign: 'left' }}
           onClick={() => { if (isDirect && other) navigate(`/u/${other.userId}`); else navigate(`/chat/${chatId}/members`) }}>
-          <Avatar name={title} id={isDirect ? (other?.userId ?? chatId) : chatId} src={isDirect ? (other?.avatarUrl ?? chat?.avatarUrl) : chat?.avatarUrl} size={42} online={status.online} />
+          <Avatar name={title} id={isDirect ? (other?.userId ?? chatId) : chatId} src={isDirect ? (other?.avatarUrl ?? chat?.avatarUrl) : chat?.avatarUrl} size={34} online={status.online} />
           <div style={{ minWidth: 0 }}>
             <div className="h-name ellipsis">{title}</div>
             <div className={`h-status ellipsis ${status.online ? 'online' : ''}`}>
@@ -147,6 +149,8 @@ export function ConversationView({ chatId }: { chatId: number }) {
                           onReply={() => { setEditing(null); setReplyTo(g.message) }}
                           onMenu={() => setMenuFor(g.message)}
                           onOpenProfile={() => navigate(`/u/${g.message.senderId}`)}
+                          onRetry={() => void retrySend(chatId, g.message.id)}
+                          onDiscard={() => discardMessage(chatId, g.message.id)}
                         />
                 ))}
             <div ref={bottomRef} />
@@ -214,7 +218,7 @@ function GiftBubbleCard({ giftName, mine, senderName }: { giftName: string; mine
 }
 
 /* ---------------- Bubble ---------------- */
-function Bubble({ message, mine, showSender, grouped, senderName, senderAvatarUrl, onReply, onMenu, onOpenProfile }: {
+function Bubble({ message, mine, showSender, grouped, senderName, senderAvatarUrl, onReply, onMenu, onOpenProfile, onRetry, onDiscard }: {
   message: Message
   mine: boolean
   showSender: boolean
@@ -224,6 +228,8 @@ function Bubble({ message, mine, showSender, grouped, senderName, senderAvatarUr
   onReply: () => void
   onMenu: () => void
   onOpenProfile: () => void   // tap sender avatar/name → open their profile
+  onRetry: () => void         // failed optimistic send → try again
+  onDiscard: () => void       // failed optimistic send → drop it
 }) {
   const react = useChat((s) => s.react)
   const pressTimer = useRef<number>()
@@ -253,7 +259,7 @@ function Bubble({ message, mine, showSender, grouped, senderName, senderAvatarUr
     <div className={`msg-row ${mine ? 'out' : ''} ${grouped ? 'grouped' : ''} anim-pop`}
       onContextMenu={(e) => { e.preventDefault(); onMenu() }}>
       {!mine && showSender ? <SenderAvatar name={senderName} id={message.senderId} src={senderAvatarUrl} onClick={onOpenProfile} /> : (!mine ? <span style={{ width: 30, flex: '0 0 30px' }} /> : null)}
-      <div className="bubble" onMouseDown={startPress} onMouseUp={endPress} onMouseLeave={endPress} onTouchStart={startPress} onTouchEnd={endPress} onDoubleClick={onReply}>
+      <div className={`bubble ${message.pending ? 'pending' : ''} ${message.failed ? 'failed' : ''}`} onMouseDown={startPress} onMouseUp={endPress} onMouseLeave={endPress} onTouchStart={startPress} onTouchEnd={endPress} onDoubleClick={onReply}>
         {!mine && showSender && <div className="sender" style={{ color: 'var(--accent)', cursor: 'pointer' }} onClick={onOpenProfile}>{senderName}</div>}
         {message.replyToPreview && (
           <div className="reply-quote">
@@ -276,10 +282,24 @@ function Bubble({ message, mine, showSender, grouped, senderName, senderAvatarUr
         <div className="foot">
           {message.isEdited && !message.isDeleted && <span className="edited">edited</span>}
           <span className="time">{timeShort(message.sentAt)}</span>
-          {mine && !message.isDeleted && (
-            <span className="ticks">{message.status === 'Read' ? <CheckCheck size={15} /> : message.status === 'Delivered' ? <CheckCheck size={15} style={{ opacity: .6 }} /> : <Check size={15} style={{ opacity: .6 }} />}</span>
+          {mine && !message.isDeleted && !message.failed && (
+            <span className="ticks">
+              {message.pending ? <Clock size={14} style={{ opacity: .65 }} />
+                : message.status === 'Read' ? <CheckCheck size={15} />
+                  : message.status === 'Delivered' ? <CheckCheck size={15} style={{ opacity: .6 }} />
+                    : <Check size={15} style={{ opacity: .6 }} />}
+            </span>
           )}
         </div>
+
+        {message.failed && (
+          <div className="msg-failed">
+            <AlertCircle size={13} />
+            <span>Not sent</span>
+            <button onClick={onRetry}>Retry</button>
+            <button onClick={onDiscard} aria-label="Discard message">Discard</button>
+          </div>
+        )}
 
         {message.reactions.length > 0 && <ReactionRow message={message} mine={mine} onToggle={(e) => react(message.id, message.chatId, e)} />}
       </div>

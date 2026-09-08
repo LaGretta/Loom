@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom'
-import { MessageCircle, Calendar, Users, User } from 'lucide-react'
+import { MessageCircle, Calendar, Users, Phone, User } from 'lucide-react'
 import { useChat } from '../store/chat'
+import { useNav } from '../store/nav'
 import { ChatsPage } from './ChatsPage'
 import { CalendarPage } from './CalendarPage'
 import { ContactsPage } from './ContactsPage'
+import { CallsPage } from './CallsPage'
 import { ProfileHub } from './ProfileHub'
 import { SettingsScreen } from './SettingsScreen'
 import { AppearanceScreen } from './AppearanceScreen'
@@ -18,12 +20,13 @@ import { MembersScreen } from './MembersScreen'
 import { SavedScreen } from './SavedScreen'
 import { BurgerMenu } from './BurgerMenu'
 
-type Tab = 'chats' | 'calendar' | 'contacts' | 'profile'
+type Tab = 'chats' | 'calendar' | 'contacts' | 'calls' | 'profile'
 
 function tabFromPath(p: string): Tab | null {
   if (p === '/' || p.startsWith('/chat')) return 'chats'
   if (p.startsWith('/calendar')) return 'calendar'
   if (p.startsWith('/contacts')) return 'contacts'
+  if (p.startsWith('/calls')) return 'calls'
   if (p === '/profile') return 'profile'
   return null
 }
@@ -31,7 +34,9 @@ function tabFromPath(p: string): Tab | null {
 export function AppShell() {
   const { pathname } = useLocation()
   const loadChats = useChat((s) => s.loadChats)
-  const [menuOpen, setMenuOpen] = useState(false)
+  const menuOpen = useNav((s) => s.menuOpen)
+  const openMenu = useNav((s) => s.openMenu)
+  const closeMenu = useNav((s) => s.closeMenu)
 
   const derived = tabFromPath(pathname)
   const lastTab = useRef<Tab>('chats')
@@ -42,14 +47,17 @@ export function AppShell() {
 
   return (
     <div className="app-shell">
-      {/* Desktop nav — a single burger button (all destinations live in the burger menu) */}
-      <div className="nav-dock desktop-only">
-        <button className="burger-btn" title="Menu" aria-label="Open menu" onClick={() => setMenuOpen(true)}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
-            <path d="M4 7h16M4 12h16M4 17h16" />
-          </svg>
-        </button>
-      </div>
+      {/* Desktop left dock with the burger — hidden on the chat screen, where the burger
+          lives inside the chat-list island header (full-bleed canvas, per design). */}
+      {activeTab !== 'chats' && (
+        <div className="nav-dock desktop-only">
+          <button className="burger-btn" title="Menu" aria-label="Open menu" onClick={openMenu}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+              <path d="M4 7h16M4 12h16M4 17h16" />
+            </svg>
+          </button>
+        </div>
+      )}
 
       {/* Main content */}
       <div className="pane" style={{ flex: 1, minWidth: 0 }}>
@@ -59,8 +67,8 @@ export function AppShell() {
       {/* Mobile bottom nav */}
       <MobileNav activeTab={derived} />
 
-      {/* Burger menu popover (desktop) */}
-      {menuOpen && <BurgerMenu onClose={() => setMenuOpen(false)} activeTab={activeTab} />}
+      {/* Burger menu popover */}
+      {menuOpen && <BurgerMenu onClose={closeMenu} activeTab={activeTab} />}
     </div>
   )
 }
@@ -72,7 +80,8 @@ function TabContent({ tab, pathname }: { tab: Tab; pathname: string }) {
     tab === 'chats' ? <ChatsPage />
       : tab === 'calendar' ? <CalendarPage />
         : tab === 'contacts' ? <ContactsPage />
-          : <ProfileHub />
+          : tab === 'calls' ? <CallsPage />
+            : <ProfileHub />
 
   return (
     <>
@@ -107,6 +116,7 @@ function MobileNav({ activeTab }: { activeTab: Tab | null }) {
     { id: 'chats', icon: MessageCircle, to: '/', label: 'Chats', badge: totalUnread },
     { id: 'calendar', icon: Calendar, to: '/calendar', label: 'Calendar' },
     { id: 'contacts', icon: Users, to: '/contacts', label: 'Contacts' },
+    { id: 'calls', icon: Phone, to: '/calls', label: 'Calls' },
     { id: 'profile', icon: User, to: '/profile', label: 'Profile' },
   ]
   return (
