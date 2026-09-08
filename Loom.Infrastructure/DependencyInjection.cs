@@ -1,6 +1,7 @@
 ﻿using Loom.Application.Interfaces;
 using Loom.Application.Interfaces.Repository;
 using Loom.Application.Interfaces.Security;
+using Loom.Infrastructure.Cache;
 using Loom.Infrastructure.Data;
 using Loom.Infrastructure.Media;
 using Loom.Infrastructure.Repository;
@@ -25,13 +26,28 @@ public static class DependencyInjection
         services.AddScoped<IStarRepository, StarRepository>();
         services.AddScoped<IGiftRepository, GiftRepository>();
         services.AddScoped<IEventRepository, EventRepository>();
-        
+
         services.AddScoped<IMediaStorage, CloudinaryStorage>();
 
         services.AddScoped<IUnitOfWork, UnitOfWork>();
-        
+
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
+
+        var redisConnection = configuration["Redis:Connection"];
+        if (!string.IsNullOrWhiteSpace(redisConnection))
+        {
+            services.AddStackExchangeRedisCache(options =>
+            {
+                options.Configuration = redisConnection;
+                options.InstanceName = "loom:";
+            });
+            services.AddScoped<ICacheService, RedisCacheService>();
+        }
+        else
+        {
+            services.AddScoped<ICacheService, NoOpCacheService>();
+        }
 
         return services;
     }

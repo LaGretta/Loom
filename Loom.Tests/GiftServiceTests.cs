@@ -23,6 +23,7 @@ public class GiftServiceTests
     private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IMapper> _mapper = new();
     private readonly GiftService _sut;
+    private readonly Mock<ICacheService> _cache = new();
 
     public GiftServiceTests()
     {
@@ -39,7 +40,8 @@ public class GiftServiceTests
             messageRepository: _messageRepo.Object,
             notifier: _notifier.Object,
             unitOfWork: _uow.Object,
-            mapper: _mapper.Object);
+            mapper: _mapper.Object,
+            cache: _cache.Object);
     }
 
     [Fact]

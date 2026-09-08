@@ -11,6 +11,8 @@ namespace Loom.Application.Service;
 
 public class GiftService : IGiftService
 {
+    private const string CatalogCacheKey = "gifts:catalog";
+    
     private readonly IGiftRepository _giftRepository;
     private readonly IStarRepository _starRepository;
     private readonly IUserRepository _userRepository;
@@ -19,6 +21,7 @@ public class GiftService : IGiftService
     private readonly IChatNotifier _notifier;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
+    private readonly ICacheService _cache; 
 
     public GiftService(
         IGiftRepository giftRepository,
@@ -28,7 +31,8 @@ public class GiftService : IGiftService
         IMessageRepository messageRepository,
         IChatNotifier notifier,
         IUnitOfWork unitOfWork,
-        IMapper mapper)
+        IMapper mapper,
+        ICacheService cache)
     {
         _giftRepository = giftRepository;
         _starRepository = starRepository;
@@ -38,12 +42,21 @@ public class GiftService : IGiftService
         _notifier = notifier;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
+        _cache = cache;
     }
 
     public async Task<List<GiftDto>> GetCatalog(CancellationToken ct)
     {
+        var cached = await _cache.GetAsync<List<GiftDto>>(CatalogCacheKey, ct);
+        if (cached != null)
+            return cached;                       
+
         var gifts = await _giftRepository.GetCatalogAsync(ct);
-        return _mapper.Map<List<GiftDto>>(gifts);
+        var dtos = _mapper.Map<List<GiftDto>>(gifts);
+
+        // кладемо в кеш на 10 хвилин
+        await _cache.SetAsync(CatalogCacheKey, dtos, TimeSpan.FromMinutes(10), ct);
+        return dtos;
     }
 
   public async Task<GiftInstanceDto> SendGift(int userId, SendGiftDto dto, CancellationToken ct)
