@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useRef, useState, useLayoutEffect } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronLeft, Phone, Video, Search, MoreVertical, CheckCheck, Check, Clock, AlertCircle } from 'lucide-react'
+import { ChevronLeft, Phone, Video, Search, MoreVertical, CheckCheck, Check, Clock, AlertCircle, ArrowDown } from 'lucide-react'
 import { useChat } from '../store/chat'
 import { useAuth } from '../store/auth'
 import { chatsApi } from '../lib/api'
 import { Avatar } from '../ui/Avatar'
-import { CenterSpinner } from '../ui/primitives'
+import { ThreadSkeleton } from '../ui/Skeleton'
 import { CraftedObject } from '../ui/CraftedObject'
 import { giftByName } from '../assets/loom'
 import { Wallpaper } from '../ui/Wallpaper'
@@ -13,6 +13,7 @@ import { timeShort, dayLabel, fileSize, presenceText } from '../ui/format'
 import { isOnline, type UserStatus } from '../lib/enums'
 import type { Chat, ChatMember, Message, LoomEvent } from '../lib/types'
 import { Composer, MessageContextMenu } from './conversation-parts'
+import { useThreadScroll } from './useThreadScroll'
 import { EventCard } from '../components/EventCard'
 import { toast } from '../ui/toast'
 
@@ -38,9 +39,10 @@ export function ConversationView({ chatId }: { chatId: number }) {
   const [editing, setEditing] = useState<Message | null>(null)
   const [menuFor, setMenuFor] = useState<Message | null>(null)
 
-  const threadRef = useRef<HTMLDivElement>(null)
-  const bottomRef = useRef<HTMLDivElement>(null)
-  const prevLen = useRef(0)
+  // Phase 4: anchoring, per-chat position memory and the "new messages" pill.
+  const { threadRef, onScroll, newCount, scrollToBottom } = useThreadScroll({
+    chatId, messages, hasMore, loadMore, myId: me?.id,
+  })
 
   useEffect(() => {
     void openChat(chatId)
@@ -55,18 +57,6 @@ export function ConversationView({ chatId }: { chatId: number }) {
     chatsApi.members(chatId).then(setMembers).catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatId])
-
-  // auto-scroll to bottom on new messages (if near bottom)
-  useLayoutEffect(() => {
-    const el = threadRef.current
-    if (!el) return
-    const len = messages?.length ?? 0
-    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 240
-    if (len > prevLen.current && (nearBottom || prevLen.current === 0)) {
-      bottomRef.current?.scrollIntoView({ behavior: prevLen.current === 0 ? 'auto' : 'smooth' })
-    }
-    prevLen.current = len
-  }, [messages])
 
   const other = useMemo(() => members.find((m) => m.userId !== me?.id), [members, me])
   const isDirect = chat?.type === 'Direct'
@@ -83,16 +73,15 @@ export function ConversationView({ chatId }: { chatId: number }) {
     return { text: `${chat?.membersCount ?? members.length} members${onlineCount ? `, ${onlineCount} online` : ''}`, online: false }
   }, [isDirect, other, presence, members, chat])
 
-  const onScroll = () => {
-    const el = threadRef.current
-    if (el && el.scrollTop < 80 && hasMore) {
-      const prevH = el.scrollHeight
-      void loadMore(chatId).then(() => {
-        requestAnimationFrame(() => { if (threadRef.current) threadRef.current.scrollTop = threadRef.current.scrollHeight - prevH })
-      })
-    }
-  }
-
+  // Messages that arrive AFTER the chat was opened animate in; existing history does not.
+  const openedAt = useMemo(() => Date.now(), [chatId])
+  // Stable handlers: inline closures would change identity every render and defeat
+  // the memo on Bubble, re-rendering the whole thread on each incoming message.
+  const handleReply = useCallback((m: Message) => { setEditing(null); setReplyTo(m) }, [])
+  const handleMenu = useCallback((m: Message) => setMenuFor(m), [])
+  const handleProfile = useCallback((id: number) => navigate(`/u/${id}`), [navigate])
+  const handleRetry = useCallback((id: number) => { void retrySend(chatId, id) }, [chatId, retrySend])
+  const handleDiscard = useCallback((id: number) => discardMessage(chatId, id), [chatId, discardMessage])
   const grouped = useMemo(() => buildTimeline(messages ?? [], events ?? []), [messages, events])
   // Resolve sender name/avatar from the members list when a message DTO lacks them
   // (e.g. live-broadcast messages whose senderName can come back empty).
@@ -130,7 +119,7 @@ export function ConversationView({ chatId }: { chatId: number }) {
         <Wallpaper />
         <div className="thread" ref={threadRef} onScroll={onScroll}>
           <div className="thread-inner">
-            {loading && !messages ? <CenterSpinner />
+            {loading && !messages ? <ThreadSkeleton />
               : grouped.length === 0
                 ? <div className="day-pill" style={{ marginTop: 40 }}>No messages yet — say hi 👋</div>
                 : grouped.map((g) => (
@@ -146,17 +135,24 @@ export function ConversationView({ chatId }: { chatId: number }) {
                           grouped={g.grouped}
                           senderName={g.message.senderName || memberById.get(g.message.senderId)?.displayName || 'Member'}
                           senderAvatarUrl={g.message.senderAvatarUrl ?? memberById.get(g.message.senderId)?.avatarUrl}
-                          onReply={() => { setEditing(null); setReplyTo(g.message) }}
-                          onMenu={() => setMenuFor(g.message)}
-                          onOpenProfile={() => navigate(`/u/${g.message.senderId}`)}
-                          onRetry={() => void retrySend(chatId, g.message.id)}
-                          onDiscard={() => discardMessage(chatId, g.message.id)}
+                          isNew={new Date(g.message.sentAt).getTime() > openedAt}
+                          onReply={handleReply}
+                          onMenu={handleMenu}
+                          onOpenProfile={handleProfile}
+                          onRetry={handleRetry}
+                          onDiscard={handleDiscard}
                         />
                 ))}
-            <div ref={bottomRef} />
           </div>
         </div>
       </div>
+
+      {newCount > 0 && (
+        <button className="new-msgs anim-fade" onClick={() => scrollToBottom()}>
+          <ArrowDown size={15} />
+          {newCount} new {newCount === 1 ? 'message' : 'messages'}
+        </button>
+      )}
 
       <Composer
         chatId={chatId}
@@ -217,19 +213,31 @@ function GiftBubbleCard({ giftName, mine, senderName }: { giftName: string; mine
   )
 }
 
+/* Photo bubble: holds a reserved box until the image decodes, then fades it in —
+   so a loading photo never reflows the thread under the reader. */
+function ChatImage({ src }: { src: string }) {
+  const [loaded, setLoaded] = useState(false)
+  return (
+    <div className={`card-photo ${loaded ? 'is-loaded' : ''}`}>
+      <img src={src} alt="" decoding="async" onLoad={() => setLoaded(true)} onError={() => setLoaded(true)} />
+    </div>
+  )
+}
+
 /* ---------------- Bubble ---------------- */
-function Bubble({ message, mine, showSender, grouped, senderName, senderAvatarUrl, onReply, onMenu, onOpenProfile, onRetry, onDiscard }: {
+const Bubble = memo(function Bubble({ message, mine, showSender, grouped, senderName, senderAvatarUrl, isNew, onReply, onMenu, onOpenProfile, onRetry, onDiscard }: {
   message: Message
   mine: boolean
   showSender: boolean
   grouped: boolean
   senderName: string          // resolved (message.senderName, falling back to member list)
   senderAvatarUrl?: string | null
-  onReply: () => void
-  onMenu: () => void
-  onOpenProfile: () => void   // tap sender avatar/name → open their profile
-  onRetry: () => void         // failed optimistic send → try again
-  onDiscard: () => void       // failed optimistic send → drop it
+  isNew: boolean                              // arrived after the chat was opened → slides in
+  onReply: (m: Message) => void
+  onMenu: (m: Message) => void
+  onOpenProfile: (senderId: number) => void   // tap sender avatar/name → open their profile
+  onRetry: (id: number) => void               // failed optimistic send → try again
+  onDiscard: (id: number) => void             // failed optimistic send → drop it
 }) {
   const react = useChat((s) => s.react)
   const pressTimer = useRef<number>()
@@ -237,10 +245,10 @@ function Bubble({ message, mine, showSender, grouped, senderName, senderAvatarUr
   // Stickers render large, no bubble
   if (message.type === 'Sticker' && !message.isDeleted) {
     return (
-      <div className={`msg-row ${mine ? 'out' : ''} ${grouped ? 'grouped' : ''}`} onContextMenu={(e) => { e.preventDefault(); onMenu() }}>
-        {!mine && showSender ? <SenderAvatar name={senderName} id={message.senderId} src={senderAvatarUrl} onClick={onOpenProfile} /> : (!mine ? <span style={{ width: 30, flex: '0 0 30px' }} /> : null)}
-        <div style={{ position: 'relative' }} onDoubleClick={onReply}>
-          {!mine && showSender && <div className="sender" style={{ color: 'var(--accent)', cursor: 'pointer', marginBottom: 3 }} onClick={onOpenProfile}>{senderName}</div>}
+      <div className={`msg-row ${mine ? 'out' : ''} ${grouped ? 'grouped' : ''} ${isNew ? 'msg-in' : ''}`} onContextMenu={(e) => { e.preventDefault(); onMenu(message) }}>
+        {!mine && showSender ? <SenderAvatar name={senderName} id={message.senderId} src={senderAvatarUrl} onClick={() => onOpenProfile(message.senderId)} /> : (!mine ? <span style={{ width: 30, flex: '0 0 30px' }} /> : null)}
+        <div style={{ position: 'relative' }} onDoubleClick={() => onReply(message)}>
+          {!mine && showSender && <div className="sender" style={{ color: 'var(--accent)', cursor: 'pointer', marginBottom: 3 }} onClick={() => onOpenProfile(message.senderId)}>{senderName}</div>}
           <CraftedObject id={message.content} kind="sticker" size={128} />
           {message.reactions.length > 0 && <ReactionRow message={message} mine={mine} onToggle={(e) => react(message.id, message.chatId, e)} />}
         </div>
@@ -252,15 +260,15 @@ function Bubble({ message, mine, showSender, grouped, senderName, senderAvatarUr
   const isFile = message.type === 'File' || message.type === 'Video'
   const isGift = message.type === 'Gift' && !message.isDeleted
 
-  const startPress = () => { pressTimer.current = window.setTimeout(onMenu, 480) }
+  const startPress = () => { pressTimer.current = window.setTimeout(() => onMenu(message), 480) }
   const endPress = () => window.clearTimeout(pressTimer.current)
 
   return (
-    <div className={`msg-row ${mine ? 'out' : ''} ${grouped ? 'grouped' : ''} anim-pop`}
-      onContextMenu={(e) => { e.preventDefault(); onMenu() }}>
-      {!mine && showSender ? <SenderAvatar name={senderName} id={message.senderId} src={senderAvatarUrl} onClick={onOpenProfile} /> : (!mine ? <span style={{ width: 30, flex: '0 0 30px' }} /> : null)}
-      <div className={`bubble ${message.pending ? 'pending' : ''} ${message.failed ? 'failed' : ''}`} onMouseDown={startPress} onMouseUp={endPress} onMouseLeave={endPress} onTouchStart={startPress} onTouchEnd={endPress} onDoubleClick={onReply}>
-        {!mine && showSender && <div className="sender" style={{ color: 'var(--accent)', cursor: 'pointer' }} onClick={onOpenProfile}>{senderName}</div>}
+    <div className={`msg-row ${mine ? 'out' : ''} ${grouped ? 'grouped' : ''} ${isNew ? 'msg-in' : ''}`}
+      onContextMenu={(e) => { e.preventDefault(); onMenu(message) }}>
+      {!mine && showSender ? <SenderAvatar name={senderName} id={message.senderId} src={senderAvatarUrl} onClick={() => onOpenProfile(message.senderId)} /> : (!mine ? <span style={{ width: 30, flex: '0 0 30px' }} /> : null)}
+      <div className={`bubble ${message.pending ? 'pending' : ''} ${message.failed ? 'failed' : ''}`} onMouseDown={startPress} onMouseUp={endPress} onMouseLeave={endPress} onTouchStart={startPress} onTouchEnd={endPress} onDoubleClick={() => onReply(message)}>
+        {!mine && showSender && <div className="sender" style={{ color: 'var(--accent)', cursor: 'pointer' }} onClick={() => onOpenProfile(message.senderId)}>{senderName}</div>}
         {message.replyToPreview && (
           <div className="reply-quote">
             <div className="qt ellipsis">{message.replyToPreview}</div>
@@ -271,7 +279,7 @@ function Bubble({ message, mine, showSender, grouped, senderName, senderAvatarUr
           : isGift
             ? <GiftBubbleCard giftName={message.content} mine={mine} senderName={senderName} />
             : isImage
-            ? <div className="card-photo"><img src={message.content} alt="" loading="eager" decoding="async" /></div>
+            ? <ChatImage src={message.content} />
             : isFile
               ? <a className="card-file" href={message.content} target="_blank" rel="noreferrer" style={{ color: 'inherit' }}>
                   <span className="file-ic"><Check size={20} /></span>
@@ -296,8 +304,8 @@ function Bubble({ message, mine, showSender, grouped, senderName, senderAvatarUr
           <div className="msg-failed">
             <AlertCircle size={13} />
             <span>Not sent</span>
-            <button onClick={onRetry}>Retry</button>
-            <button onClick={onDiscard} aria-label="Discard message">Discard</button>
+            <button onClick={() => onRetry(message.id)}>Retry</button>
+            <button onClick={() => onDiscard(message.id)} aria-label="Discard message">Discard</button>
           </div>
         )}
 
@@ -305,7 +313,7 @@ function Bubble({ message, mine, showSender, grouped, senderName, senderAvatarUr
       </div>
     </div>
   )
-}
+})
 
 function ReactionRow({ message, mine, onToggle }: { message: Message; mine: boolean; onToggle: (emoji: string) => void }) {
   return (

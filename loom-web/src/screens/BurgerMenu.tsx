@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { LogOut, UserPlus } from 'lucide-react'
 import { useAuth } from '../store/auth'
 import { Avatar } from '../ui/Avatar'
 import { CraftedObject } from '../ui/CraftedObject'
+import { useDismiss } from '../ui/useDismiss'
 import { starsApi } from '../lib/api'
 import { fmtNumber } from '../ui/format'
 import { toast } from '../ui/toast'
@@ -34,7 +35,17 @@ export function BurgerMenu({ onClose, activeTab }: { onClose: () => void; active
   const navigate = useNavigate()
   const me = useAuth((s) => s.me)
   const logout = useAuth((s) => s.logout)
-  const go = (to: string) => { onClose(); navigate(to) }
+  const { closing, dismiss } = useDismiss(onClose)
+  const panelRef = useRef<HTMLDivElement>(null)
+
+  // Esc closes; focus moves into the panel so it's immediately keyboard-navigable.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') dismiss() }
+    window.addEventListener('keydown', onKey)
+    panelRef.current?.focus()
+    return () => window.removeEventListener('keydown', onKey)
+  }, [dismiss])
+  const go = (to: string) => { dismiss(); navigate(to) }
   const premiumActive = me?.premiumTier === 'Premium'
   const [stars, setStars] = useState<number | null>(null)
 
@@ -46,8 +57,9 @@ export function BurgerMenu({ onClose, activeTab }: { onClose: () => void; active
   }, [])
 
   return (
-    <div className="scrim burger-scrim anim-scrim" onMouseDown={onClose}>
-      <div className="burger-menu anim-menu" onMouseDown={(e) => e.stopPropagation()}>
+    <div className={`scrim burger-scrim anim-scrim ${closing ? 'out-scrim' : ''}`} onMouseDown={dismiss}>
+      <div ref={panelRef} tabIndex={-1} role="menu" aria-label="Main menu"
+        className={`burger-menu anim-menu ${closing ? 'out-menu' : ''}`} onMouseDown={(e) => e.stopPropagation()}>
         {/* top section — profile → My Profile */}
         <button className="bm-profile" onClick={() => go('/profile')}>
           <Avatar name={me?.displayName ?? '?'} id={me?.id} src={me?.avatarUrl} size={42} />
@@ -84,7 +96,7 @@ export function BurgerMenu({ onClose, activeTab }: { onClose: () => void; active
         ))}
 
         <div className="bm-div" />
-        <button className="bm-item bm-danger" onClick={() => { onClose(); void logout() }}>
+        <button className="bm-item bm-danger" onClick={() => { dismiss(); void logout() }}>
           <span className="bm-ic"><LogOut size={19} /></span>
           <span className="bm-label grow">Log out</span>
         </button>

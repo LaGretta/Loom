@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Overlay } from '../ui/Overlay'
 import { CraftedObject } from '../ui/CraftedObject'
-import { Modal, Button, Segmented, Spinner, CenterSpinner } from '../ui/primitives'
+import { Modal, Button, Segmented, Spinner } from '../ui/primitives'
+import { GiftsSkeleton } from '../ui/Skeleton'
 import { Avatar } from '../ui/Avatar'
 import { giftsApi, starsApi, usersApi } from '../lib/api'
 import { giftByName, GIFT_CATALOG } from '../assets/loom'
@@ -52,7 +53,7 @@ export function GiftsScreen() {
         ]} />
       </div>
 
-      {loading ? <CenterSpinner /> : (
+      {loading ? <div style={{ padding: 16 }}><GiftsSkeleton /></div> : (
         <div style={{ padding: 16 }}>
           {tab === 'catalog' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 12 }}>

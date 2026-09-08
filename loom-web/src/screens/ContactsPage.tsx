@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, MessageSquare, UserPlus } from 'lucide-react'
 import { Avatar } from '../ui/Avatar'
-import { EmptyState, Spinner } from '../ui/primitives'
+import { EmptyState } from '../ui/primitives'
+import { ContactsSkeleton } from '../ui/Skeleton'
 import { usersApi, chatsApi } from '../lib/api'
 import { isOnline } from '../lib/enums'
 import { toast } from '../ui/toast'
@@ -50,7 +51,7 @@ export function ContactsPage() {
       <div className="search"><Search size={17} /><input placeholder="Search people" value={q} onChange={(e) => setQ(e.target.value)} /></div>
       <div className="pane-body" style={{ paddingBottom: 100 }}>
         <div style={{ maxWidth: 620, margin: '0 auto' }}>
-          {searching ? <div className="center-fill" style={{ height: 160 }}><Spinner /></div>
+          {searching ? <ContactsSkeleton />
             : !touched ? <EmptyState icon={<Search size={38} strokeWidth={1.4} />} title="Find people" subtitle="Search by name or @username to start a conversation" />
               : results.length === 0 ? <EmptyState title="No people found" subtitle="Try a different search" />
                 : groups.map(([letter, users]) => (

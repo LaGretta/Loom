@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Plus, Users, Send } from 'lucide-react'
 import { eventsApi } from '../lib/api'
-import { CenterSpinner } from '../ui/primitives'
+import { CalendarSkeleton } from '../ui/Skeleton'
 import { CreateEventModal } from '../components/CreateEventModal'
 import { ShareToChatModal } from '../components/ShareToChatModal'
 import type { LoomEvent } from '../lib/types'
@@ -42,7 +42,7 @@ export function CalendarPage() {
         </div>
 
         <div style={{ padding: '0 16px', flex: 1, overflowY: 'auto', paddingBottom: 100 }}>
-          {events === null ? <CenterSpinner /> : <>
+          {events === null ? <CalendarSkeleton /> : <>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '4px 0 12px' }}>
               <button className="icon-btn" onClick={() => setCursor((d) => addMonth(d, -1))}><ChevronLeft size={20} /></button>
               <div style={{ fontSize: 16, fontWeight: 700 }}>{monthLabel}</div>

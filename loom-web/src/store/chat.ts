@@ -46,6 +46,8 @@ interface ChatState {
   applyDeleted: (messageId: number) => void
   applyReactionUpdate: (messageId: number) => Promise<void>
   applyReadReceipt: (messageId: number, userId: number) => void
+  revalidateChat: (chatId: number) => Promise<void>
+  resyncAll: () => Promise<void>
   loadEvents: (chatId: number) => Promise<void>
   upsertEvent: (ev: LoomEvent) => void
   reset: () => void
@@ -137,7 +139,11 @@ export const useChat = create<ChatState>((set, get) => ({
     // Only skip the history fetch once we've actually loaded it from the server.
     // A thread may already hold a few *live* messages that arrived via SignalR before
     // it was opened — those must NOT count as "loaded", or we'd show them alone.
-    if (get().msgLoaded[chatId]) return
+    if (get().msgLoaded[chatId]) {
+      // Already cached → render instantly, then refresh in the background.
+      void get().revalidateChat(chatId)
+      return
+    }
     set((s) => ({ msgLoading: { ...s.msgLoading, [chatId]: true } }))
     try {
       const res = await messagesApi.list(chatId, 1, PAGE)
@@ -453,6 +459,41 @@ export const useChat = create<ChatState>((set, get) => ({
     if (m.senderId !== myId() && get().activeChatId === m.chatId) get().markRead(m.id)
     // if chat not in list yet, refresh list
     if (!get().chats.some((c) => c.id === m.chatId)) void get().loadChats()
+  },
+
+  // Refresh a thread's newest page in place: no loader, no clearing, keeps local
+  // drafts and older history. Used for stale-while-revalidate and after reconnects.
+  revalidateChat: async (chatId) => {
+    try {
+      const res = await messagesApi.list(chatId, 1, PAGE)
+      const asc = [...res.items].reverse()
+      set((st) => {
+        const existing = st.messages[chatId] ?? []
+        const fresh = new Map(asc.map((m) => [m.id, m]))
+        const merged = existing
+          .map((m) => (fresh.has(m.id) ? fresh.get(m.id)! : m))
+          .concat(asc.filter((m) => !existing.some((e) => e.id === m.id)))
+          .sort((a, b) => a.sentAt.localeCompare(b.sentAt) || a.id - b.id)
+        return { messages: { ...st.messages, [chatId]: merged } }
+      })
+    } catch { /* keep cached data */ }
+  },
+
+  // Silent revalidation after the hub reconnects: refresh the chat list and the open
+  // thread in place, without clearing anything or flashing a loader.
+  resyncAll: async () => {
+    try {
+      const chats = await chatsApi.list()
+      set((st) => {
+        // keep any optimistic preview that is newer than the server's copy
+        const byId = new Map(st.chats.map((c) => [c.id, c]))
+        return { chats: chats.map((c) => ({ ...c, unreadCount: byId.get(c.id)?.unreadCount ?? c.unreadCount })) }
+      })
+      for (const c of chats) void signalr.joinChat(c.id)
+    } catch { /* stay on cached data */ }
+
+    const chatId = get().activeChatId
+    if (chatId != null) await get().revalidateChat(chatId)
   },
 
   loadEvents: async (chatId) => {

@@ -5,6 +5,7 @@ import { useAuth } from '../store/auth'
 import { Avatar } from '../ui/Avatar'
 import { CraftedObject } from '../ui/CraftedObject'
 import { Button } from '../ui/primitives'
+import { ProfileSkeleton } from '../ui/Skeleton'
 import { AccountRows } from './account-rows'
 import { giftsApi } from '../lib/api'
 import { giftByName } from '../assets/loom'
@@ -18,7 +19,7 @@ export function ProfileHub() {
 
   useEffect(() => { giftsApi.mine().then(setGifts).catch(() => {}) }, [])
 
-  if (!me) return null
+  if (!me) return <div className="pane" style={{ height: '100%' }}><ProfileSkeleton /></div>
 
   return (
     <div className="pane" style={{ height: '100%' }}>

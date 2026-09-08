@@ -182,8 +182,14 @@
 .react-pill.mine{ background:color-mix(in srgb, var(--accent) 14%, var(--surface)); }
 
 /* media cards inside bubble */
-.card-photo{ border-radius:14px; overflow:hidden; max-width:240px; }
-.card-photo img{ display:block; width:100%; height:auto; }
+.card-photo{
+  border-radius:14px; overflow:hidden; max-width:240px;
+  /* reserved box so a decoding photo never reflows the thread */
+  min-height:140px; background:var(--surface-2);
+}
+.card-photo.is-loaded{ min-height:0; background:transparent; }
+.card-photo img{ display:block; width:100%; height:auto; opacity:0; transition:opacity .22s ease; }
+.card-photo.is-loaded img{ opacity:1; }
 .card-file{ display:flex; align-items:center; gap:10px; padding:2px 0; }
 .file-ic{ width:42px; height:42px; border-radius:11px; background:var(--accent-grad); display:grid; place-items:center; color:var(--on-accent); flex:0 0 auto; }
 .card-file .fn{ font-size:14px; font-weight:600; }
@@ -365,6 +371,93 @@ textarea.input{ height:auto; padding:12px 14px; resize:vertical; min-height:80px
 /* connection banner */
 .conn-banner{ position:absolute; top:8px; left:50%; transform:translateX(-50%); z-index:8; background:var(--glass); backdrop-filter:blur(20px); border:1px solid var(--hairline); border-radius:14px; padding:5px 14px; font-size:12px; font-weight:600; color:var(--text-2); box-shadow:var(--shadow-sm); }
 
+
+
+/* ----------------- "new messages" pill (Phase 4) ----------------- */
+.new-msgs{
+  position:absolute; left:50%; transform:translateX(-50%); z-index:9;
+  bottom:78px; display:inline-flex; align-items:center; gap:7px;
+  padding:7px 14px; border-radius:999px; cursor:pointer;
+  background:var(--accent); color:var(--on-accent);
+  border:none; font-size:12.5px; font-weight:700;
+  box-shadow:0 4px 14px -2px rgba(0,0,0,.32);
+  transition:transform .16s ease;
+}
+.new-msgs:hover{ transform:translateX(-50%) translateY(-1px); }
+.new-msgs:active{ transform:translateX(-50%) scale(.96); }
+
+/* ----------------- skeletons (Phase 2) ----------------- */
+.skel{
+  display:block; position:relative; overflow:hidden; flex:none;
+  background:color-mix(in srgb, var(--text) 8%, var(--surface-2));
+}
+.skel::after{
+  content:''; position:absolute; inset:0; transform:translateX(-100%);
+  background:linear-gradient(90deg, transparent, color-mix(in srgb, var(--text) 9%, transparent), transparent);
+  animation:lmSkel 1.35s ease-in-out infinite;
+}
+@keyframes lmSkel{ 100%{ transform:translateX(100%); } }
+
+/* skeleton → content crossfade (Phase 3 uses the same class) */
+.fade-in{ animation:lmFadeIn .22s ease both; }
+
+/* ----------------- connection strip (Phase 2) ----------------- */
+.conn-strip{
+  position:fixed; left:50%; transform:translateX(-50%); top:10px; z-index:120;
+  display:flex; align-items:center; gap:8px;
+  padding:6px 14px; border-radius:999px;
+  background:var(--glass); backdrop-filter:blur(24px) saturate(1.4); -webkit-backdrop-filter:blur(24px) saturate(1.4);
+  border:1px solid var(--hairline); box-shadow:var(--shadow);
+  font-size:12.5px; font-weight:600; color:var(--text-2);
+  animation:lmFadeIn .2s ease both;
+}
+.conn-strip .pulse{
+  width:7px; height:7px; border-radius:50%; background:var(--star-gold);
+  animation:lmConnPulse 1.1s ease-in-out infinite;
+}
+.conn-strip.ok .pulse{ background:var(--success); animation:none; }
+@keyframes lmConnPulse{ 0%,100%{ opacity:.35 } 50%{ opacity:1 } }
+
+/* ----------------- recoverable error state (Phase 2) ----------------- */
+.err-state{ display:flex; flex-direction:column; align-items:center; gap:10px; text-align:center; padding:34px 20px; }
+.err-state .es-t{ font-size:15px; font-weight:700; }
+.err-state .es-s{ font-size:13px; color:var(--text-2); max-width:280px; }
+
+
+/* ----------------- interaction polish (Phase 7) ----------------- */
+/* Kill the 300ms tap delay and the grey flash; nothing interactive feels dead. */
+button, [role="button"], a, .chat-row, .list-row, .obj-cell, .sticker-cell, .bm-item, .bm-profile, .nav-item{
+  touch-action:manipulation; -webkit-tap-highlight-color:transparent;
+}
+button:not(:disabled), [role="button"]{ cursor:pointer; }
+button:disabled{ cursor:not-allowed; opacity:.55; }
+
+/* consistent press feedback */
+.icon-btn:active, .burger-btn:active, .send-btn:active{ transform:scale(.92); }
+.chat-row:active, .list-row:active, .bm-item:active, .bm-profile:active, .ctx-item:active{ transform:scale(.985); }
+.nav-item:active{ transform:scale(.9); }
+.react-pill:active, .chip:active{ transform:scale(.94); }
+.obj-cell:active, .sticker-cell:active{ transform:scale(.93); }
+.icon-btn, .chat-row, .list-row, .bm-item, .bm-profile, .nav-item, .react-pill, .chip, .obj-cell, .sticker-cell, .ctx-item{
+  transition:background .16s ease, color .16s ease, transform .12s ease;
+}
+
+/* hover affordance where it was missing */
+.ctx-item:hover, .obj-cell:hover, .sticker-cell:hover{ background:var(--surface-2); }
+.react-pill:hover{ border-color:var(--accent); }
+.nav-item:hover{ color:var(--text); }
+
+/* keyboard focus: always visible, never clipped by rounded parents */
+:focus-visible{ outline:2px solid var(--ring); outline-offset:2px; border-radius:inherit; }
+.burger-menu:focus{ outline:none; }
+
+@media (prefers-reduced-motion: reduce){
+  .icon-btn:active, .burger-btn:active, .send-btn:active,
+  .chat-row:active, .list-row:active, .bm-item:active, .bm-profile:active,
+  .nav-item:active, .react-pill:active, .chip:active,
+  .obj-cell:active, .sticker-cell:active, .ctx-item:active{ transform:none; }
+}
+
 /* ----------------- responsive (mobile) ----------------- */
 .mobile-only{ display:none; }
 @media (max-width: 900px){
@@ -395,12 +488,18 @@ textarea.input{ height:auto; padding:12px 14px; resize:vertical; min-height:80px
   }
   .conv .chat-header .h-actions .icon-btn{ width:34px; height:34px; border-radius:50%; }
   .icon-btn.mobile-only{ display:grid; }
-  .conv .thread{ padding:118px 12px 84px; }
+  .conv .thread{ padding:118px 12px calc(84px + var(--kb)); }
   .conv .thread-inner{ max-width:none; margin:0; }
   .conv .composer-dock{
     position:absolute; left:10px; right:10px; z-index:8;
-    bottom:calc(10px + env(safe-area-inset-bottom));
+    /* var-only calc on purpose: an env() sharing this calc() makes some engines
+       drop the var(), which silently broke the keyboard lift. Safe area is padding. */
+    bottom:calc(10px + var(--kb));
+    padding-bottom:env(safe-area-inset-bottom, 0px);
+    /* no transition on `bottom`: transitioning a calc() that reads a custom property
+       leaves the resolved value stuck when --kb changes (keyboard open/close). */
   }
+  .conv .new-msgs{ bottom:calc(78px + var(--kb)); }
   .conv .composer{ border-top:none; padding:0; background:transparent; }
   .conv .composer .field{ background:var(--surface); border:1px solid var(--hairline); box-shadow:var(--shadow); }
   .conv .composer-reply{
@@ -449,6 +548,7 @@ textarea.input{ height:auto; padding:12px 14px; resize:vertical; min-height:80px
   .conv .chat-header .h-actions .icon-btn{ width:34px; height:34px; border-radius:50%; }
 
   .conv .composer-dock{ position:absolute; left:368px; right:52px; bottom:12px; z-index:8; }
+  .conv .new-msgs{ bottom:80px; }
   .conv .composer{ border-top:none; padding:0; background:transparent; }
   .conv .composer-reply{
     margin-bottom:8px; padding:8px 14px;

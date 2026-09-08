@@ -5,7 +5,8 @@ import { useChat, previewText } from '../store/chat'
 import { useNav } from '../store/nav'
 import { useAuth } from '../store/auth'
 import { Avatar } from '../ui/Avatar'
-import { EmptyState, CenterSpinner } from '../ui/primitives'
+import { EmptyState, ErrorState, Button } from '../ui/primitives'
+import { ChatListSkeleton } from '../ui/Skeleton'
 import { chatListTime } from '../ui/format'
 import { isOnline } from '../lib/enums'
 import type { Chat } from '../lib/types'
@@ -81,6 +82,8 @@ function ChatListPane({ activeId }: { activeId: number | null }) {
   const openMenu = useNav((s) => s.openMenu)
   const chats = useChat((s) => s.chats)
   const loading = useChat((s) => s.chatsLoading)
+  const error = useChat((s) => s.chatsError)
+  const loadChats = useChat((s) => s.loadChats)
   const [q, setQ] = useState('')
   const [composeOpen, setComposeOpen] = useState(false)
 
@@ -119,10 +122,17 @@ function ChatListPane({ activeId }: { activeId: number | null }) {
       </div>
 
       <div className="pane-body" style={{ paddingBottom: 90 }}>
-        {loading && chats.length === 0 ? <CenterSpinner />
-          : filtered.length === 0
-            ? <EmptyState icon={<MessageCircle size={38} strokeWidth={1.4} />} title={q ? 'No matches' : 'No chats yet'} subtitle={q ? 'Try a different search' : 'Tap the compose icon to start one'} />
-            : filtered.map((c, i) => (
+        {loading && chats.length === 0 ? <ChatListSkeleton />
+          : error && chats.length === 0
+            ? <ErrorState subtitle="We couldn’t reach the server." onRetry={() => void loadChats()} />
+            : filtered.length === 0
+              ? <EmptyState
+                  icon={<MessageCircle size={38} strokeWidth={1.4} />}
+                  title={q ? 'No matches' : 'No chats yet'}
+                  subtitle={q ? 'Try a different search' : 'Start a conversation and it will show up here.'}
+                  action={!q && <Button onClick={() => setComposeOpen(true)}>Start a chat</Button>}
+                />
+              : filtered.map((c, i) => (
               <ChatRow key={c.id} chat={c} active={c.id === activeId} index={i} onClick={() => navigate(`/chat/${c.id}`)} />
             ))}
       </div>

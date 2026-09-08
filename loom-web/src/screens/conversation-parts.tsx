@@ -1,10 +1,12 @@
 import { useRef, useState, useEffect } from 'react'
 import { Paperclip, ArrowUp, Mic, X, Reply, Forward, Copy, Pin, Trash2, Pencil } from 'lucide-react'
 import { Sheet } from '../ui/primitives'
+import { useDismiss } from '../ui/useDismiss'
 import { CraftedObject } from '../ui/CraftedObject'
 import { useChat } from '../store/chat'
 import { messagesApi } from '../lib/api'
 import { toast } from '../ui/toast'
+import { getDraft, setDraft } from '../lib/drafts'
 import { LOOMI_POSES, STAR_POSES } from '../assets/loom'
 import { EventAttachModal } from '../components/EventAttachModal'
 import type { Message } from '../lib/types'
@@ -29,7 +31,7 @@ export function Composer({ chatId, replyTo, onCancelReply, editing, onCancelEdit
   editing?: Message | null
   onCancelEdit?: () => void
 }) {
-  const [text, setText] = useState('')
+  const [text, setText] = useState(() => getDraft(chatId))
   const [attachOpen, setAttachOpen] = useState(false)
   const [stickerOpen, setStickerOpen] = useState(false)
   const [eventOpen, setEventOpen] = useState(false)
@@ -47,6 +49,16 @@ export function Composer({ chatId, replyTo, onCancelReply, editing, onCancelEdit
     if (editing) { setText(editing.content); taRef.current?.focus() }
   }, [editing])
 
+  // Chat switch: load that chat's draft, reset the typing throttle, and focus the
+  // composer on desktop only (focusing on mobile would pop the keyboard uninvited).
+  useEffect(() => {
+    setText(getDraft(chatId))
+    lastTyping.current = 0
+    requestAnimationFrame(grow)
+    if (window.matchMedia?.('(min-width: 901px)').matches) taRef.current?.focus()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chatId])
+
   const grow = () => {
     const ta = taRef.current
     if (!ta) return
@@ -56,7 +68,11 @@ export function Composer({ chatId, replyTo, onCancelReply, editing, onCancelEdit
 
   const onInput = (v: string) => {
     setText(v)
+    setDraft(chatId, v)
     grow()
+    // Throttled hub ping: at most one "Typing" every 1.5s while actually typing, and
+    // never for an emptied field. Receivers auto-clear the indicator after a pause.
+    if (!v.trim()) return
     const now = Date.now()
     if (now - lastTyping.current > 1500) { lastTyping.current = now; sendTyping(chatId) }
   }
@@ -67,6 +83,8 @@ export function Composer({ chatId, replyTo, onCancelReply, editing, onCancelEdit
     const content = text.trim()
     if (!content) return
     setText('')
+    setDraft(chatId, '')
+    lastTyping.current = 0
     requestAnimationFrame(grow)
     if (editing) {
       const target = editing
@@ -195,15 +213,16 @@ export function MessageContextMenu({ message, mine, onClose, onReply, onEdit }: 
 }) {
   const react = useChat((s) => s.react)
   const remove = useChat((s) => s.remove)
+  const { closing, dismiss } = useDismiss(onClose)
 
   return (
-    <div className="ctx-wrap anim-scrim" onMouseDown={onClose}>
-      <div className="quick-react anim-menu" onMouseDown={(e) => e.stopPropagation()}>
+    <div className={`ctx-wrap anim-scrim ${closing ? 'out-scrim' : ''}`} onMouseDown={dismiss}>
+      <div className={`quick-react anim-menu ${closing ? 'out-menu' : ''}`} onMouseDown={(e) => e.stopPropagation()}>
         {QUICK_REACTIONS.map((e) => (
           <button key={e} onClick={() => { void react(message.id, message.chatId, e); onClose() }}>{e}</button>
         ))}
       </div>
-      <div className="ctx-card anim-menu" onMouseDown={(e) => e.stopPropagation()}>
+      <div className={`ctx-card anim-menu ${closing ? 'out-menu' : ''}`} onMouseDown={(e) => e.stopPropagation()}>
         <button className="ctx-item" onClick={() => { onReply(); onClose() }}><Reply size={18} /> Reply</button>
         <button className="ctx-item" onClick={() => { navigator.clipboard?.writeText(message.content); toast('Copied'); onClose() }}><Copy size={18} /> Copy</button>
         <button className="ctx-item" onClick={() => { toast('Forward — coming soon'); onClose() }}><Forward size={18} /> Forward</button>

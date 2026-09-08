@@ -6,6 +6,8 @@
 
 /* Semantic constants (mode-independent) */
 :root{
+  /* on-screen keyboard inset, published by useKeyboardInset() */
+  --kb:0px;
   --green:#3FA971; --red:#E4606D; --blue:#3E6FF0;
   --success:#3FA971; --danger:#E4606D; --star-gold:#E8A24C;
 }

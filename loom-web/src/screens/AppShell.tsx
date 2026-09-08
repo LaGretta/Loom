@@ -19,8 +19,34 @@ import { EditProfileScreen } from './EditProfileScreen'
 import { MembersScreen } from './MembersScreen'
 import { SavedScreen } from './SavedScreen'
 import { BurgerMenu } from './BurgerMenu'
+import { ConnectionStrip } from '../ui/ConnectionStrip'
+import { useKeyboardInset } from '../ui/useKeyboardInset'
 
 type Tab = 'chats' | 'calendar' | 'contacts' | 'calls' | 'profile'
+
+const LAST_PATH = 'loom.lastPath'
+const RESTORABLE = /^\/(chat\/\d+|calendar|contacts|calls|profile)$/
+
+/** Remember where the user was and return there on the next open. */
+function useSessionRestore(pathname: string) {
+  const navigate = useNavigate()
+  const done = useRef(false)
+  useEffect(() => {
+    if (done.current) return
+    done.current = true
+    if (pathname !== '/') return
+    try {
+      const last = localStorage.getItem(LAST_PATH)
+      if (last && RESTORABLE.test(last)) navigate(last, { replace: true })
+    } catch { /* private mode */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  useEffect(() => {
+    if (RESTORABLE.test(pathname) || pathname === '/') {
+      try { localStorage.setItem(LAST_PATH, pathname) } catch { /* ignore */ }
+    }
+  }, [pathname])
+}
 
 function tabFromPath(p: string): Tab | null {
   if (p === '/' || p.startsWith('/chat')) return 'chats'
@@ -44,6 +70,8 @@ export function AppShell() {
   const activeTab = lastTab.current
 
   useEffect(() => { void loadChats() }, [loadChats])
+  useKeyboardInset()
+  useSessionRestore(pathname)
 
   return (
     <div className="app-shell">
@@ -63,6 +91,9 @@ export function AppShell() {
       <div className="pane" style={{ flex: 1, minWidth: 0 }}>
         <TabContent tab={activeTab} pathname={pathname} />
       </div>
+
+      {/* Realtime connection status */}
+      <ConnectionStrip />
 
       {/* Mobile bottom nav */}
       <MobileNav activeTab={derived} />
@@ -85,7 +116,8 @@ function TabContent({ tab, pathname }: { tab: Tab; pathname: string }) {
 
   return (
     <>
-      {base}
+      {/* keyed so the fade replays on every pane switch (design §7) */}
+      <div key={tab} className="anim-fade" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>{base}</div>
       {/* Overlay routes render above the base pane */}
       <Routes>
         <Route path="/settings" element={<SettingsScreen />} />

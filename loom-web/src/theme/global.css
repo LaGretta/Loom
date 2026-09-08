@@ -91,6 +91,22 @@ a{ color:var(--link); text-decoration:none; }
   *{ animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important; }
 }
 
+
+/* ---------------- exit animations (Phase 3) ---------------- */
+@keyframes lmMenuOut{ from{ opacity:1; transform:scale(1) } to{ opacity:0; transform:scale(.94) } }
+@keyframes lmScrimOut{ from{ opacity:1 } to{ opacity:0 } }
+@keyframes lmSheetOut{ from{ transform:translateY(0) } to{ transform:translateY(100%) } }
+@keyframes lmFadeOut{ from{ opacity:1; transform:translateY(0) } to{ opacity:0; transform:translateY(4px) } }
+@keyframes lmScreenOut{ from{ transform:translateX(0); opacity:1 } to{ transform:translateX(24px); opacity:0 } }
+.out-menu{ animation:lmMenuOut .16s ease both; }
+.out-scrim{ animation:lmScrimOut .16s ease both; }
+.out-sheet{ animation:lmSheetOut .2s cubic-bezier(.4,0,1,1) both; }
+.out-fade{ animation:lmFadeOut .16s ease both; }
+
+/* new message: slides + fades up from the bottom (never a pop) */
+@keyframes lmMsgIn{ from{ opacity:0; transform:translateY(12px) } to{ opacity:1; transform:translateY(0) } }
+.msg-in{ animation:lmMsgIn .2s cubic-bezier(.2,.8,.2,1) both; }
+
 /* ---------------- small helpers ---------------- */
 .ellipsis{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .row-in{ animation:lmRowIn .4s ease backwards; }
