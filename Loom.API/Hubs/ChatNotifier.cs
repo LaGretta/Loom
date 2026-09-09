@@ -16,8 +16,8 @@ public class ChatNotifier : IChatNotifier
         await _hub.Clients.Group($"chat-{chatId}").SendAsync("MessageEdited", message);
     public async Task MessageDeleted(int chatId, int messageId) =>
         await _hub.Clients.Group($"chat-{chatId}").SendAsync("MessageDeleted", messageId);
-    public async Task ReactionUpdated(int chatId, int messageId) =>
-        await _hub.Clients.Group($"chat-{chatId}").SendAsync("ReactionUpdated", messageId);
+    public async Task ReactionUpdated(int chatId, MessageResponseDto message) =>
+        await _hub.Clients.Group($"chat-{chatId}").SendAsync("ReactionUpdated", message);
     
     public async Task MessageRead(int chatId, int messageId, int userId) =>
         await _hub.Clients.Group($"chat-{chatId}").SendAsync("MessageRead", messageId, userId);

@@ -1,11 +1,12 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronLeft, Phone, Video, Search, MoreVertical, CheckCheck, Check, Clock, AlertCircle, ArrowDown } from 'lucide-react'
+import { ChevronLeft, Phone, Video, Search, MoreVertical, CheckCheck, Check, Clock, AlertCircle, ArrowDown, CloudOff } from 'lucide-react'
 import { useChat } from '../store/chat'
 import { useAuth } from '../store/auth'
 import { chatsApi } from '../lib/api'
 import { Avatar } from '../ui/Avatar'
 import { ThreadSkeleton } from '../ui/Skeleton'
+import { VoiceBubble } from '../ui/VoiceBubble'
 import { CraftedObject } from '../ui/CraftedObject'
 import { giftByName } from '../assets/loom'
 import { Wallpaper } from '../ui/Wallpaper'
@@ -75,6 +76,22 @@ export function ConversationView({ chatId }: { chatId: number }) {
 
   // Messages that arrive AFTER the chat was opened animate in; existing history does not.
   const openedAt = useMemo(() => Date.now(), [chatId])
+  // The server's MessageResponseDto.ReplyToPreview is never populated (no such field on
+  // the Message entity) and carries no author, so we resolve the quoted message from the
+  // thread we already hold. Falls back gracefully when it's older than the loaded pages.
+  const byId = useMemo(() => {
+    const m = new Map<number, Message>()
+    for (const x of messages ?? []) m.set(x.id, x)
+    return m
+  }, [messages])
+
+  const jumpToMessage = useCallback((id: number) => {
+    const el = threadRef.current?.querySelector<HTMLElement>(`[data-mid="${id}"]`)
+    if (!el) { toast('Original message isn’t loaded yet'); return }
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash')
+    window.setTimeout(() => el.classList.remove('flash'), 1200)
+  }, [threadRef])
   // Stable handlers: inline closures would change identity every render and defeat
   // the memo on Bubble, re-rendering the whole thread on each incoming message.
   const handleReply = useCallback((m: Message) => { setEditing(null); setReplyTo(m) }, [])
@@ -136,6 +153,8 @@ export function ConversationView({ chatId }: { chatId: number }) {
                           senderName={g.message.senderName || memberById.get(g.message.senderId)?.displayName || 'Member'}
                           senderAvatarUrl={g.message.senderAvatarUrl ?? memberById.get(g.message.senderId)?.avatarUrl}
                           isNew={new Date(g.message.sentAt).getTime() > openedAt}
+                          quoted={g.message.replyToMessageId != null ? byId.get(g.message.replyToMessageId) : undefined}
+                          onJump={jumpToMessage}
                           onReply={handleReply}
                           onMenu={handleMenu}
                           onOpenProfile={handleProfile}
@@ -214,6 +233,17 @@ function GiftBubbleCard({ giftName, mine, senderName, isNew }: { giftName: strin
   )
 }
 
+/** One-line snippet for a quoted message — media types get a label, not a raw URL. */
+function quotedSnippet(q: Message | undefined, fallback?: string | null): string {
+  if (!q) return fallback || 'Original message'
+  if (q.isDeleted) return 'Deleted message'
+  const label: Record<string, string> = {
+    Image: '📷 Photo', Video: '🎬 Video', File: '📎 File',
+    Voice: '🎙 Voice message', Sticker: 'Sticker', Gift: '🎁 Gift',
+  }
+  return q.type === 'Text' ? q.content : (label[q.type] ?? q.content)
+}
+
 /* Photo bubble: holds a reserved box until the image decodes, then fades it in —
    so a loading photo never reflows the thread under the reader. */
 function ChatImage({ src }: { src: string }) {
@@ -226,7 +256,7 @@ function ChatImage({ src }: { src: string }) {
 }
 
 /* ---------------- Bubble ---------------- */
-const Bubble = memo(function Bubble({ message, mine, showSender, grouped, senderName, senderAvatarUrl, isNew, onReply, onMenu, onOpenProfile, onRetry, onDiscard }: {
+const Bubble = memo(function Bubble({ message, mine, showSender, grouped, senderName, senderAvatarUrl, isNew, quoted, onJump, onReply, onMenu, onOpenProfile, onRetry, onDiscard }: {
   message: Message
   mine: boolean
   showSender: boolean
@@ -234,6 +264,8 @@ const Bubble = memo(function Bubble({ message, mine, showSender, grouped, sender
   senderName: string          // resolved (message.senderName, falling back to member list)
   senderAvatarUrl?: string | null
   isNew: boolean                              // arrived after the chat was opened → slides in
+  quoted?: Message                            // the message this one replies to, if loaded
+  onJump: (id: number) => void                // scroll to the quoted original
   onReply: (m: Message) => void
   onMenu: (m: Message, pt: { x: number; y: number }) => void
   onOpenProfile: (senderId: number) => void   // tap sender avatar/name → open their profile
@@ -257,7 +289,7 @@ const Bubble = memo(function Bubble({ message, mine, showSender, grouped, sender
   // Stickers render large, no bubble
   if (message.type === 'Sticker' && !message.isDeleted) {
     return (
-      <div className={`msg-row ${mine ? 'out' : ''} ${grouped ? 'grouped' : ''} ${isNew ? 'msg-in' : ''}`} onContextMenu={(e) => { e.preventDefault(); onMenu(message, { x: e.clientX, y: e.clientY }) }}>
+      <div data-mid={message.id} className={`msg-row ${mine ? 'out' : ''} ${grouped ? 'grouped' : ''} ${isNew ? 'msg-in' : ''}`} onContextMenu={(e) => { e.preventDefault(); onMenu(message, { x: e.clientX, y: e.clientY }) }}>
         {!mine && showSender ? <SenderAvatar name={senderName} id={message.senderId} src={senderAvatarUrl} onClick={() => onOpenProfile(message.senderId)} /> : (!mine ? <span style={{ width: 30, flex: '0 0 30px' }} /> : null)}
         <div style={{ position: 'relative' }} onDoubleClick={() => onReply(message)}
           onTouchStart={startPress} onTouchEnd={endPress} onTouchMove={endPress} onTouchCancel={endPress}>
@@ -269,21 +301,27 @@ const Bubble = memo(function Bubble({ message, mine, showSender, grouped, sender
     )
   }
 
+  const isVoice = message.type === 'Voice' && !message.isDeleted
   const isImage = message.type === 'Image'
   const isFile = message.type === 'File' || message.type === 'Video'
   const isGift = message.type === 'Gift' && !message.isDeleted
 
 
   return (
-    <div className={`msg-row ${mine ? 'out' : ''} ${grouped ? 'grouped' : ''} ${isNew ? 'msg-in' : ''}`}
+    <div data-mid={message.id} className={`msg-row ${mine ? 'out' : ''} ${grouped ? 'grouped' : ''} ${isNew ? 'msg-in' : ''}`}
       onContextMenu={(e) => { e.preventDefault(); onMenu(message, { x: e.clientX, y: e.clientY }) }}>
       {!mine && showSender ? <SenderAvatar name={senderName} id={message.senderId} src={senderAvatarUrl} onClick={() => onOpenProfile(message.senderId)} /> : (!mine ? <span style={{ width: 30, flex: '0 0 30px' }} /> : null)}
-      <div className={`bubble ${message.pending ? 'pending' : ''} ${message.failed ? 'failed' : ''} ${pressing ? 'is-pressing' : ''}`} onTouchStart={startPress} onTouchEnd={endPress} onTouchMove={endPress} onTouchCancel={endPress} onDoubleClick={() => onReply(message)}>
+      <div className={`bubble ${message.pending ? 'pending' : ''} ${message.failed ? 'failed' : ''} ${message.queued ? 'queued' : ''} ${pressing ? 'is-pressing' : ''}`} onTouchStart={startPress} onTouchEnd={endPress} onTouchMove={endPress} onTouchCancel={endPress} onDoubleClick={() => onReply(message)}>
         {!mine && showSender && <div className="sender" style={{ color: 'var(--accent)', cursor: 'pointer' }} onClick={() => onOpenProfile(message.senderId)}>{senderName}</div>}
-        {message.replyToPreview && (
-          <div className="reply-quote">
-            <div className="qt ellipsis">{message.replyToPreview}</div>
-          </div>
+        {message.replyToMessageId != null && (
+          <button
+            className="reply-quote"
+            title="Go to the original message"
+            onClick={(e) => { e.stopPropagation(); onJump(message.replyToMessageId!) }}
+          >
+            <span className="who ellipsis">{quoted ? quoted.senderName || 'Member' : 'Message'}</span>
+            <span className="qt ellipsis">{quotedSnippet(quoted, message.replyToPreview)}</span>
+          </button>
         )}
         {message.isDeleted
           ? <div className="text" style={{ fontStyle: 'italic', opacity: .5 }}>Message deleted</div>
@@ -291,6 +329,8 @@ const Bubble = memo(function Bubble({ message, mine, showSender, grouped, sender
             ? <GiftBubbleCard giftName={message.content} mine={mine} senderName={senderName} isNew={isNew} />
             : isImage
             ? <ChatImage src={message.content} />
+            : isVoice
+              ? <VoiceBubble src={message.content} seconds={message.voiceSeconds} mine={mine} />
             : isFile
               ? <a className="card-file" href={message.content} target="_blank" rel="noreferrer" style={{ color: 'inherit' }}>
                   <span className="file-ic"><Check size={20} /></span>
@@ -301,7 +341,7 @@ const Bubble = memo(function Bubble({ message, mine, showSender, grouped, sender
         <div className="foot">
           {message.isEdited && !message.isDeleted && <span className="edited">edited</span>}
           <span className="time">{timeShort(message.sentAt)}</span>
-          {mine && !message.isDeleted && !message.failed && (
+          {mine && !message.isDeleted && !message.failed && !message.queued && (
             <span className="ticks">
               {message.pending ? <Clock size={14} style={{ opacity: .65 }} />
                 : message.status === 'Read' ? <CheckCheck size={15} />
@@ -310,6 +350,15 @@ const Bubble = memo(function Bubble({ message, mine, showSender, grouped, sender
             </span>
           )}
         </div>
+
+        {message.queued && (
+          <div className="msg-queued">
+            <CloudOff size={13} />
+            <span>Waiting for connection</span>
+            <button onClick={() => onRetry(message.id)}>Retry now</button>
+            <button onClick={() => onDiscard(message.id)} aria-label="Discard message">Discard</button>
+          </div>
+        )}
 
         {message.failed && (
           <div className="msg-failed">

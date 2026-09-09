@@ -14,7 +14,11 @@ public class MessageRepository : IMessageRepository
     public async Task CreateAsync(Message message, CancellationToken ct) =>
         await _context.Messages.AddAsync(message, ct);
     public async Task<Message?> GetByIdAsync(int messageId, CancellationToken ct) =>
-        await _context.Messages.FirstOrDefaultAsync(m => m.Id == messageId, ct);
+        await _context.Messages
+            .Include(m => m.Sender)
+            .Include(m => m.Reactions)
+            .Include(m => m.ReplyToMessage).ThenInclude(r => r!.Sender)
+            .FirstOrDefaultAsync(m => m.Id == messageId, ct);
 
     public async Task<(List<Message> items, int totalCount)> HistoryAsync(
         int chatId, int page, int pageSize, CancellationToken ct)
@@ -22,6 +26,8 @@ public class MessageRepository : IMessageRepository
         var query = _context.Messages
             .Include(m => m.Sender)
             .Include(m => m.Attachments)
+            .Include(m => m.Reactions)
+            .Include(m => m.ReplyToMessage).ThenInclude(r => r!.Sender)
             .Where(m => m.ChatId == chatId);
 
         var totalCount = await query.CountAsync(ct);

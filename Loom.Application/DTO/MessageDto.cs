@@ -27,10 +27,12 @@ public class MessageResponseDto
     public MessageType Type { get; set; }
     public MessageStatus Status { get; set; }
     public int? ReplyToMessageId { get; set; }
-    public string? ReplyToPreview { get; set; }                 
+    public string? ReplyToPreview { get; set; }      
+    public string? ReplyToSenderName { get; set; }
     public bool IsEdited { get; set; }
     public bool IsDeleted { get; set; }
     public DateTime SentAt { get; set; }
+    
     public List<AttachmentDto> Attachments { get; set; } = new();
     public List<ReactionSummaryDto> Reactions { get; set; } = new();
 }

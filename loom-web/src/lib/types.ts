@@ -99,8 +99,10 @@ export interface Message {
   reactions: Reaction[]
   /* ---- client-only (optimistic UI); never sent by the server ---- */
   pending?: boolean   // rendered instantly, still in flight
-  failed?: boolean    // send failed — stays visible with a retry affordance
+  failed?: boolean    // send failed for good (server rejected it) — retry affordance
+  queued?: boolean    // couldn't reach the server; waiting in the offline outbox
   clientId?: string   // correlates the optimistic bubble with its SignalR echo
+  voiceSeconds?: number // known duration for a voice note we just recorded
 }
 export interface Paged<T> {
   items: T[]

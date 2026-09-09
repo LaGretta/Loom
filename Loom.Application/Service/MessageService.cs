@@ -52,8 +52,8 @@ public class MessageService : IMessageService
         
 
         
-        var dtos = _mapper.Map<MessageResponseDto>(message);
-        await _notifier.MessageSent(dto.ChatId, dtos); 
+        var dtos = MapMessage(message, userId);
+        await _notifier.MessageSent(dto.ChatId, dtos);
         return dtos;
     }
 
@@ -86,7 +86,7 @@ public class MessageService : IMessageService
         message.EditedAt = DateTime.UtcNow;
         await _unitOfWork.SaveChangesAsync(ct);
 
-        var response = _mapper.Map<MessageResponseDto>(message);
+        var response = MapMessage(message, userId);
         await _notifier.MessageEdited(message.ChatId, response);
         return response;
     }
@@ -139,6 +139,22 @@ public class MessageService : IMessageService
 
         var message = await _messageRepo.GetByIdAsync(dto.MessageId, ct);
         if (message != null)
-            await _notifier.ReactionUpdated(message.ChatId, dto.MessageId);
+            await _notifier.ReactionUpdated(message.ChatId, MapMessage(message, userId));
+    }
+    
+    
+    private MessageResponseDto MapMessage(Message message, int userId)
+    {
+        var dto = _mapper.Map<MessageResponseDto>(message);
+        dto.Reactions = message.Reactions
+            .GroupBy(r => r.Emoji)
+            .Select(g => new ReactionSummaryDto
+            {
+                Emoji = g.Key,
+                Count = g.Count(),
+                ReactedByMe = g.Any(r => r.UserId == userId)
+            })
+            .ToList();
+        return dto;
     }
 }

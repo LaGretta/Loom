@@ -5,10 +5,10 @@ import { Avatar } from '../ui/Avatar'
 import { CraftedObject } from '../ui/CraftedObject'
 import { useAuth } from '../store/auth'
 import { toast } from '../ui/toast'
+import { NotificationSettings } from './NotificationSettings'
 
 const ROWS: { sym: string; label: string; to?: string }[] = [
   { sym: 's-paint', label: 'Appearance', to: '/settings/appearance' },
-  { sym: 's-bell', label: 'Notifications' },
   { sym: 's-lock', label: 'Privacy & Security' },
   { sym: 's-drive', label: 'Data & Storage' },
   { sym: 's-globe', label: 'Language' },
@@ -30,6 +30,9 @@ export function SettingsScreen() {
         <ChevronRight size={18} className="chev" />
       </button>
 
+      <NotificationSettings />
+
+      <div className="section-label">General</div>
       <div className="list-card settings-list">
         {ROWS.map((r) => (
           <button key={r.label} className="list-row" onClick={() => r.to ? navigate(r.to) : toast(`${r.label} — coming soon`)}>

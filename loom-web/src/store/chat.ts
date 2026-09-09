@@ -3,6 +3,8 @@ import { chatsApi, messagesApi, eventsApi, mediaApi } from '../lib/api'
 import { signalr } from '../lib/signalr'
 import { tokenStore } from '../lib/tokenStore'
 import { toast } from '../ui/toast'
+import { ApiError } from '../lib/http'
+import { addToOutbox, readOutbox, removeFromOutbox, type OutboxItem } from '../lib/outbox'
 import type { Chat, Message, LoomEvent } from '../lib/types'
 import { MessageTypeE } from '../lib/enums'
 
@@ -34,6 +36,7 @@ interface ChatState {
   loadMore: (chatId: number) => Promise<void>
   send: (chatId: number, content: string, replyToMessageId?: number | null) => Promise<void>
   sendMedia: (chatId: number, file: File) => Promise<void>
+  sendVoice: (chatId: number, blob: Blob, seconds: number) => Promise<void>
   retrySend: (chatId: number, tempId: number) => Promise<void>
   discardMessage: (chatId: number, tempId: number) => void
   edit: (messageId: number, chatId: number, content: string) => Promise<void>
@@ -48,6 +51,8 @@ interface ChatState {
   applyReadReceipt: (messageId: number, userId: number) => void
   revalidateChat: (chatId: number) => Promise<void>
   resyncAll: () => Promise<void>
+  hydrateOutbox: () => void
+  flushOutbox: () => Promise<void>
   loadEvents: (chatId: number) => Promise<void>
   upsertEvent: (ev: LoomEvent) => void
   reset: () => void
@@ -63,6 +68,15 @@ function findChatIdByMessage(messages: Record<number, Message[]>, messageId: num
 
 const PAGE = 30
 
+/* --- incoming-message fan-out (notifications subscribe here; the store stays UI-free) --- */
+export interface IncomingInfo { message: Message; isActiveChat: boolean }
+type IncomingHandler = (info: IncomingInfo) => void
+const incomingHandlers = new Set<IncomingHandler>()
+export function onIncomingMessage(fn: IncomingHandler) {
+  incomingHandlers.add(fn)
+  return () => { incomingHandlers.delete(fn) }
+}
+
 let seq = 0
 const nextTempId = () => -(Date.now() * 1000 + (++seq % 1000))
 
@@ -75,6 +89,32 @@ function bumpPreview(chats: Chat[], m: Message): Chat[] {
     return { ...c, lastMessage: { senderName: m.senderName, content: m.content, type: m.type, sentAt: m.sentAt } }
   })
   return found ? [...next].sort((a, b) => (a.id === m.chatId ? -1 : b.id === m.chatId ? 1 : 0)) : next
+}
+
+/**
+ * The history endpoint doesn't eager-load reactions (MessageRepository.HistoryAsync only
+ * Includes Sender + Attachments), so every message from GET /messages/chat/{id} arrives
+ * with `reactions: []`. Letting that empty array overwrite what we already know would
+ * silently erase reactions — so an incoming empty list never clobbers a known one.
+ */
+function keepReactions(incoming: Message, existing?: Message): Message {
+  if (!existing) return incoming
+  if ((incoming.reactions?.length ?? 0) > 0) return incoming
+  return (existing.reactions?.length ?? 0) > 0 ? { ...incoming, reactions: existing.reactions } : incoming
+}
+
+// Guards against two flushes running at once (StrictMode double-mount, an `online`
+// event landing mid-flush, a reconnect resync overlapping): both would read the same
+// queue and POST every item twice.
+let flushing = false
+
+/**
+ * A 4xx is the server saying "no" — retrying changes nothing, so those fail outright.
+ * Network errors, timeouts and 5xx are transport problems: those go to the outbox.
+ */
+function isRetryable(e: unknown): boolean {
+  if (e instanceof ApiError) return e.status >= 500 || e.status === 408 || e.status === 429
+  return true
 }
 
 /** Build the optimistic bubble shown the instant the user hits send. */
@@ -151,8 +191,9 @@ export const useChat = create<ChatState>((set, get) => ({
       set((s) => {
         // Merge server history with any stray live messages, dedupe by id, order by time.
         const stray = s.messages[chatId] ?? []
+        const prev = new Map(stray.map((m) => [m.id, m]))
         const ids = new Set(asc.map((m) => m.id))
-        const merged = [...asc, ...stray.filter((m) => !ids.has(m.id))]
+        const merged = [...asc.map((m) => keepReactions(m, prev.get(m.id))), ...stray.filter((m) => !ids.has(m.id))]
           .sort((a, b) => a.sentAt.localeCompare(b.sentAt) || a.id - b.id)
         return {
           messages: { ...s.messages, [chatId]: merged },
@@ -217,17 +258,19 @@ export const useChat = create<ChatState>((set, get) => ({
 
   retrySend: async (chatId, tempId) => {
     const msg = (get().messages[chatId] ?? []).find((m) => m.id === tempId)
-    if (!msg || !msg.failed) return
+    if (!msg || (!msg.failed && !msg.queued)) return
+    removeFromOutbox(tempId)
     set((s) => ({
       messages: {
         ...s.messages,
         [chatId]: (s.messages[chatId] ?? []).map((m) => (m.id === tempId ? { ...m, pending: true, failed: false } : m)),
       },
     }))
-    await deliver(chatId, { ...msg, pending: true, failed: false })
+    await deliver(chatId, { ...msg, pending: true, failed: false, queued: false })
   },
 
   discardMessage: (chatId, tempId) => {
+    removeFromOutbox(tempId)
     set((s) => ({
       messages: { ...s.messages, [chatId]: (s.messages[chatId] ?? []).filter((m) => m.id !== tempId) },
     }))
@@ -270,6 +313,48 @@ export const useChat = create<ChatState>((set, get) => ({
   },
 
   // Optimistic edit: new text + "edited" render immediately; the original is restored on failure.
+  // Voice note: same optimistic shape as a photo — a local blob URL plays immediately
+  // while upload → send runs, then the temp bubble is swapped for the real message.
+  sendVoice: async (chatId, blob, seconds) => {
+    const tempId = nextTempId()
+    const objectUrl = URL.createObjectURL(blob)
+    const optimistic: Message = {
+      id: tempId, chatId, senderId: myId() ?? 0, senderName: '', senderAvatarUrl: null,
+      content: objectUrl, type: 'Voice', status: 'Sent', pending: true,
+      replyToMessageId: null, replyToPreview: null, isEdited: false, isDeleted: false,
+      sentAt: new Date().toISOString(), attachments: [], reactions: [],
+      voiceSeconds: seconds,
+    }
+    set((s) => ({
+      messages: { ...s.messages, [chatId]: [...(s.messages[chatId] ?? []), optimistic] },
+      chats: bumpPreview(s.chats, optimistic),
+    }))
+    try {
+      const ext = blob.type.includes('mp4') ? 'm4a' : blob.type.includes('ogg') ? 'ogg' : 'webm'
+      const file = new File([blob], `voice-${Date.now()}.${ext}`, { type: blob.type || 'audio/webm' })
+      const { url } = await mediaApi.upload(file)
+      const msg = await messagesApi.send({ chatId, content: url, type: 'Voice' })
+      set((s) => ({
+        messages: {
+          ...s.messages,
+          [chatId]: (s.messages[chatId] ?? []).filter((m) => m.id !== tempId && m.id !== msg.id),
+        },
+      }))
+      get().ingestMessage({ ...msg, voiceSeconds: seconds })
+    } catch {
+      set((s) => ({
+        messages: {
+          ...s.messages,
+          [chatId]: (s.messages[chatId] ?? []).map((m) =>
+            m.id === tempId ? { ...m, pending: false, failed: true } : m),
+        },
+      }))
+      toast('Could not send the voice message')
+    } finally {
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60000)
+    }
+  },
+
   edit: async (messageId, chatId, content) => {
     const before = (get().messages[chatId] ?? []).find((m) => m.id === messageId)
     if (!before) return
@@ -357,7 +442,7 @@ export const useChat = create<ChatState>((set, get) => ({
     set((s) => {
       const list = s.messages[m.chatId]
       if (!list) return {}
-      return { messages: { ...s.messages, [m.chatId]: list.map((x) => (x.id === m.id ? m : x)) } }
+      return { messages: { ...s.messages, [m.chatId]: list.map((x) => (x.id === m.id ? keepReactions(m, x) : x)) } }
     })
   },
   applyDeleted: (messageId) => {
@@ -372,21 +457,14 @@ export const useChat = create<ChatState>((set, get) => ({
       }
     })
   },
-  applyReactionUpdate: async (messageId) => {
-    const chatId = findChatIdByMessage(get().messages, messageId)
-    if (chatId == null) return
-    // Backend event carries only messageId; refetch the loaded page to get fresh reaction counts.
-    try {
-      const res = await messagesApi.list(chatId, 1, PAGE)
-      const fresh = new Map(res.items.map((m) => [m.id, m]))
-      set((s) => ({
-        messages: {
-          ...s.messages,
-          [chatId]: (s.messages[chatId] ?? []).map((x) => (fresh.has(x.id) ? { ...x, reactions: fresh.get(x.id)!.reactions } : x)),
-        },
-      }))
-    } catch { /* ignore */ }
-  },
+  // "ReactionUpdated" carries only a messageId — no emoji, no user, and the history
+  // endpoint returns `reactions: []` for everything. Refetching here (as we used to)
+  // therefore overwrote the just-applied reaction with an empty list, which is exactly
+  // why a reaction appeared and then vanished a second later. There is nothing the
+  // server can tell us, so we keep the local (optimistic) state instead of destroying it.
+  // TODO(backend): Include(m => m.Reactions) in HistoryAsync + compute ReactedByMe,
+  // then this can refetch and reflect other people's reactions too.
+  applyReactionUpdate: async (messageId) => { void messageId },
   applyReadReceipt: (messageId, userId) => {
     set((s) => {
       const chatId = findChatIdByMessage(s.messages, messageId)
@@ -417,7 +495,7 @@ export const useChat = create<ChatState>((set, get) => ({
         ? list.findIndex((x) => x.pending && x.type === m.type && x.content === m.content)
         : -1
       if (list.some((x) => x.id === m.id)) {
-        messages = { ...s.messages, [m.chatId]: list.map((x) => (x.id === m.id ? m : x)) }
+        messages = { ...s.messages, [m.chatId]: list.map((x) => (x.id === m.id ? keepReactions(m, x) : x)) }
       } else if (draftIdx >= 0) {
         messages = { ...s.messages, [m.chatId]: list.map((x, i) => (i === draftIdx ? m : x)) }
       } else {
@@ -455,6 +533,11 @@ export const useChat = create<ChatState>((set, get) => ({
       const typing = t ? { ...s.typing, [m.chatId]: t.filter((e) => e.userId !== m.senderId) } : s.typing
       return { messages, chats, typing }
     })
+    // notify listeners about someone else's message (never our own echo)
+    if (m.senderId !== myId()) {
+      const isActiveChat = get().activeChatId === m.chatId && !document.hidden
+      for (const fn of incomingHandlers) { try { fn({ message: m, isActiveChat }) } catch { /* never break ingest */ } }
+    }
     // auto mark-read if viewing
     if (m.senderId !== myId() && get().activeChatId === m.chatId) get().markRead(m.id)
     // if chat not in list yet, refresh list
@@ -471,7 +554,7 @@ export const useChat = create<ChatState>((set, get) => ({
         const existing = st.messages[chatId] ?? []
         const fresh = new Map(asc.map((m) => [m.id, m]))
         const merged = existing
-          .map((m) => (fresh.has(m.id) ? fresh.get(m.id)! : m))
+          .map((m) => (fresh.has(m.id) ? keepReactions(fresh.get(m.id)!, m) : m))
           .concat(asc.filter((m) => !existing.some((e) => e.id === m.id)))
           .sort((a, b) => a.sentAt.localeCompare(b.sentAt) || a.id - b.id)
         return { messages: { ...st.messages, [chatId]: merged } }
@@ -494,6 +577,82 @@ export const useChat = create<ChatState>((set, get) => ({
 
     const chatId = get().activeChatId
     if (chatId != null) await get().revalidateChat(chatId)
+    await get().flushOutbox()   // connection is back — drain anything waiting
+  },
+
+  /** Re-insert anything still in the outbox after a reload so it stays visible. */
+  hydrateOutbox: () => {
+    const items = readOutbox()
+    if (!items.length) return
+    set((s) => {
+      const messages = { ...s.messages }
+      for (const it of items) {
+        const list = messages[it.chatId] ?? []
+        if (list.some((m) => m.id === it.tempId)) continue
+        const revived: Message = {
+          id: it.tempId, chatId: it.chatId, senderId: myId() ?? 0, senderName: '', senderAvatarUrl: null,
+          content: it.content, type: it.type, status: 'Sent', queued: true,
+          replyToMessageId: it.replyToMessageId, replyToPreview: it.replyToPreview,
+          isEdited: false, isDeleted: false, sentAt: it.sentAt, attachments: [], reactions: [],
+        }
+        messages[it.chatId] = [...list, revived].sort((a, b) => a.sentAt.localeCompare(b.sentAt) || a.id - b.id)
+      }
+      return { messages }
+    })
+  },
+
+  /** Send everything queued, oldest first, stopping at the first transport failure. */
+  flushOutbox: async () => {
+    if (flushing) return
+    const items = readOutbox()
+    if (!items.length) return
+    flushing = true
+    try {
+    for (const it of items) {
+      set((s) => ({
+        messages: {
+          ...s.messages,
+          [it.chatId]: (s.messages[it.chatId] ?? []).map((m) =>
+            m.id === it.tempId ? { ...m, queued: false, pending: true, failed: false } : m),
+        },
+      }))
+      try {
+        const msg = await messagesApi.send({
+          chatId: it.chatId, content: it.content, type: it.type,
+          replyToMessageId: it.replyToMessageId,
+        })
+        removeFromOutbox(it.tempId)
+        set((s) => ({
+          messages: {
+            ...s.messages,
+            [it.chatId]: (s.messages[it.chatId] ?? []).filter((m) => m.id !== it.tempId && m.id !== msg.id),
+          },
+        }))
+        get().ingestMessage(msg)
+      } catch (e) {
+        if (isRetryable(e)) {
+          // still offline — put it back into the waiting state and stop (keep order)
+          set((s) => ({
+            messages: {
+              ...s.messages,
+              [it.chatId]: (s.messages[it.chatId] ?? []).map((m) =>
+                m.id === it.tempId ? { ...m, pending: false, queued: true } : m),
+            },
+          }))
+          return   // `finally` below releases the flush guard
+        }
+        // definitive rejection: drop from the queue, surface it on the bubble
+        removeFromOutbox(it.tempId)
+        set((s) => ({
+          messages: {
+            ...s.messages,
+            [it.chatId]: (s.messages[it.chatId] ?? []).map((m) =>
+              m.id === it.tempId ? { ...m, pending: false, queued: false, failed: true } : m),
+          },
+        }))
+      }
+    }
+    } finally { flushing = false }
   },
 
   loadEvents: async (chatId) => {
@@ -551,12 +710,20 @@ async function deliver(chatId: number, draft: Message): Promise<void> {
       },
     }))
     useChat.getState().ingestMessage(msg)
-  } catch {
+  } catch (e) {
+    const queue = isRetryable(e)
+    if (queue) {
+      addToOutbox({
+        tempId: draft.id, chatId, content: draft.content, type: draft.type,
+        replyToMessageId: draft.replyToMessageId ?? null,
+        replyToPreview: draft.replyToPreview ?? null, sentAt: draft.sentAt,
+      })
+    }
     useChat.setState((s) => ({
       messages: {
         ...s.messages,
         [chatId]: (s.messages[chatId] ?? []).map((m) =>
-          m.id === draft.id ? { ...m, pending: false, failed: true } : m),
+          m.id === draft.id ? { ...m, pending: false, failed: !queue, queued: queue } : m),
       },
     }))
   }

@@ -22,6 +22,7 @@ import { BurgerMenu } from './BurgerMenu'
 import { ConnectionStrip } from '../ui/ConnectionStrip'
 import { useKeyboardInset } from '../ui/useKeyboardInset'
 import { useHotkeys } from '../ui/useHotkeys'
+import { useNotifications } from '../ui/useNotifications'
 
 type Tab = 'chats' | 'calendar' | 'contacts' | 'calls' | 'profile'
 
@@ -71,8 +72,20 @@ export function AppShell() {
   const activeTab = lastTab.current
 
   useEffect(() => { void loadChats() }, [loadChats])
+
+  // Offline outbox: restore anything queued from a previous session, then drain it
+  // whenever the browser reports connectivity again.
+  useEffect(() => {
+    const st = useChat.getState()
+    st.hydrateOutbox()
+    void st.flushOutbox()
+    const onOnline = () => void useChat.getState().flushOutbox()
+    window.addEventListener('online', onOnline)
+    return () => window.removeEventListener('online', onOnline)
+  }, [])
   useKeyboardInset()
   useHotkeys()
+  useNotifications()
   useSessionRestore(pathname)
 
   return (

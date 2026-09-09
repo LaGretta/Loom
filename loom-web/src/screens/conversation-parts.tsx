@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Paperclip, ArrowUp, Mic, X, Reply, Forward, Copy, Trash2, Pencil } from 'lucide-react'
+import { Paperclip, ArrowUp, Mic, X, Reply, Forward, Copy, Trash2, Pencil, Trash } from 'lucide-react'
 import { Sheet } from '../ui/primitives'
 import { useDismiss } from '../ui/useDismiss'
 import { useFocusTrap } from '../ui/useFocusTrap'
@@ -8,6 +8,7 @@ import { useChat } from '../store/chat'
 import { messagesApi } from '../lib/api'
 import { toast } from '../ui/toast'
 import { getDraft, setDraft } from '../lib/drafts'
+import { useVoiceRecorder } from '../ui/useVoiceRecorder'
 import { LOOMI_POSES, STAR_POSES } from '../assets/loom'
 import { EventAttachModal } from '../components/EventAttachModal'
 import type { Message } from '../lib/types'
@@ -42,6 +43,7 @@ export function Composer({ chatId, replyTo, onCancelReply, editing, onCancelEdit
   const lastTyping = useRef(0)
   const send = useChat((s) => s.send)
   const sendMedia = useChat((s) => s.sendMedia)
+  const sendVoice = useChat((s) => s.sendVoice)
   const edit = useChat((s) => s.edit)
   const ingest = useChat((s) => s.ingestMessage)
   const sendTyping = useChat((s) => s.sendTyping)
@@ -98,6 +100,25 @@ export function Composer({ chatId, replyTo, onCancelReply, editing, onCancelEdit
     }
   }
 
+  /* ---------------- voice ---------------- */
+  const voice = useVoiceRecorder()
+  const beginRecord = async () => {
+    const err = await voice.start()
+    if (!err) return
+    toast(err === 'denied'
+      ? 'Microphone access blocked — allow it in your browser’s site settings'
+      : err === 'unsupported'
+        ? 'Voice recording isn’t supported in this browser'
+        : 'Could not start recording')
+  }
+  const finishRecord = async () => {
+    const take = await voice.stop()
+    if (!take) return
+    if (take.seconds < 1) { toast('Hold longer to record'); return }
+    void sendVoice(chatId, take.blob, take.seconds)
+  }
+  const cancelRecord = () => { void voice.cancel() }
+
   const onFile = async (file: File) => {
     setAttachOpen(false)
     setBusy(true)
@@ -132,6 +153,25 @@ export function Composer({ chatId, replyTo, onCancelReply, editing, onCancelEdit
           </div>
         )}
         <div className="composer">
+          {voice.recording ? (
+            <>
+              <div className="field rec-field">
+                <button className="icon-btn attach-in rec-cancel" onClick={cancelRecord} aria-label="Cancel recording" title="Cancel">
+                  <Trash size={19} />
+                </button>
+                <span className="rec-dot" aria-hidden />
+                <span className="rec-time">{Math.floor(voice.seconds / 60)}:{String(voice.seconds % 60).padStart(2, '0')}</span>
+                <span className="rec-meter" aria-hidden>
+                  {Array.from({ length: 18 }).map((_, i) => (
+                    <span key={i} style={{ height: `${18 + Math.min(1, voice.level * (1 + (i % 5) * 0.25)) * 82}%` }} />
+                  ))}
+                </span>
+                <span className="rec-hint">release to send</span>
+              </div>
+              <button className="send-btn" onClick={() => void finishRecord()} aria-label="Send voice message"><ArrowUp size={22} /></button>
+            </>
+          ) : (
+          <>
           {/* one pill: attach + input + sticker (no divider); send is a separate circle */}
           <div className="field">
             <button className="icon-btn attach-in" onClick={() => setAttachOpen(true)} title="Attach" aria-label="Attach a file"><Paperclip size={21} /></button>
@@ -151,7 +191,20 @@ export function Composer({ chatId, replyTo, onCancelReply, editing, onCancelEdit
           </div>
           {text.trim()
             ? <button className="send-btn" onClick={submit} aria-label="Send"><ArrowUp size={22} /></button>
-            : <button className="send-btn" onClick={() => toast('Voice recording — coming soon')} aria-label="Record"><Mic size={20} /></button>}
+            : (
+              /* hold-to-record on touch; click-to-start / click-to-stop on desktop */
+              <button
+                className="send-btn"
+                aria-label="Record a voice message"
+                title="Hold to record — or click to start and click again to send"
+                onPointerDown={(e) => { if (e.pointerType !== 'mouse') { e.preventDefault(); void beginRecord() } }}
+                onPointerUp={(e) => { if (e.pointerType !== 'mouse') void finishRecord() }}
+                onPointerCancel={cancelRecord}
+                onClick={(e) => { if ((e as any).nativeEvent?.pointerType === 'mouse' || !('ontouchstart' in window)) void beginRecord() }}
+              ><Mic size={20} /></button>
+            )}
+          </>
+          )}
         </div>
       </div>
 
