@@ -1,7 +1,8 @@
 import { http, uploadWithProgress } from './http'
 import { tokenStore } from './tokenStore'
 import {
-  ChatTypeE, MessageTypeE, RsvpStatusE, type ChatType, type MessageType, type RsvpStatus,
+  ChatTypeE, MemberRoleE, MessageTypeE, RsvpStatusE,
+  type ChatType, type MemberRole, type MessageType, type RsvpStatus,
 } from './enums'
 import {
   type AuthResponse, type UserProfile, type UserSummary, type Chat, type ChatMember,
@@ -44,6 +45,16 @@ export const chatsApi = {
   members: (id: number) => http.get<any[]>(`/api/chats/${id}/members`).then((r) => r.map(normMember)),
   read: (id: number) => http.post<void>(`/api/chats/${id}/read`),
   mute: (id: number) => http.post<{ isMuted: boolean }>(`/api/chats/${id}/mute`),
+  /** Admin+ — group/channel only; the API rejects Direct chats with 400. Returns 204. */
+  update: (id: number, b: { title?: string; description?: string; avatarUrl?: string }) =>
+    http.put<void>(`/api/chats/${id}`, b),
+  /** Admin+ — an Admin cannot remove another Admin, and nobody can remove the Owner. */
+  removeMember: (id: number, userId: number) => http.del<void>(`/api/chats/${id}/members/${userId}`),
+  /** Owner only. Ordinal, not label: accepted with or without JsonStringEnumConverter. */
+  setRole: (id: number, userId: number, role: MemberRole) =>
+    http.put<void>(`/api/chats/${id}/members/${userId}/role`, { role: MemberRoleE.ord(role) }),
+  /** Owner only — deletes the whole chat. */
+  remove: (id: number) => http.del<void>(`/api/chats/${id}`),
 }
 
 /* ---------------- Messages ---------------- */

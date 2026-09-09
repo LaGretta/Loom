@@ -18,4 +18,10 @@ public interface IChatService
     Task RemoveMember(int userId, int chatId, int targetUserId, CancellationToken ct);
     Task SetMemberRole(int userId, int chatId, int targetUserId, MemberRole role, CancellationToken ct);
     Task DeleteChat(int userId, int chatId, CancellationToken ct);
+    
+    Task<InviteDto> CreateInvite(int userId, int chatId, CreateInviteDto dto, CancellationToken ct);
+    Task<List<InviteDto>> GetInvites(int userId, int chatId, CancellationToken ct);
+    Task RevokeInvite(int userId, string code, CancellationToken ct);
+    Task<InvitePreviewDto> PreviewInvite(int userId, string code, CancellationToken ct);
+    Task<ChatResponseDto> JoinByInvite(int userId, string code, CancellationToken ct);
 }

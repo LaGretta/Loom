@@ -48,4 +48,22 @@ public class ChatRepository : IChatRepository
                 c.Members.Any(m => m.UserId == userId2), ct);
     
     public void Remove(Chat chat) => _context.Chats.Remove(chat);
+    
+    
+    public async Task AddInviteAsync(ChatInvite invite, CancellationToken ct) =>
+        await _context.ChatInvites.AddAsync(invite, ct);
+
+    public async Task<ChatInvite?> GetInviteByCodeAsync(string code, CancellationToken ct) =>
+        await _context.ChatInvites
+            .Include(i => i.Chat).ThenInclude(c => c.Members)
+            .FirstOrDefaultAsync(i => i.Code == code, ct);
+
+    public async Task<List<ChatInvite>> GetChatInvitesAsync(int chatId, CancellationToken ct) =>
+        await _context.ChatInvites
+            .Where(i => i.ChatId == chatId)
+            .OrderByDescending(i => i.CreatedAt)
+            .ToListAsync(ct);
+
+    public async Task<bool> InviteCodeExistsAsync(string code, CancellationToken ct) =>
+        await _context.ChatInvites.AnyAsync(i => i.Code == code, ct);
 }

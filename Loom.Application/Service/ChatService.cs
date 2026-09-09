@@ -280,4 +280,113 @@ public class ChatService : IChatService
         _chatRepo.Remove(chat);
         await _unitOfWork.SaveChangesAsync(ct);
     }
+        public async Task<InviteDto> CreateInvite(int userId, int chatId, CreateInviteDto dto, CancellationToken ct)
+    {
+        await RequireAdmin(chatId, userId, ct);
+
+        var chat = await _chatRepo.GetByIdAsync(chatId, ct);
+        if (chat == null)
+            throw new KeyNotFoundException("Chat not found");
+        if (chat.Type == ChatType.Direct)
+            throw new InvalidOperationException("Direct chats cannot have invites");
+
+        var invite = new ChatInvite
+        {
+            ChatId = chatId,
+            Code = await GenerateUniqueCode(ct),
+            CreatedById = userId,
+            CreatedAt = DateTime.UtcNow,
+            ExpiresAt = dto.ExpiresInHours.HasValue
+                ? DateTime.UtcNow.AddHours(dto.ExpiresInHours.Value)
+                : null,
+            MaxUses = dto.MaxUses
+        };
+
+        await _chatRepo.AddInviteAsync(invite, ct);
+        await _unitOfWork.SaveChangesAsync(ct);
+
+        return MapInvite(invite);
+    }
+    public async Task<List<InviteDto>> GetInvites(int userId, int chatId, CancellationToken ct)
+    {
+        await RequireAdmin(chatId, userId, ct);
+        var invites = await _chatRepo.GetChatInvitesAsync(chatId, ct);
+        return invites.Select(MapInvite).ToList();
+    }
+    public async Task RevokeInvite(int userId, string code, CancellationToken ct)
+    {
+        var invite = await _chatRepo.GetInviteByCodeAsync(code, ct);
+        if (invite == null)
+            throw new KeyNotFoundException("Invite not found");
+
+        await RequireAdmin(invite.ChatId, userId, ct);
+
+        invite.IsRevoked = true;
+        await _unitOfWork.SaveChangesAsync(ct);
+    }
+    public async Task<InvitePreviewDto> PreviewInvite(int userId, string code, CancellationToken ct)
+    {
+        var invite = await _chatRepo.GetInviteByCodeAsync(code, ct);
+        if (invite == null || !invite.IsActive)
+            throw new KeyNotFoundException("Invite is invalid or expired");
+
+        return new InvitePreviewDto
+        {
+            ChatId = invite.ChatId,
+            Title = invite.Chat.Title ?? string.Empty,
+            Description = invite.Chat.Description,
+            AvatarUrl = invite.Chat.AvatarUrl,
+            MembersCount = invite.Chat.Members.Count,
+            AlreadyMember = invite.Chat.Members.Any(m => m.UserId == userId)
+        };
+    }
+    public async Task<ChatResponseDto> JoinByInvite(int userId, string code, CancellationToken ct)
+    {
+        var invite = await _chatRepo.GetInviteByCodeAsync(code, ct);
+        if (invite == null || !invite.IsActive)
+            throw new KeyNotFoundException("Invite is invalid or expired");
+        if (invite.Chat.Members.Any(m => m.UserId == userId))
+            return await GetChatById(userId, invite.ChatId, ct);
+
+        await _chatRepo.AddMemberAsync(new ChatMember
+        {
+            ChatId = invite.ChatId,
+            UserId = userId,
+            Role = MemberRole.Member,
+            JoinedAt = DateTime.UtcNow
+        }, ct);
+
+        invite.Uses++;
+        await _unitOfWork.SaveChangesAsync(ct);
+
+        return await GetChatById(userId, invite.ChatId, ct);
+    }
+
+    
+    
+    
+    //допоміжні
+    private static InviteDto MapInvite(ChatInvite i) => new()
+    {
+        Code = i.Code,
+        CreatedAt = i.CreatedAt,
+        ExpiresAt = i.ExpiresAt,
+        MaxUses = i.MaxUses,
+        Uses = i.Uses,
+        IsActive = i.IsActive
+    };
+    private async Task<string> GenerateUniqueCode(CancellationToken ct)
+    {
+        const string alphabet = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            var bytes = System.Security.Cryptography.RandomNumberGenerator.GetBytes(10);
+            var code = new string(bytes.Select(b => alphabet[b % alphabet.Length]).ToArray());
+
+            if (!await _chatRepo.InviteCodeExistsAsync(code, ct))
+                return code;
+        }
+        throw new InvalidOperationException("Could not generate a unique invite code");
+    }
 }

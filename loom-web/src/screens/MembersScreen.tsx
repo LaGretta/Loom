@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Overlay } from '../ui/Overlay'
 import { Avatar } from '../ui/Avatar'
-import { CenterSpinner, Switch } from '../ui/primitives'
+import { Button, CenterSpinner, EmptyState, Switch } from '../ui/primitives'
 import { chatsApi } from '../lib/api'
 import { ChatMediaGallery } from './ChatMediaGallery'
+import { GroupInfoScreen } from './GroupInfoScreen'
 import { useChat } from '../store/chat'
 import { isOnline } from '../lib/enums'
 import { presenceText } from '../ui/format'
@@ -14,6 +15,47 @@ export function MembersScreen() {
   const { id } = useParams()
   const chatId = Number(id)
   const navigate = useNavigate()
+  const chat = useChat((s) => s.chats.find((c) => c.id === chatId))
+  const loadChats = useChat((s) => s.loadChats)
+  const [tried, setTried] = useState(false)
+  // Distinguish "never had it" (deep link) from "had it and it went away" (left / deleted /
+  // kicked): the second case is already navigating out, so don't re-fetch on the way.
+  const everHad = useRef(!!chat)
+  if (chat) everHad.current = true
+
+  // myRole arrives with the chat DTO, so the list has to be there before we can decide
+  // what this user may do. Fetch it once on a deep link / reload — and only once, so a
+  // chat that is genuinely gone (left, deleted, kicked) doesn't loop.
+  useEffect(() => {
+    if (chat || tried || everHad.current) return
+    setTried(true)
+    void loadChats()
+  }, [chat, tried, loadChats])
+
+  if (!chat) {
+    return (
+      <Overlay title="Chat info">
+        {tried
+          ? <EmptyState title="Chat unavailable" subtitle="You’re no longer a member of this chat."
+              action={<Button onClick={() => navigate('/', { replace: true })}>Back to chats</Button>} />
+          : <CenterSpinner />}
+      </Overlay>
+    )
+  }
+
+  // Groups and channels get the full management screen; direct chats keep the simple one.
+  return (
+    <Overlay title={chat.type === 'Direct' ? 'Chat info' : `${chat.type} info`}>
+      {chat.type === 'Direct'
+        ? <DirectInfo chatId={chatId} />
+        : <GroupInfoScreen chat={chat} />}
+    </Overlay>
+  )
+}
+
+/** Unchanged simple info screen for one-to-one chats. */
+function DirectInfo({ chatId }: { chatId: number }) {
+  const navigate = useNavigate()
   const presence = useChat((s) => s.presence)
   const chat = useChat((s) => s.chats.find((c) => c.id === chatId))
   const toggleMute = useChat((s) => s.toggleMute)
@@ -22,8 +64,7 @@ export function MembersScreen() {
   useEffect(() => { chatsApi.members(chatId).then(setMembers).catch(() => setMembers([])) }, [chatId])
 
   return (
-    <Overlay title="Chat info">
-      {/* chat settings */}
+    <>
       <div className="section-label">Chat settings</div>
       <div className="list-card">
         <div className="list-row" style={{ cursor: 'default' }}>
@@ -59,6 +100,6 @@ export function MembersScreen() {
           })}
         </div>
       )}
-    </Overlay>
+    </>
   )
 }

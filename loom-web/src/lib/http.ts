@@ -101,7 +101,10 @@ async function raw(path: string, opts: ReqOpts, isRetry = false): Promise<Respon
 
   const res = await fetch(`${BASE}${path}`, { method: opts.method ?? 'GET', headers, body, signal: opts.signal })
 
-  if (res.status === 401 && auth && !isRetry) {
+  // This API answers a PERMISSION denial with 401 too (UnauthorizedAccessException →
+  // 401 in GlobalExceptionHandler), not 403. Refreshing wouldn't help and would rotate
+  // the single-use refresh token for nothing, so tell the two apart by the problem title.
+  if (res.status === 401 && auth && !isRetry && !(await isPermissionDenied(res))) {
     // Another tab may have already refreshed → the stored token changed → just retry with it,
     // without consuming our (now possibly stale) refresh token.
     if (sentToken && tokenStore.access && tokenStore.access !== sentToken) {
@@ -117,6 +120,14 @@ async function raw(path: string, opts: ReqOpts, isRetry = false): Promise<Respon
     // 'unreachable' → keep tokens; surface the 401 to the caller, session stays intact.
   }
   return res
+}
+
+/** True when a 401 is "you may not do this", not "your token expired". */
+async function isPermissionDenied(res: Response): Promise<boolean> {
+  try {
+    const body = safeJson(await res.clone().text())
+    return typeof body === 'object' && body !== null && body.title === 'UnauthorizedAccessException'
+  } catch { return false }
 }
 
 async function parse<T>(res: Response): Promise<T> {

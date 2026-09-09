@@ -917,3 +917,49 @@ button:disabled{ cursor:not-allowed; opacity:.55; }
   border-radius:999px; background:var(--surface-2); color:var(--text-2); border:1px solid var(--hairline);
 }
 .quick-react .quick-more:hover{ color:var(--text); transform:scale(1.1); }
+
+/* ----------------- group management ----------------- */
+.grp-head{ display:flex; flex-direction:column; align-items:center; text-align:center; padding:8px 20px 4px; }
+.grp-ava{ position:relative; width:96px; height:96px; }
+.grp-ava-btn{
+  position:absolute; right:-2px; bottom:-2px; width:32px; height:32px; border-radius:999px;
+  display:grid; place-items:center; cursor:pointer;
+  background:var(--accent); color:var(--on-accent); border:2px solid var(--panel);
+  box-shadow:var(--shadow); transition:transform .14s ease;
+}
+.grp-ava-btn:hover{ transform:scale(1.08); }
+.grp-ava-btn:disabled{ opacity:.7; cursor:default; transform:none; }
+.grp-title{
+  display:flex; align-items:center; justify-content:center; gap:6px; margin-top:14px;
+  font-size:22px; font-weight:800; letter-spacing:-.02em; max-width:100%;
+}
+.grp-desc{ margin-top:6px; font-size:14px; line-height:1.5; color:var(--text); max-width:46ch; white-space:pre-wrap; }
+.grp-sub{ margin-top:6px; font-size:13px; color:var(--text-2); }
+
+.member-row{ gap:10px; }
+.member-main{
+  display:flex; align-items:center; gap:12px; flex:1; min-width:0;
+  border:none; background:transparent; color:inherit; padding:0; text-align:left;
+}
+.list-row .lr-sub .online{ color:var(--green); }
+.role-badge{
+  display:inline-flex; align-items:center; gap:4px; flex:0 0 auto;
+  padding:3px 9px; border-radius:999px; font-size:10.5px; font-weight:700; letter-spacing:.3px;
+  background:var(--surface-2); border:1px solid var(--hairline); color:var(--text-2);
+}
+/* Tint the badge rather than colouring the text with --accent: the amber palette's
+   accent is a pale gold and fails contrast as text (2.8:1 on light). */
+.role-badge.owner{
+  color:var(--text);
+  background:color-mix(in srgb, var(--accent) 16%, var(--surface-2));
+  border-color:color-mix(in srgb, var(--accent) 45%, transparent);
+}
+/* the crown inherits the badge text colour — an accent-tinted glyph drops to 2.4:1 on amber */
+.danger-row{ color:var(--danger); }
+.danger-row .lr-title{ color:var(--danger); }
+.field-hint{ font-size:12px; color:var(--text-2); margin:6px 2px 0; }
+@media (prefers-reduced-motion: reduce){
+  .grp-ava-btn:hover{ transform:none; }
+}
+.confirm-ask{ display:block; font-size:13.5px; color:var(--text-2); margin:0 0 6px 2px; }
+.confirm-ask b{ color:var(--text); font-weight:700; }

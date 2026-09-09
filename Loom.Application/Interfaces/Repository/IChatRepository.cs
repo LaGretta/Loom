@@ -16,4 +16,9 @@ public interface IChatRepository
     void RemoveMember(ChatMember member);
     Task<Chat?> GetDirectChatAsync(int userId1, int userId2, CancellationToken ct);
     void Remove(Chat chat);
+    
+    Task AddInviteAsync(ChatInvite invite, CancellationToken ct);
+    Task<ChatInvite?> GetInviteByCodeAsync(string code, CancellationToken ct);
+    Task<List<ChatInvite>> GetChatInvitesAsync(int chatId, CancellationToken ct);
+    Task<bool> InviteCodeExistsAsync(string code, CancellationToken ct);
 }

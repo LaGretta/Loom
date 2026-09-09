@@ -59,6 +59,10 @@ export interface Chat {
   lastMessage?: MessagePreview | null
   unreadCount: number
   isMuted?: boolean
+  /** My role in THIS chat — drives which management actions are offered. */
+  myRole?: MemberRole
+  /** ⚠️ Not returned by ChatResponseDto; only ever set locally right after we PUT it. */
+  description?: string | null
 }
 export interface ChatMember {
   userId: number
@@ -67,6 +71,7 @@ export interface ChatMember {
   avatarUrl?: string | null
   role: MemberRole
   status: UserStatus
+  lastSeenAt?: string | null
 }
 
 /* ---------- Messages ---------- */
@@ -198,6 +203,7 @@ export const normUserSummary = (r: any): UserSummary => ({
 export const normChat = (r: any): Chat => ({
   ...r,
   type: ChatTypeE.from(r?.type, 'Direct'),
+  myRole: MemberRoleE.from(r?.myRole, 'Member'),
   lastMessage: r?.lastMessage
     ? { ...r.lastMessage, type: MessageTypeE.from(r.lastMessage.type, 'Text') }
     : null,

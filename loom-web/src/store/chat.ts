@@ -45,6 +45,12 @@ interface ChatState {
   react: (messageId: number, chatId: number, emoji: string) => Promise<void>
   markRead: (messageId: number) => void
   toggleMute: (chatId: number) => Promise<void>
+  refreshChat: (chatId: number) => Promise<void>
+  updateChat: (chatId: number, patch: { title?: string; description?: string; avatarUrl?: string }) => Promise<void>
+  leaveChat: (chatId: number) => Promise<void>
+  deleteChat: (chatId: number) => Promise<void>
+  bumpMembers: (chatId: number, delta: number) => void
+  dropChatLocal: (chatId: number) => void
   pinned: Record<number, Message[]>
   loadPinned: (chatId: number) => Promise<void>
   togglePin: (messageId: number, chatId: number) => Promise<void>
@@ -521,6 +527,52 @@ export const useChat = create<ChatState>((set, get) => ({
       toast('Could not change mute')
     }
   },
+
+  /** Re-read one chat (myRole, title, avatar, member count) — roles can change under us. */
+  refreshChat: async (chatId) => {
+    try {
+      const fresh = await chatsApi.byId(chatId)
+      // Patch only. Never insert: a chat we just left or deleted must not come back
+      // because an in-flight refresh landed after the local drop.
+      set((s) => (s.chats.some((c) => c.id === chatId)
+        // keep any locally-known description: ChatResponseDto doesn't carry one back
+        ? { chats: s.chats.map((c) => (c.id === chatId ? { ...fresh, description: c.description } : c)) }
+        : {}))
+    } catch { /* keep what we have; the caller surfaces its own error */ }
+  },
+
+  // PUT returns 204, so patch locally and re-read to confirm. `description` only ever
+  // lives client-side (see Chat.description) — the GET DTO has no field for it.
+  updateChat: async (chatId, patch) => {
+    await chatsApi.update(chatId, patch)
+    set((s) => ({ chats: s.chats.map((c) => (c.id === chatId ? { ...c, ...patch } : c)) }))
+    void get().refreshChat(chatId)
+  },
+
+  leaveChat: async (chatId) => {
+    await chatsApi.leave(chatId)
+    get().dropChatLocal(chatId)
+  },
+
+  deleteChat: async (chatId) => {
+    await chatsApi.remove(chatId)
+    get().dropChatLocal(chatId)
+  },
+
+  bumpMembers: (chatId, delta) => set((s) => ({
+    chats: s.chats.map((c) => (c.id === chatId ? { ...c, membersCount: Math.max(0, c.membersCount + delta) } : c)),
+  })),
+
+  dropChatLocal: (chatId) => set((s) => {
+    const { [chatId]: _m, ...messages } = s.messages
+    const { [chatId]: _p, ...pinned } = s.pinned
+    return {
+      chats: s.chats.filter((c) => c.id !== chatId),
+      messages,
+      pinned,
+      activeChatId: s.activeChatId === chatId ? null : s.activeChatId,
+    }
+  }),
 
   // --- live updates from SignalR (edited/deleted/reaction/read) ---
   applyEdited: (m) => {

@@ -76,4 +76,27 @@ public class ChatsController : BaseController
         await _chatService.DeleteChat(UserId, id, ct);
         return NoContent();
     }
+    
+    [HttpPost("{id}/invites")]
+    public async Task<IActionResult> CreateInvite(int id, CreateInviteDto dto, CancellationToken ct) =>
+        Ok(await _chatService.CreateInvite(UserId, id, dto, ct));
+
+    [HttpGet("{id}/invites")]
+    public async Task<IActionResult> GetInvites(int id, CancellationToken ct) =>
+        Ok(await _chatService.GetInvites(UserId, id, ct));
+
+    [HttpDelete("invites/{code}")]
+    public async Task<IActionResult> RevokeInvite(string code, CancellationToken ct)
+    {
+        await _chatService.RevokeInvite(UserId, code, ct);
+        return NoContent();
+    }
+
+    [HttpGet("invites/{code}")]
+    public async Task<IActionResult> PreviewInvite(string code, CancellationToken ct) =>
+        Ok(await _chatService.PreviewInvite(UserId, code, ct));
+
+    [HttpPost("invites/{code}/join")]
+    public async Task<IActionResult> JoinByInvite(string code, CancellationToken ct) =>
+        Ok(await _chatService.JoinByInvite(UserId, code, ct));
 }
