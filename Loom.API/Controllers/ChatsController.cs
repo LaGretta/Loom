@@ -47,4 +47,33 @@ public class ChatsController : BaseController
     [HttpPost("{id}/mute")]
     public async Task<IActionResult> ToggleMute(int id, CancellationToken ct) =>
         Ok(new { isMuted = await _chatService.ToggleMute(UserId, id, ct) });
+    
+    
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Update(int id, UpdateChatDto dto, CancellationToken ct)
+    {
+        await _chatService.UpdateChat(UserId, id, dto, ct);
+        return NoContent();
+    }
+
+    [HttpDelete("{id}/members/{targetUserId}")]
+    public async Task<IActionResult> RemoveMember(int id, int targetUserId, CancellationToken ct)
+    {
+        await _chatService.RemoveMember(UserId, id, targetUserId, ct);
+        return NoContent();
+    }
+
+    [HttpPut("{id}/members/{targetUserId}/role")]
+    public async Task<IActionResult> SetRole(int id, int targetUserId, SetRoleDto dto, CancellationToken ct)
+    {
+        await _chatService.SetMemberRole(UserId, id, targetUserId, dto.Role, ct);
+        return NoContent();
+    }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(int id, CancellationToken ct)
+    {
+        await _chatService.DeleteChat(UserId, id, ct);
+        return NoContent();
+    }
 }

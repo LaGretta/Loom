@@ -97,6 +97,7 @@ public class ChatService : IChatService
             }
             var myMembership = c.Members.FirstOrDefault(m => m.UserId == userId);
             dto.IsMuted = myMembership?.IsMuted ?? false;
+            dto.MyRole = myMembership?.Role ?? MemberRole.Member;
 
             dto.UnreadCount = myMembership?.IsMuted == true
                 ? 0
@@ -126,6 +127,11 @@ public class ChatService : IChatService
 
         var dto = _mapper.Map<ChatResponseDto>(chat);
         dto.MembersCount = chat.Members.Count;
+        
+        var myMembership = chat.Members.FirstOrDefault(m => m.UserId == userId);
+        dto.MyRole = myMembership?.Role ?? MemberRole.Member;
+        dto.IsMuted = myMembership?.IsMuted ?? false;
+        
         return dto;
     }
     public async Task JoinChat(int userId, int chatId, CancellationToken ct)
@@ -181,5 +187,97 @@ public class ChatService : IChatService
         await _unitOfWork.SaveChangesAsync(ct);
 
         return member.IsMuted;
+    }
+
+
+    private async Task<MemberRole> RequireMember(int chatId, int userId, CancellationToken ct)
+    {
+        var member = await _chatRepo.GetMemberAsync(chatId, userId, ct);
+        if (member == null)
+            throw new UnauthorizedAccessException("Not a member of this chat");
+        return member.Role;
+    }
+    private async Task RequireAdmin(int chatId, int userId, CancellationToken ct)
+    {
+        var role = await RequireMember(chatId, userId, ct);
+        if (role == MemberRole.Member)
+            throw new UnauthorizedAccessException("Admin rights required");
+    }
+    private async Task RequireOwner(int chatId, int userId, CancellationToken ct)
+    {
+        var role = await RequireMember(chatId, userId, ct);
+        if (role != MemberRole.Owner)
+            throw new UnauthorizedAccessException("Owner rights required");
+    }
+    
+    
+    
+        public async Task UpdateChat(int userId, int chatId, UpdateChatDto dto, CancellationToken ct)
+    {
+        await RequireAdmin(chatId, userId, ct);
+
+        var chat = await _chatRepo.GetByIdAsync(chatId, ct);
+        if (chat == null)
+            throw new KeyNotFoundException("Chat not found");
+        if (chat.Type == ChatType.Direct)
+            throw new InvalidOperationException("Direct chats cannot be edited");
+
+        if (dto.Title != null) chat.Title = dto.Title;
+        if (dto.Description != null) chat.Description = dto.Description;
+        if (dto.AvatarUrl != null) chat.AvatarUrl = dto.AvatarUrl;
+
+        await _unitOfWork.SaveChangesAsync(ct);
+    }
+
+    public async Task RemoveMember(int userId, int chatId, int targetUserId, CancellationToken ct)
+    {
+        var myRole = await RequireMember(chatId, userId, ct);
+        if (myRole == MemberRole.Member)
+            throw new UnauthorizedAccessException("Admin rights required");
+
+        if (targetUserId == userId)
+            throw new InvalidOperationException("Use leave instead");
+
+        var target = await _chatRepo.GetMemberAsync(chatId, targetUserId, ct);
+        if (target == null)
+            throw new KeyNotFoundException("Member not found");
+
+        if (target.Role == MemberRole.Owner)
+            throw new UnauthorizedAccessException("Cannot remove the owner");
+        if (target.Role == MemberRole.Admin && myRole != MemberRole.Owner)
+            throw new UnauthorizedAccessException("Only the owner can remove an admin");
+
+        _chatRepo.RemoveMember(target);
+        await _unitOfWork.SaveChangesAsync(ct);
+    }
+
+    public async Task SetMemberRole(int userId, int chatId, int targetUserId, MemberRole role, CancellationToken ct)
+    {
+        await RequireOwner(chatId, userId, ct);
+
+        if (targetUserId == userId)
+            throw new InvalidOperationException("Cannot change your own role");
+
+        var target = await _chatRepo.GetMemberAsync(chatId, targetUserId, ct);
+        if (target == null)
+            throw new KeyNotFoundException("Member not found");
+
+        if (role == MemberRole.Owner)
+            throw new InvalidOperationException("Ownership transfer is not supported yet");
+
+        target.Role = role;
+        await _unitOfWork.SaveChangesAsync(ct);
+    }
+
+    public async Task DeleteChat(int userId, int chatId, CancellationToken ct)
+    {
+        await RequireOwner(chatId, userId, ct);
+
+        var chat = await _chatRepo.GetByIdAsync(chatId, ct);
+        if (chat == null)
+            throw new KeyNotFoundException("Chat not found");
+
+        _chatRepo.Remove(chat);
+        await _unitOfWork.SaveChangesAsync(ct);
     }
 }

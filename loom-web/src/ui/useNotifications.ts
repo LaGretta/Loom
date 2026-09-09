@@ -50,9 +50,10 @@ export function useNotifications() {
     return () => document.removeEventListener('visibilitychange', apply)
   }, [totalUnread])
 
-  useEffect(() => onIncomingMessage(({ message, isActiveChat }) => {
+  useEffect(() => onIncomingMessage(({ message, isActiveChat, isMuted }) => {
     // Reading the chat right now? No ping, no toast — you already see it.
-    if (isActiveChat) return
+    // Muted chat? No sound, no browser notification, no title blink either.
+    if (isActiveChat || isMuted) return
 
     const from = message.senderName || 'New message'
     latestRef.current = `${from}: ${preview(message)}`.slice(0, 80)

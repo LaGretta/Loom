@@ -1,4 +1,5 @@
 ﻿using Loom.Application.DTO;
+using Loom.Domain.Enums;
 
 namespace Loom.Application.Interfaces.Service;
 
@@ -12,4 +13,9 @@ public interface IChatService
     Task<List<ChatMemberDto>> GetMembers(int userId, int chatId, CancellationToken ct);
     Task MarkChatRead(int userId, int chatId, CancellationToken ct);
     Task<bool> ToggleMute(int userId, int chatId, CancellationToken ct);
+    
+    Task UpdateChat(int userId, int chatId, UpdateChatDto dto, CancellationToken ct);
+    Task RemoveMember(int userId, int chatId, int targetUserId, CancellationToken ct);
+    Task SetMemberRole(int userId, int chatId, int targetUserId, MemberRole role, CancellationToken ct);
+    Task DeleteChat(int userId, int chatId, CancellationToken ct);
 }

@@ -1,4 +1,4 @@
-import { http } from './http'
+import { http, uploadWithProgress } from './http'
 import { tokenStore } from './tokenStore'
 import {
   ChatTypeE, MessageTypeE, RsvpStatusE, type ChatType, type MessageType, type RsvpStatus,
@@ -43,6 +43,7 @@ export const chatsApi = {
   leave: (id: number) => http.post<void>(`/api/chats/${id}/leave`),
   members: (id: number) => http.get<any[]>(`/api/chats/${id}/members`).then((r) => r.map(normMember)),
   read: (id: number) => http.post<void>(`/api/chats/${id}/read`),
+  mute: (id: number) => http.post<{ isMuted: boolean }>(`/api/chats/${id}/mute`),
 }
 
 /* ---------------- Messages ---------------- */
@@ -63,6 +64,10 @@ export const messagesApi = {
   remove: (id: number) => http.del<void>(`/api/messages/${id}`),
   markRead: (id: number) => http.post<void>(`/api/messages/${id}/read`),
   react: (b: { messageId: number; emoji: string }) => http.post<any>('/api/messages/reaction', b),
+  pin: (id: number) => http.post<{ isPinned: boolean }>(`/api/messages/${id}/pin`),
+  pinned: (chatId: number) => http.get<any[]>(`/api/messages/chat/${chatId}/pinned`).then((r) => r.map(normMessage)),
+  forward: (b: { messageId: number; targetChatId: number }) =>
+    http.post<any>('/api/messages/forward', b).then(normMessage),
 }
 
 /* ---------------- Stars ---------------- */
@@ -106,6 +111,8 @@ export const eventsApi = {
 
 /* ---------------- Media ---------------- */
 export const mediaApi = {
+  uploadProgress: (file: File, opts?: { onProgress?: (pct: number) => void; signal?: AbortSignal }) =>
+    uploadWithProgress('/api/media/upload', file, opts ?? {}),
   upload: (file: File) => {
     const fd = new FormData()
     fd.append('file', file)

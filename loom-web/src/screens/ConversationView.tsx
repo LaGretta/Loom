@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronLeft, Phone, Video, Search, MoreVertical, CheckCheck, Check, Clock, AlertCircle, ArrowDown, CloudOff } from 'lucide-react'
+import { ChevronLeft, Phone, Video, Search, MoreVertical, CheckCheck, Check, Clock, AlertCircle, ArrowDown, CloudOff, CornerUpRight, Pin, Upload } from 'lucide-react'
 import { useChat } from '../store/chat'
 import { useAuth } from '../store/auth'
 import { chatsApi } from '../lib/api'
@@ -15,6 +15,9 @@ import { isOnline, type UserStatus } from '../lib/enums'
 import type { Chat, ChatMember, Message, LoomEvent } from '../lib/types'
 import { Composer, MessageContextMenu } from './conversation-parts'
 import { useThreadScroll } from './useThreadScroll'
+import { Lightbox, type LightboxItem } from '../ui/Lightbox'
+import { PinnedBar } from './PinnedBar'
+import { ForwardModal } from './ForwardModal'
 import { EventCard } from '../components/EventCard'
 import { toast } from '../ui/toast'
 
@@ -33,12 +36,41 @@ export function ConversationView({ chatId }: { chatId: number }) {
   const hasMore = useChat((s) => s.msgHasMore[chatId])
   const retrySend = useChat((s) => s.retrySend)
   const discardMessage = useChat((s) => s.discardMessage)
+  const cancelUpload = useChat((s) => s.cancelUpload)
+  const sendMedia = useChat((s) => s.sendMedia)
 
   const [chat, setChat] = useState<Chat | null>(null)
   const [members, setMembers] = useState<ChatMember[]>([])
   const [replyTo, setReplyTo] = useState<Message | null>(null)
   const [editing, setEditing] = useState<Message | null>(null)
   const [menuFor, setMenuFor] = useState<{ message: Message; x: number; y: number } | null>(null)
+  const [forwardFor, setForwardFor] = useState<Message | null>(null)
+  const pinnedCount = useChat((s) => s.pinned[chatId]?.length ?? 0)
+  const [lightboxId, setLightboxId] = useState<number | null>(null)
+  const [dropping, setDropping] = useState(false)
+  const dragDepth = useRef(0)
+
+  const uploadFiles = useCallback((files: File[]) => {
+    for (const f of files) void sendMedia(chatId, f).catch(() => toast(`Could not send ${f.name}`))
+  }, [chatId, sendMedia])
+
+  // Paste a screenshot straight into the conversation.
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      const files = Array.from(e.clipboardData?.files ?? [])
+      if (!files.length) return
+      e.preventDefault()
+      uploadFiles(files)
+    }
+    window.addEventListener('paste', onPaste)
+    return () => window.removeEventListener('paste', onPaste)
+  }, [uploadFiles])
+  // Every photo in the loaded thread, so the viewer can page through them.
+  const photos = useMemo<LightboxItem[]>(
+    () => (messages ?? [])
+      .filter((m) => m.type === 'Image' && !m.isDeleted)
+      .map((m) => ({ id: m.id, url: m.content, caption: m.senderName })),
+    [messages])
 
   // Phase 4: anchoring, per-chat position memory and the "new messages" pill.
   const { threadRef, onScroll, newCount, scrollToBottom } = useThreadScroll({
@@ -99,6 +131,7 @@ export function ConversationView({ chatId }: { chatId: number }) {
   const handleProfile = useCallback((id: number) => navigate(`/u/${id}`), [navigate])
   const handleRetry = useCallback((id: number) => { void retrySend(chatId, id) }, [chatId, retrySend])
   const handleDiscard = useCallback((id: number) => discardMessage(chatId, id), [chatId, discardMessage])
+  const handleCancelUpload = useCallback((id: number) => cancelUpload(chatId, id), [chatId, cancelUpload])
   const grouped = useMemo(() => buildTimeline(messages ?? [], events ?? []), [messages, events])
   // Resolve sender name/avatar from the members list when a message DTO lacks them
   // (e.g. live-broadcast messages whose senderName can come back empty).
@@ -109,7 +142,29 @@ export function ConversationView({ chatId }: { chatId: number }) {
   }, [members])
 
   return (
-    <div className="pane conv" style={{ flex: 1, minWidth: 0, position: 'relative' }}>
+    <div
+      className={`pane conv ${pinnedCount > 0 ? 'has-pin' : ''}`}
+      style={{ flex: 1, minWidth: 0, position: 'relative' }}
+      onDragEnter={(e) => { if (e.dataTransfer?.types?.includes('Files')) { dragDepth.current++; setDropping(true) } }}
+      onDragOver={(e) => { if (e.dataTransfer?.types?.includes('Files')) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy' } }}
+      onDragLeave={() => { dragDepth.current = Math.max(0, dragDepth.current - 1); if (dragDepth.current === 0) setDropping(false) }}
+      onDrop={(e) => {
+        if (!e.dataTransfer?.files?.length) return
+        e.preventDefault()
+        dragDepth.current = 0
+        setDropping(false)
+        uploadFiles(Array.from(e.dataTransfer.files))
+      }}
+    >
+      {dropping && (
+        <div className="drop-overlay" aria-hidden>
+          <div className="drop-card">
+            <Upload size={30} />
+            <div className="drop-title">Drop to send</div>
+            <div className="drop-sub">Photos and files — several at once is fine</div>
+          </div>
+        </div>
+      )}
       {/* header */}
       <div className="chat-header frost">
         <button className="icon-btn mobile-only" onClick={() => navigate('/')} aria-label="Back to chats"><ChevronLeft size={24} /></button>
@@ -130,6 +185,8 @@ export function ConversationView({ chatId }: { chatId: number }) {
           <button className="icon-btn" onClick={() => navigate(`/chat/${chatId}/members`)} aria-label="Chat info"><MoreVertical size={19} /></button>
         </div>
       </div>
+
+      <PinnedBar chatId={chatId} onJump={jumpToMessage} />
 
       {/* thread + wallpaper */}
       <div className="thread-wrap">
@@ -155,6 +212,8 @@ export function ConversationView({ chatId }: { chatId: number }) {
                           isNew={new Date(g.message.sentAt).getTime() > openedAt}
                           quoted={g.message.replyToMessageId != null ? byId.get(g.message.replyToMessageId) : undefined}
                           onJump={jumpToMessage}
+                          onOpenPhoto={setLightboxId}
+                          onCancelUpload={handleCancelUpload}
                           onReply={handleReply}
                           onMenu={handleMenu}
                           onOpenProfile={handleProfile}
@@ -181,6 +240,12 @@ export function ConversationView({ chatId }: { chatId: number }) {
         onCancelEdit={() => setEditing(null)}
       />
 
+      {lightboxId != null && photos.length > 0 && (
+        <Lightbox items={photos} startId={lightboxId} onClose={() => setLightboxId(null)} />
+      )}
+
+      {forwardFor && <ForwardModal message={forwardFor} onClose={() => setForwardFor(null)} />}
+
       {menuFor && (
         <MessageContextMenu
           message={menuFor.message}
@@ -189,6 +254,7 @@ export function ConversationView({ chatId }: { chatId: number }) {
           onClose={() => setMenuFor(null)}
           onReply={() => { setEditing(null); setReplyTo(menuFor.message) }}
           onEdit={() => { setReplyTo(null); setEditing(menuFor.message) }}
+          onForward={() => setForwardFor(menuFor.message)}
         />
       )}
     </div>
@@ -254,17 +320,18 @@ function quotedSnippet(q: Message | undefined, fallback?: string | null): string
 
 /* Photo bubble: holds a reserved box until the image decodes, then fades it in —
    so a loading photo never reflows the thread under the reader. */
-function ChatImage({ src }: { src: string }) {
+function ChatImage({ src, onOpen }: { src: string; onOpen: () => void }) {
   const [loaded, setLoaded] = useState(false)
   return (
-    <div className={`card-photo ${loaded ? 'is-loaded' : ''}`}>
+    <div className={`card-photo ${loaded ? 'is-loaded' : ''}`} role="button" tabIndex={0} title="Open photo"
+      onClick={onOpen} onKeyDown={(e) => { if (e.key === 'Enter') onOpen() }}>
       <img src={src} alt="" decoding="async" onLoad={() => setLoaded(true)} onError={() => setLoaded(true)} />
     </div>
   )
 }
 
 /* ---------------- Bubble ---------------- */
-const Bubble = memo(function Bubble({ message, mine, showSender, grouped, senderName, senderAvatarUrl, isNew, quoted, onJump, onReply, onMenu, onOpenProfile, onRetry, onDiscard }: {
+const Bubble = memo(function Bubble({ message, mine, showSender, grouped, senderName, senderAvatarUrl, isNew, quoted, onJump, onOpenPhoto, onCancelUpload, onReply, onMenu, onOpenProfile, onRetry, onDiscard }: {
   message: Message
   mine: boolean
   showSender: boolean
@@ -274,6 +341,8 @@ const Bubble = memo(function Bubble({ message, mine, showSender, grouped, sender
   isNew: boolean                              // arrived after the chat was opened → slides in
   quoted?: Message                            // the message this one replies to, if loaded
   onJump: (id: number) => void                // scroll to the quoted original
+  onOpenPhoto: (id: number) => void           // open this photo in the lightbox
+  onCancelUpload: (id: number) => void        // abort an in-flight media upload
   onReply: (m: Message) => void
   onMenu: (m: Message, pt: { x: number; y: number }) => void
   onOpenProfile: (senderId: number) => void   // tap sender avatar/name → open their profile
@@ -321,6 +390,9 @@ const Bubble = memo(function Bubble({ message, mine, showSender, grouped, sender
       {!mine && showSender ? <SenderAvatar name={senderName} id={message.senderId} src={senderAvatarUrl} onClick={() => onOpenProfile(message.senderId)} /> : (!mine ? <span style={{ width: 30, flex: '0 0 30px' }} /> : null)}
       <div className={`bubble ${message.pending ? 'pending' : ''} ${message.failed ? 'failed' : ''} ${message.queued ? 'queued' : ''} ${pressing ? 'is-pressing' : ''}`} onTouchStart={startPress} onTouchEnd={endPress} onTouchMove={endPress} onTouchCancel={endPress} onDoubleClick={() => onReply(message)}>
         {!mine && showSender && <div className="sender" style={{ color: 'var(--accent)', cursor: 'pointer' }} onClick={() => onOpenProfile(message.senderId)}>{senderName}</div>}
+        {message.forwardedFromSenderName && (
+          <div className="fwd-from"><CornerUpRight size={13} /> Forwarded from {message.forwardedFromSenderName}</div>
+        )}
         {message.replyToMessageId != null && (
           <button
             className="reply-quote"
@@ -336,7 +408,7 @@ const Bubble = memo(function Bubble({ message, mine, showSender, grouped, sender
           : isGift
             ? <GiftBubbleCard giftName={message.content} mine={mine} senderName={senderName} isNew={isNew} />
             : isImage
-            ? <ChatImage src={message.content} />
+            ? <ChatImage src={message.content} onOpen={() => onOpenPhoto(message.id)} />
             : isVoice
               ? <VoiceBubble src={message.content} seconds={message.voiceSeconds} mine={mine} />
             : isFile
@@ -347,6 +419,7 @@ const Bubble = memo(function Bubble({ message, mine, showSender, grouped, sender
               : <div className="text">{message.content}</div>}
 
         <div className="foot">
+          {message.isPinned && !message.isDeleted && <Pin size={11} className="pin-mark" aria-label="Pinned" />}
           {message.isEdited && !message.isDeleted && <span className="edited">edited</span>}
           <span className="time">{timeShort(message.sentAt)}</span>
           {mine && !message.isDeleted && !message.failed && !message.queued && (
@@ -358,6 +431,14 @@ const Bubble = memo(function Bubble({ message, mine, showSender, grouped, sender
             </span>
           )}
         </div>
+
+        {message.uploadPct != null && message.pending && (
+          <div className="up-progress">
+            <div className="up-bar"><span style={{ width: `${message.uploadPct}%` }} /></div>
+            <span className="up-pct">{message.uploadPct}%</span>
+            <button onClick={() => onCancelUpload(message.id)} aria-label="Cancel upload">Cancel</button>
+          </div>
+        )}
 
         {message.queued && (
           <div className="msg-queued">

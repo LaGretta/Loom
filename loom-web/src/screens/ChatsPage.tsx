@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { useLocation, useMatch, useNavigate } from 'react-router-dom'
-import { Search, PenSquare } from 'lucide-react'
+import { Search, PenSquare, BellOff } from 'lucide-react'
 import { useChat, previewText } from '../store/chat'
 import { useNav } from '../store/nav'
 import { useAuth } from '../store/auth'
@@ -10,6 +10,7 @@ import { ChatListSkeleton } from '../ui/Skeleton'
 import { chatListTime } from '../ui/format'
 import { isOnline } from '../lib/enums'
 import type { Chat } from '../lib/types'
+import { ChatRowMenu } from './ChatRowMenu'
 import { ConversationView } from './ConversationView'
 import { NewChatModal } from './NewChatModal'
 import { MessageCircle } from 'lucide-react'
@@ -100,6 +101,7 @@ function ChatListPane({ activeId }: { activeId: number | null }) {
   const loadChats = useChat((s) => s.loadChats)
   const [q, setQ] = useState('')
   const [composeOpen, setComposeOpen] = useState(false)
+  const [rowMenu, setRowMenu] = useState<{ chat: Chat; x: number; y: number } | null>(null)
 
   const filtered = q.trim()
     ? chats.filter((c) => (c.title ?? '').toLowerCase().includes(q.toLowerCase()) || (c.lastMessage?.content ?? '').toLowerCase().includes(q.toLowerCase()))
@@ -160,16 +162,23 @@ function ChatListPane({ activeId }: { activeId: number | null }) {
                   action={!q && <Button onClick={() => setComposeOpen(true)}>Start a chat</Button>}
                 />
               : filtered.map((c, i) => (
-              <ChatRow key={c.id} chat={c} active={c.id === activeId} index={i} onClick={() => navigate(`/chat/${c.id}`)} />
+              <ChatRow key={c.id} chat={c} active={c.id === activeId} index={i}
+                onClick={() => navigate(`/chat/${c.id}`)}
+                onMenu={(pt) => setRowMenu({ chat: c, ...pt })} />
             ))}
       </div>
 
       {composeOpen && <NewChatModal onClose={() => setComposeOpen(false)} />}
+      {rowMenu && <ChatRowMenu chat={rowMenu.chat} at={{ x: rowMenu.x, y: rowMenu.y }} onClose={() => setRowMenu(null)} />}
     </>
   )
 }
 
-function ChatRow({ chat, active, index, onClick }: { chat: Chat; active: boolean; index: number; onClick: () => void }) {
+function ChatRow({ chat, active, index, onClick, onMenu }: {
+  chat: Chat; active: boolean; index: number; onClick: () => void
+  onMenu: (pt: { x: number; y: number }) => void
+}) {
+  const press = useRef<number>()
   const presence = useChat((s) => s.presence)
   const typing = useChat((s) => s.typing[chat.id])
   const online = chat.type === 'Direct' && false // presence is per-user; direct-chat online resolved in convo. Keep dot subtle here.
@@ -182,6 +191,10 @@ function ChatRow({ chat, active, index, onClick }: { chat: Chat; active: boolean
       className={`chat-row row-in ${active ? 'active' : ''}`}
       style={{ animationDelay: `${Math.min(index, 12) * 0.03}s` }}
       onClick={onClick}
+      onContextMenu={(e) => { e.preventDefault(); onMenu({ x: e.clientX, y: e.clientY }) }}
+      onTouchStart={(e) => { const t = e.touches[0]; const pt = { x: t.clientX, y: t.clientY }; press.current = window.setTimeout(() => onMenu(pt), 480) }}
+      onTouchEnd={() => window.clearTimeout(press.current)}
+      onTouchMove={() => window.clearTimeout(press.current)}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } }}
       role="option"
       aria-selected={active}
@@ -191,13 +204,14 @@ function ChatRow({ chat, active, index, onClick }: { chat: Chat; active: boolean
       <div className="col">
         <div className="r1">
           <span className="name ellipsis">{title}</span>
+          {chat.isMuted && <BellOff size={13} className="muted-ic" aria-label="Muted" />}
           <span className="time">{chatListTime(chat.lastMessage?.sentAt)}</span>
         </div>
         <div className="r2">
           <span className="preview ellipsis" style={isTyping ? { color: 'var(--accent)' } : undefined}>
             {isTyping ? 'typing…' : previewText(chat)}
           </span>
-          {chat.unreadCount > 0 && <span className="badge">{chat.unreadCount > 99 ? '99+' : chat.unreadCount}</span>}
+          {chat.unreadCount > 0 && !chat.isMuted && <span className="badge">{chat.unreadCount > 99 ? '99+' : chat.unreadCount}</span>}
         </div>
       </div>
     </div>

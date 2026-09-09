@@ -37,12 +37,18 @@ interface ChatState {
   send: (chatId: number, content: string, replyToMessageId?: number | null) => Promise<void>
   sendMedia: (chatId: number, file: File) => Promise<void>
   sendVoice: (chatId: number, blob: Blob, seconds: number) => Promise<void>
+  cancelUpload: (chatId: number, tempId: number) => void
   retrySend: (chatId: number, tempId: number) => Promise<void>
   discardMessage: (chatId: number, tempId: number) => void
   edit: (messageId: number, chatId: number, content: string) => Promise<void>
   remove: (messageId: number, chatId: number) => Promise<void>
   react: (messageId: number, chatId: number, emoji: string) => Promise<void>
   markRead: (messageId: number) => void
+  toggleMute: (chatId: number) => Promise<void>
+  pinned: Record<number, Message[]>
+  loadPinned: (chatId: number) => Promise<void>
+  togglePin: (messageId: number, chatId: number) => Promise<void>
+  forwardMessage: (messageId: number, targetChatId: number) => Promise<Message | null>
   sendTyping: (chatId: number) => void
   ingestMessage: (m: Message) => void
   applyEdited: (m: Message) => void
@@ -69,7 +75,7 @@ function findChatIdByMessage(messages: Record<number, Message[]>, messageId: num
 const PAGE = 30
 
 /* --- incoming-message fan-out (notifications subscribe here; the store stays UI-free) --- */
-export interface IncomingInfo { message: Message; isActiveChat: boolean }
+export interface IncomingInfo { message: Message; isActiveChat: boolean; isMuted: boolean }
 type IncomingHandler = (info: IncomingInfo) => void
 const incomingHandlers = new Set<IncomingHandler>()
 export function onIncomingMessage(fn: IncomingHandler) {
@@ -122,6 +128,9 @@ function withMyReactionFlags(incoming: Message, existing?: Message): Message {
 // queue and POST every item twice.
 let flushing = false
 
+/** Abort handles for in-flight media uploads, keyed by the optimistic message id. */
+const uploads = new Map<number, AbortController>()
+
 /**
  * A 4xx is the server saying "no" — retrying changes nothing, so those fail outright.
  * Network errors, timeouts and 5xx are transport problems: those go to the outbox.
@@ -168,6 +177,7 @@ export const useChat = create<ChatState>((set, get) => ({
   presence: {},
   typing: {},
   events: {},
+  pinned: {},
   hubConnected: false,
 
   loadChats: async () => {
@@ -191,6 +201,7 @@ export const useChat = create<ChatState>((set, get) => ({
     void chatsApi.read(chatId).catch(() => {})
     // load shared event cards for this chat (survives reload)
     void get().loadEvents(chatId)
+    void get().loadPinned(chatId)
     // Only skip the history fetch once we've actually loaded it from the server.
     // A thread may already hold a few *live* messages that arrived via SignalR before
     // it was opened — those must NOT count as "loaded", or we'd show them alone.
@@ -274,6 +285,15 @@ export const useChat = create<ChatState>((set, get) => ({
     await deliver(chatId, draft)
   },
 
+  /** Abort an in-flight media upload; the optimistic bubble disappears with it. */
+  cancelUpload: (chatId, tempId) => {
+    const ctrl = uploads.get(tempId)
+    if (!ctrl) return
+    ctrl.abort()
+    uploads.delete(tempId)
+    void chatId
+  },
+
   retrySend: async (chatId, tempId) => {
     const msg = (get().messages[chatId] ?? []).find((m) => m.id === tempId)
     if (!msg || (!msg.failed && !msg.queued)) return
@@ -303,13 +323,21 @@ export const useChat = create<ChatState>((set, get) => ({
     const isImg = file.type.startsWith('image/')
     const optimistic: Message = {
       id: tempId, chatId, senderId: myId() ?? 0, senderName: '', senderAvatarUrl: null,
-      content: objectUrl, type: isImg ? 'Image' : 'File', status: 'Sent',
+      content: objectUrl, type: isImg ? 'Image' : 'File', status: 'Sent', pending: true, uploadPct: 0,
       replyToMessageId: null, replyToPreview: null, isEdited: false, isDeleted: false,
       sentAt: new Date().toISOString(), attachments: [], reactions: [],
     }
     set((s) => ({ messages: { ...s.messages, [chatId]: [...(s.messages[chatId] ?? []), optimistic] } }))
+    const ctrl = new AbortController()
+    uploads.set(tempId, ctrl)
+    const onProgress = (pct: number) => set((s) => ({
+      messages: {
+        ...s.messages,
+        [chatId]: (s.messages[chatId] ?? []).map((m) => (m.id === tempId ? { ...m, uploadPct: pct } : m)),
+      },
+    }))
     try {
-      const { url } = await mediaApi.upload(file)
+      const { url } = await mediaApi.uploadProgress(file, { onProgress, signal: ctrl.signal })
       const msg = await messagesApi.send({ chatId, content: url, type: isImg ? 'Image' : 'File' })
       // Drop the temp bubble (and any duplicate the SignalR echo may have added), then ingest
       // the real message so preview/unread/order update the same way as a normal send.
@@ -321,11 +349,13 @@ export const useChat = create<ChatState>((set, get) => ({
       }))
       get().ingestMessage(msg)
     } catch (e) {
+      // A cancel simply removes the bubble; a real failure is reported by the caller.
       set((s) => ({
         messages: { ...s.messages, [chatId]: (s.messages[chatId] ?? []).filter((m) => m.id !== tempId) },
       }))
-      throw e
+      if ((e as DOMException)?.name !== 'AbortError') throw e
     } finally {
+      uploads.delete(tempId)
       URL.revokeObjectURL(objectUrl)
     }
   },
@@ -347,10 +377,20 @@ export const useChat = create<ChatState>((set, get) => ({
       messages: { ...s.messages, [chatId]: [...(s.messages[chatId] ?? []), optimistic] },
       chats: bumpPreview(s.chats, optimistic),
     }))
+    const ctrl = new AbortController()
+    uploads.set(tempId, ctrl)
     try {
       const ext = blob.type.includes('mp4') ? 'm4a' : blob.type.includes('ogg') ? 'ogg' : 'webm'
       const file = new File([blob], `voice-${Date.now()}.${ext}`, { type: blob.type || 'audio/webm' })
-      const { url } = await mediaApi.upload(file)
+      const { url } = await mediaApi.uploadProgress(file, {
+        signal: ctrl.signal,
+        onProgress: (pct) => set((s) => ({
+          messages: {
+            ...s.messages,
+            [chatId]: (s.messages[chatId] ?? []).map((m) => (m.id === tempId ? { ...m, uploadPct: pct } : m)),
+          },
+        })),
+      })
       const msg = await messagesApi.send({ chatId, content: url, type: 'Voice' })
       set((s) => ({
         messages: {
@@ -359,16 +399,21 @@ export const useChat = create<ChatState>((set, get) => ({
         },
       }))
       get().ingestMessage({ ...msg, voiceSeconds: seconds })
-    } catch {
-      set((s) => ({
-        messages: {
-          ...s.messages,
-          [chatId]: (s.messages[chatId] ?? []).map((m) =>
-            m.id === tempId ? { ...m, pending: false, failed: true } : m),
-        },
-      }))
-      toast('Could not send the voice message')
+    } catch (e) {
+      if ((e as DOMException)?.name === 'AbortError') {
+        set((s) => ({ messages: { ...s.messages, [chatId]: (s.messages[chatId] ?? []).filter((m) => m.id !== tempId) } }))
+      } else {
+        set((s) => ({
+          messages: {
+            ...s.messages,
+            [chatId]: (s.messages[chatId] ?? []).map((m) =>
+              m.id === tempId ? { ...m, pending: false, failed: true, uploadPct: undefined } : m),
+          },
+        }))
+        toast('Could not send the voice message')
+      }
     } finally {
+      uploads.delete(tempId)
       window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60000)
     }
   },
@@ -457,12 +502,40 @@ export const useChat = create<ChatState>((set, get) => ({
 
   markRead: (messageId) => { void messagesApi.markRead(messageId).catch(() => {}) },
 
+  // Optimistic mute: the row flips at once; a muted chat also drops its unread badge
+  // (the server reports unreadCount 0 for muted chats, so we mirror that locally).
+  toggleMute: async (chatId) => {
+    const before = get().chats.find((c) => c.id === chatId)
+    if (!before) return
+    const next = !before.isMuted
+    set((s) => ({
+      chats: s.chats.map((c) => (c.id === chatId
+        ? { ...c, isMuted: next, unreadCount: next ? 0 : c.unreadCount }
+        : c)),
+    }))
+    try {
+      const res = await chatsApi.mute(chatId)
+      set((s) => ({ chats: s.chats.map((c) => (c.id === chatId ? { ...c, isMuted: res.isMuted } : c)) }))
+    } catch {
+      set((s) => ({ chats: s.chats.map((c) => (c.id === chatId ? before : c)) }))
+      toast('Could not change mute')
+    }
+  },
+
   // --- live updates from SignalR (edited/deleted/reaction/read) ---
   applyEdited: (m) => {
     set((s) => {
       const list = s.messages[m.chatId]
-      if (!list) return {}
-      return { messages: { ...s.messages, [m.chatId]: list.map((x) => (x.id === m.id ? m : x)) } }
+      // The same event carries pin changes (MessageResponseDto.isPinned), so the pinned
+      // bar has to follow it even when the thread itself isn't loaded.
+      const cur = s.pinned[m.chatId] ?? []
+      const pinnedNext = m.isPinned
+        ? (cur.some((x) => x.id === m.id) ? cur.map((x) => (x.id === m.id ? m : x)) : [...cur, m])
+            .sort((a, b) => a.sentAt.localeCompare(b.sentAt))
+        : cur.filter((x) => x.id !== m.id)
+      const pinned = { ...s.pinned, [m.chatId]: pinnedNext }
+      if (!list) return { pinned }
+      return { messages: { ...s.messages, [m.chatId]: list.map((x) => (x.id === m.id ? m : x)) }, pinned }
     })
   },
   applyDeleted: (messageId) => {
@@ -547,7 +620,7 @@ export const useChat = create<ChatState>((set, get) => ({
         return {
           ...c,
           lastMessage: preview,
-          unreadCount: mine || isActive ? 0 : c.unreadCount + 1,
+          unreadCount: mine || isActive || c.isMuted ? 0 : c.unreadCount + 1,
         }
       })
       if (found) {
@@ -566,7 +639,8 @@ export const useChat = create<ChatState>((set, get) => ({
     // notify listeners about someone else's message (never our own echo)
     if (m.senderId !== myId()) {
       const isActiveChat = get().activeChatId === m.chatId && !document.hidden
-      for (const fn of incomingHandlers) { try { fn({ message: m, isActiveChat }) } catch { /* never break ingest */ } }
+      const isMuted = !!get().chats.find((c) => c.id === m.chatId)?.isMuted
+      for (const fn of incomingHandlers) { try { fn({ message: m, isActiveChat, isMuted }) } catch { /* never break ingest */ } }
     }
     // auto mark-read if viewing
     if (m.senderId !== myId() && get().activeChatId === m.chatId) get().markRead(m.id)
@@ -687,6 +761,53 @@ export const useChat = create<ChatState>((set, get) => ({
     } finally { flushing = false }
   },
 
+  loadPinned: async (chatId) => {
+    try {
+      const list = await messagesApi.pinned(chatId)
+      set((s) => ({ pinned: { ...s.pinned, [chatId]: list } }))
+    } catch { /* leave whatever we had */ }
+  },
+
+  // Optimistic pin: the bar appears/disappears at once, then reconciles. The server also
+  // broadcasts the updated message over "MessageEdited", which keeps other clients in sync.
+  togglePin: async (messageId, chatId) => {
+    const msg = (get().messages[chatId] ?? []).find((m) => m.id === messageId)
+    if (!msg) return
+    const next = !msg.isPinned
+    const apply = (isPinned: boolean) => set((s) => ({
+      messages: {
+        ...s.messages,
+        [chatId]: (s.messages[chatId] ?? []).map((m) => (m.id === messageId ? { ...m, isPinned } : m)),
+      },
+      pinned: {
+        ...s.pinned,
+        [chatId]: isPinned
+          ? [...(s.pinned[chatId] ?? []).filter((m) => m.id !== messageId), { ...msg, isPinned: true }]
+              .sort((a, b) => a.sentAt.localeCompare(b.sentAt))
+          : (s.pinned[chatId] ?? []).filter((m) => m.id !== messageId),
+      },
+    }))
+    apply(next)
+    try {
+      const res = await messagesApi.pin(messageId)
+      if (res.isPinned !== next) apply(res.isPinned)
+    } catch {
+      apply(!next)
+      toast(next ? 'Could not pin' : 'Could not unpin')
+    }
+  },
+
+  forwardMessage: async (messageId, targetChatId) => {
+    try {
+      const msg = await messagesApi.forward({ messageId, targetChatId })
+      get().ingestMessage(msg)
+      return msg
+    } catch {
+      toast('Could not forward the message')
+      return null
+    }
+  },
+
   loadEvents: async (chatId) => {
     try {
       const evs = await eventsApi.byChat(chatId)
@@ -718,7 +839,7 @@ export const useChat = create<ChatState>((set, get) => ({
 
   reset: () => set({
     chats: [], activeChatId: null, messages: {}, msgLoading: {}, msgHasMore: {}, msgPage: {}, msgLoaded: {},
-    presence: {}, typing: {}, events: {},
+    presence: {}, typing: {}, events: {}, pinned: {},
   }),
 }))
 

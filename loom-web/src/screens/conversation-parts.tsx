@@ -1,8 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Paperclip, ArrowUp, Mic, X, Reply, Forward, Copy, Trash2, Pencil, Trash } from 'lucide-react'
+import { Paperclip, ArrowUp, Mic, X, Reply, Forward, Copy, Trash2, Pencil, Trash, Pin, PinOff, Smile, Plus } from 'lucide-react'
 import { Sheet } from '../ui/primitives'
 import { useDismiss } from '../ui/useDismiss'
 import { useFocusTrap } from '../ui/useFocusTrap'
+import { EmojiPicker } from '../ui/EmojiPicker'
 import { CraftedObject } from '../ui/CraftedObject'
 import { useChat } from '../store/chat'
 import { messagesApi } from '../lib/api'
@@ -36,11 +37,13 @@ export function Composer({ chatId, replyTo, onCancelReply, editing, onCancelEdit
   const [text, setText] = useState(() => getDraft(chatId))
   const [attachOpen, setAttachOpen] = useState(false)
   const [stickerOpen, setStickerOpen] = useState(false)
+  const [emojiAt, setEmojiAt] = useState<{ x: number; y: number } | null>(null)
   const [eventOpen, setEventOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const taRef = useRef<HTMLTextAreaElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const lastTyping = useRef(0)
+  const caretAfter = useRef<number | null>(null)
   const send = useChat((s) => s.send)
   const sendMedia = useChat((s) => s.sendMedia)
   const sendVoice = useChat((s) => s.sendVoice)
@@ -79,6 +82,25 @@ export function Composer({ chatId, replyTo, onCancelReply, editing, onCancelEdit
     const now = Date.now()
     if (now - lastTyping.current > 1500) { lastTyping.current = now; sendTyping(chatId) }
   }
+
+  /** Drop the emoji at the caret (or over the selection) and keep typing where it landed. */
+  const insertEmoji = (emoji: string) => {
+    const ta = taRef.current
+    const start = ta?.selectionStart ?? text.length
+    const end = ta?.selectionEnd ?? text.length
+    caretAfter.current = start + emoji.length
+    onInput(text.slice(0, start) + emoji + text.slice(end))
+  }
+  // React rewrites the controlled value on commit, which parks the caret at the end —
+  // so restore it after the value lands, not in the click handler.
+  useLayoutEffect(() => {
+    const at = caretAfter.current
+    if (at == null) return
+    caretAfter.current = null
+    // No focus() here: the picker stays open and owns focus. The caret still sticks,
+    // and it is where typing resumes once the picker closes.
+    taRef.current?.setSelectionRange(at, at)
+  }, [text])
 
   // Fire-and-forget: the bubble is already in the thread optimistically, so the composer
   // clears on the same frame. Failures surface on the bubble itself (Retry), not here.
@@ -185,6 +207,16 @@ export function Composer({ chatId, replyTo, onCancelReply, editing, onCancelEdit
               onChange={(e) => onInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit() } }}
             />
+            <button
+              className="icon-btn"
+              style={{ width: 30, height: 30 }}
+              onClick={(e) => {
+                const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+                setEmojiAt({ x: r.left + r.width / 2, y: r.top })
+              }}
+              title="Emoji"
+              aria-label="Emoji"
+            ><Smile size={21} /></button>
             <button className="icon-btn" style={{ width: 30, height: 30 }} onClick={() => setStickerOpen(true)} title="Stickers" aria-label="Stickers">
               <CraftedObject id="loomi-wave" kind="sticker" size={26} />
             </button>
@@ -237,6 +269,10 @@ export function Composer({ chatId, replyTo, onCancelReply, editing, onCancelEdit
       {eventOpen && (
         <EventAttachModal chatId={chatId} onClose={() => setEventOpen(false)} />
       )}
+
+      {emojiAt && (
+        <EmojiPicker at={emojiAt} onPick={insertEmoji} onClose={() => { setEmojiAt(null); setTimeout(() => taRef.current?.focus(), 0) }} closeOnPick={false} />
+      )}
     </>
   )
 }
@@ -260,26 +296,32 @@ export function StickerPickerBody({ onPick }: { onPick: (id: string) => void }) 
   )
 }
 
-export function MessageContextMenu({ message, mine, at, onClose, onReply, onEdit }: {
+export function MessageContextMenu({ message, mine, at, onClose, onReply, onEdit, onForward }: {
   message: Message
   mine: boolean
   at: { x: number; y: number }        // tap/click point the menu is anchored to
   onClose: () => void
   onReply: () => void
   onEdit: () => void
+  onForward: () => void
 }) {
   const react = useChat((s) => s.react)
   const remove = useChat((s) => s.remove)
+  const togglePin = useChat((s) => s.togglePin)
   const { closing, dismiss } = useDismiss(onClose)
   const boxRef = useRef<HTMLDivElement>(null)
   useFocusTrap(boxRef, !closing)
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null)
+  const [pickerOpen, setPickerOpen] = useState(false)
 
   // Anchor at the point, then flip/clamp so the menu never leaves the viewport.
   useLayoutEffect(() => {
     const el = boxRef.current
     if (!el) return
-    const { width, height } = el.getBoundingClientRect()
+    // offsetWidth/Height, not getBoundingClientRect: the entrance animation scales the box,
+    // and a mid-flight rect would place the popover over its own trigger.
+    const width = el.offsetWidth
+    const height = el.offsetHeight
     const M = 10
     let left = at.x
     let top = at.y
@@ -293,6 +335,7 @@ export function MessageContextMenu({ message, mine, at, onClose, onReply, onEdit
 
   // Esc, and any scroll underneath, dismiss the menu.
   useEffect(() => {
+    if (pickerOpen) return          // the picker has its own Esc, and its list scrolls
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); dismiss() } }
     const onScroll = () => dismiss()
     window.addEventListener('keydown', onKey)
@@ -303,10 +346,21 @@ export function MessageContextMenu({ message, mine, at, onClose, onReply, onEdit
       window.removeEventListener('scroll', onScroll, true)
       window.removeEventListener('resize', onScroll)
     }
-  }, [dismiss])
+  }, [dismiss, pickerOpen])
 
   const act = (fn: () => void) => { fn(); dismiss() }
   const canCopy = !message.isDeleted && message.type === 'Text'
+
+  // The quick row is the shortcut; "+" swaps the whole menu for the full picker at the same point.
+  if (pickerOpen) {
+    return (
+      <EmojiPicker
+        at={at}
+        onPick={(e) => void react(message.id, message.chatId, e)}
+        onClose={onClose}
+      />
+    )
+  }
 
   return (
     <div className={`ctx-wrap ${closing ? 'out-scrim' : ''}`}
@@ -317,13 +371,16 @@ export function MessageContextMenu({ message, mine, at, onClose, onReply, onEdit
         role="menu"
         aria-label="Message actions"
         className={`ctx-anchor anim-menu ${closing ? 'out-menu' : ''}`}
-        style={pos ? { left: pos.left, top: pos.top } : { left: 0, top: 0, visibility: 'hidden' }}
+        style={pos ? { left: pos.left, top: pos.top } : { left: 0, top: 0, opacity: 0, pointerEvents: 'none' }}
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="quick-react" role="group" aria-label="Quick reactions">
           {QUICK_REACTIONS.map((e) => (
             <button key={e} aria-label={`React ${e}`} onClick={() => act(() => void react(message.id, message.chatId, e))}>{e}</button>
           ))}
+          <button className="quick-more" aria-label="More emoji" title="More emoji" onClick={() => setPickerOpen(true)}>
+            <Plus size={20} />
+          </button>
         </div>
 
         <div className="ctx-card">
@@ -334,9 +391,14 @@ export function MessageContextMenu({ message, mine, at, onClose, onReply, onEdit
               <Copy size={18} /> Copy text
             </button>
           )}
-          <button className="ctx-item" role="menuitem" disabled aria-disabled="true" title="Forwarding isn’t available yet">
-            <Forward size={18} /> Forward <span className="ctx-soon">Soon</span>
+          <button className="ctx-item" role="menuitem" onClick={() => act(onForward)}>
+            <Forward size={18} /> Forward
           </button>
+          {!message.isDeleted && (
+            <button className="ctx-item" role="menuitem" onClick={() => act(() => void togglePin(message.id, message.chatId))}>
+              {message.isPinned ? <><PinOff size={18} /> Unpin</> : <><Pin size={18} /> Pin</>}
+            </button>
+          )}
           {mine && !message.isDeleted && (
             <button className="ctx-item" role="menuitem" onClick={() => act(onEdit)}><Pencil size={18} /> Edit</button>
           )}

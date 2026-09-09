@@ -58,6 +58,7 @@ export interface Chat {
   membersCount: number
   lastMessage?: MessagePreview | null
   unreadCount: number
+  isMuted?: boolean
 }
 export interface ChatMember {
   userId: number
@@ -95,6 +96,8 @@ export interface Message {
   replyToSenderName?: string | null
   isEdited: boolean
   isDeleted: boolean
+  isPinned?: boolean
+  forwardedFromSenderName?: string | null
   sentAt: string
   attachments: Attachment[]
   reactions: Reaction[]
@@ -104,6 +107,7 @@ export interface Message {
   queued?: boolean    // couldn't reach the server; waiting in the offline outbox
   clientId?: string   // correlates the optimistic bubble with its SignalR echo
   voiceSeconds?: number // known duration for a voice note we just recorded
+  uploadPct?: number    // 0..100 while media is uploading
 }
 export interface Paged<T> {
   items: T[]

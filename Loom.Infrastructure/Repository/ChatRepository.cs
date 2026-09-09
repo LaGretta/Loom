@@ -46,4 +46,6 @@ public class ChatRepository : IChatRepository
                 c.Members.Count == 2 &&
                 c.Members.Any(m => m.UserId == userId1) &&
                 c.Members.Any(m => m.UserId == userId2), ct);
+    
+    public void Remove(Chat chat) => _context.Chats.Remove(chat);
 }

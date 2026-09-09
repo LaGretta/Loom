@@ -136,6 +136,46 @@ function safeJson(text: string): any {
   try { return JSON.parse(text) } catch { return text }
 }
 
+/**
+ * Upload with real progress + cancellation. `fetch` can't report upload progress, so
+ * media goes through XHR. Auth/refresh isn't retried here — a 401 surfaces to the caller.
+ */
+export function uploadWithProgress(
+  path: string,
+  file: File,
+  opts: { onProgress?: (pct: number) => void; signal?: AbortSignal } = {},
+): Promise<{ url: string }> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', `${BASE}${path}`)
+    const token = tokenStore.access
+    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) opts.onProgress?.(Math.round((e.loaded / e.total) * 100))
+    }
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try { resolve(JSON.parse(xhr.responseText)) }
+        catch { reject(new ApiError(xhr.status, 'Malformed upload response')) }
+      } else {
+        reject(new ApiError(xhr.status, `${xhr.status} ${xhr.statusText}`))
+      }
+    }
+    xhr.onerror = () => reject(new TypeError('Network error during upload'))
+    xhr.onabort = () => reject(new DOMException('Upload cancelled', 'AbortError'))
+
+    if (opts.signal) {
+      if (opts.signal.aborted) { xhr.abort(); return }
+      opts.signal.addEventListener('abort', () => xhr.abort(), { once: true })
+    }
+
+    const fd = new FormData()
+    fd.append('file', file)
+    xhr.send(fd)
+  })
+}
+
 export const http = {
   get: <T>(path: string, o: Omit<ReqOpts, 'method' | 'body'> = {}) => raw(path, { ...o, method: 'GET' }).then(parse<T>),
   post: <T>(path: string, body?: unknown, o: ReqOpts = {}) => raw(path, { ...o, method: 'POST', body }).then(parse<T>),
