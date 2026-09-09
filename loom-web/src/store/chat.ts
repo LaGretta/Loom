@@ -47,7 +47,7 @@ interface ChatState {
   ingestMessage: (m: Message) => void
   applyEdited: (m: Message) => void
   applyDeleted: (messageId: number) => void
-  applyReactionUpdate: (messageId: number) => Promise<void>
+  applyReactionUpdate: (m: Message) => void
   applyReadReceipt: (messageId: number, userId: number) => void
   revalidateChat: (chatId: number) => Promise<void>
   resyncAll: () => Promise<void>
@@ -92,15 +92,29 @@ function bumpPreview(chats: Chat[], m: Message): Chat[] {
 }
 
 /**
- * The history endpoint doesn't eager-load reactions (MessageRepository.HistoryAsync only
- * Includes Sender + Attachments), so every message from GET /messages/chat/{id} arrives
- * with `reactions: []`. Letting that empty array overwrite what we already know would
- * silently erase reactions — so an incoming empty list never clobbers a known one.
+ * Reaction toggles I started, still waiting for their broadcast. Two things depend on it:
+ *  - a background revalidate must not overwrite a reaction mid-toggle (it would show the
+ *    pre-toggle state until the event lands);
+ *  - `reactedByMe` on the broadcast is computed for whoever toggled, so it is correct for
+ *    ME only when I am that person — otherwise it describes someone else and must be
+ *    re-derived from what we already hold.
  */
-function keepReactions(incoming: Message, existing?: Message): Message {
-  if (!existing) return incoming
-  if ((incoming.reactions?.length ?? 0) > 0) return incoming
-  return (existing.reactions?.length ?? 0) > 0 ? { ...incoming, reactions: existing.reactions } : incoming
+const myPendingToggles = new Map<number, number>()   // messageId -> started at
+const TOGGLE_TTL = 10_000
+const isMyToggle = (id: number) => {
+  const t = myPendingToggles.get(id)
+  if (t == null) return false
+  if (Date.now() - t > TOGGLE_TTL) { myPendingToggles.delete(id); return false }
+  return true
+}
+
+/** Keep counts/emoji from the server; take `reactedByMe` from local truth. */
+function withMyReactionFlags(incoming: Message, existing?: Message): Message {
+  const mine = new Map((existing?.reactions ?? []).map((r) => [r.emoji, r.reactedByMe]))
+  return {
+    ...incoming,
+    reactions: (incoming.reactions ?? []).map((r) => ({ ...r, reactedByMe: mine.get(r.emoji) ?? false })),
+  }
 }
 
 // Guards against two flushes running at once (StrictMode double-mount, an `online`
@@ -132,6 +146,7 @@ function draftMessage(chatId: number, content: string, type: Message['type'], re
     status: 'Sent',
     replyToMessageId: replyTo?.id ?? null,
     replyToPreview: replyTo?.content ?? null,
+    replyToSenderName: replyTo?.senderName ?? null,
     isEdited: false,
     isDeleted: false,
     sentAt: new Date().toISOString(),
@@ -191,9 +206,12 @@ export const useChat = create<ChatState>((set, get) => ({
       set((s) => {
         // Merge server history with any stray live messages, dedupe by id, order by time.
         const stray = s.messages[chatId] ?? []
-        const prev = new Map(stray.map((m) => [m.id, m]))
         const ids = new Set(asc.map((m) => m.id))
-        const merged = [...asc.map((m) => keepReactions(m, prev.get(m.id))), ...stray.filter((m) => !ids.has(m.id))]
+        const prev = new Map(stray.map((m) => [m.id, m]))
+        const merged = [
+          ...asc.map((m) => (isMyToggle(m.id) && prev.has(m.id) ? { ...m, reactions: prev.get(m.id)!.reactions } : m)),
+          ...stray.filter((m) => !ids.has(m.id)),
+        ]
           .sort((a, b) => a.sentAt.localeCompare(b.sentAt) || a.id - b.id)
         return {
           messages: { ...s.messages, [chatId]: merged },
@@ -421,9 +439,11 @@ export const useChat = create<ChatState>((set, get) => ({
         }),
       },
     }))
+    myPendingToggles.set(messageId, Date.now())
     try {
       await messagesApi.react({ messageId, emoji })
     } catch {
+      myPendingToggles.delete(messageId)
       // straight rollback to the pre-toggle reactions — no refetch, no flicker
       set((s) => ({
         messages: {
@@ -442,7 +462,7 @@ export const useChat = create<ChatState>((set, get) => ({
     set((s) => {
       const list = s.messages[m.chatId]
       if (!list) return {}
-      return { messages: { ...s.messages, [m.chatId]: list.map((x) => (x.id === m.id ? keepReactions(m, x) : x)) } }
+      return { messages: { ...s.messages, [m.chatId]: list.map((x) => (x.id === m.id ? m : x)) } }
     })
   },
   applyDeleted: (messageId) => {
@@ -457,14 +477,24 @@ export const useChat = create<ChatState>((set, get) => ({
       }
     })
   },
-  // "ReactionUpdated" carries only a messageId — no emoji, no user, and the history
-  // endpoint returns `reactions: []` for everything. Refetching here (as we used to)
-  // therefore overwrote the just-applied reaction with an empty list, which is exactly
-  // why a reaction appeared and then vanished a second later. There is nothing the
-  // server can tell us, so we keep the local (optimistic) state instead of destroying it.
-  // TODO(backend): Include(m => m.Reactions) in HistoryAsync + compute ReactedByMe,
-  // then this can refetch and reflect other people's reactions too.
-  applyReactionUpdate: async (messageId) => { void messageId },
+  // The event now carries the whole updated message, so we can replace it outright —
+  // no refetch. Only `reactedByMe` is re-derived locally (see withMyReactionFlags).
+  applyReactionUpdate: (m) => {
+    set((s) => {
+      const list = s.messages[m.chatId]
+      if (!list) return {}
+      const existing = list.find((x) => x.id === m.id)
+      if (!existing) return {}
+      // If I started this toggle, the broadcast flag was computed for me — trust it.
+      const reactions = isMyToggle(m.id)
+        ? (m.reactions ?? [])
+        : withMyReactionFlags(m, existing).reactions
+      myPendingToggles.delete(m.id)
+      return {
+        messages: { ...s.messages, [m.chatId]: list.map((x) => (x.id === m.id ? { ...x, reactions } : x)) },
+      }
+    })
+  },
   applyReadReceipt: (messageId, userId) => {
     set((s) => {
       const chatId = findChatIdByMessage(s.messages, messageId)
@@ -495,7 +525,7 @@ export const useChat = create<ChatState>((set, get) => ({
         ? list.findIndex((x) => x.pending && x.type === m.type && x.content === m.content)
         : -1
       if (list.some((x) => x.id === m.id)) {
-        messages = { ...s.messages, [m.chatId]: list.map((x) => (x.id === m.id ? keepReactions(m, x) : x)) }
+        messages = { ...s.messages, [m.chatId]: list.map((x) => (x.id === m.id ? m : x)) }
       } else if (draftIdx >= 0) {
         messages = { ...s.messages, [m.chatId]: list.map((x, i) => (i === draftIdx ? m : x)) }
       } else {
@@ -554,7 +584,9 @@ export const useChat = create<ChatState>((set, get) => ({
         const existing = st.messages[chatId] ?? []
         const fresh = new Map(asc.map((m) => [m.id, m]))
         const merged = existing
-          .map((m) => (fresh.has(m.id) ? keepReactions(fresh.get(m.id)!, m) : m))
+          .map((m) => (fresh.has(m.id)
+            ? (isMyToggle(m.id) ? { ...fresh.get(m.id)!, reactions: m.reactions } : fresh.get(m.id)!)
+            : m))
           .concat(asc.filter((m) => !existing.some((e) => e.id === m.id)))
           .sort((a, b) => a.sentAt.localeCompare(b.sentAt) || a.id - b.id)
         return { messages: { ...st.messages, [chatId]: merged } }
@@ -735,7 +767,7 @@ export function wireRealtime() {
     onNewMessage: (m) => useChat.getState().ingestMessage(m),
     onMessageEdited: (m) => useChat.getState().applyEdited(m),
     onMessageDeleted: (id) => useChat.getState().applyDeleted(id),
-    onReactionUpdated: (id) => void useChat.getState().applyReactionUpdate(id),
+    onReactionUpdated: (m) => useChat.getState().applyReactionUpdate(m),
     onMessageRead: (id, userId) => useChat.getState().applyReadReceipt(id, userId),
     // EventShared payload.chatId is the TARGET chat → upsertEvent places the card in the
     // right chat's store live, even if that chat isn't open.

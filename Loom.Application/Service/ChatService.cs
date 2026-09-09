@@ -96,7 +96,12 @@ public class ChatService : IChatService
                 };
             }
             var myMembership = c.Members.FirstOrDefault(m => m.UserId == userId);
-            dto.UnreadCount = await _messageRepo.CountUnreadAsync(c.Id, userId, myMembership?.LastReadAt, ct);
+            dto.IsMuted = myMembership?.IsMuted ?? false;
+
+            dto.UnreadCount = myMembership?.IsMuted == true
+                ? 0
+                : await _messageRepo.CountUnreadAsync(c.Id, userId, myMembership?.LastReadAt, ct);
+
             if (c.Type == ChatType.Direct)
             {
                 var other = c.Members.FirstOrDefault(m => m.UserId != userId);
@@ -164,5 +169,17 @@ public class ChatService : IChatService
 
         member.LastReadAt = DateTime.UtcNow;
         await _unitOfWork.SaveChangesAsync(ct);
+    }
+    
+    public async Task<bool> ToggleMute(int userId, int chatId, CancellationToken ct)
+    {
+        var member = await _chatRepo.GetMemberAsync(chatId, userId, ct);
+        if (member == null)
+            throw new UnauthorizedAccessException("Not a member of this chat");
+
+        member.IsMuted = !member.IsMuted;
+        await _unitOfWork.SaveChangesAsync(ct);
+
+        return member.IsMuted;
     }
 }

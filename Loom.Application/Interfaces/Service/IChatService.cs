@@ -11,4 +11,5 @@ public interface IChatService
     Task LeaveChat(int userId, int chatId, CancellationToken ct);
     Task<List<ChatMemberDto>> GetMembers(int userId, int chatId, CancellationToken ct);
     Task MarkChatRead(int userId, int chatId, CancellationToken ct);
+    Task<bool> ToggleMute(int userId, int chatId, CancellationToken ct);
 }

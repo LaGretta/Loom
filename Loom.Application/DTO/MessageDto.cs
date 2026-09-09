@@ -31,7 +31,9 @@ public class MessageResponseDto
     public string? ReplyToSenderName { get; set; }
     public bool IsEdited { get; set; }
     public bool IsDeleted { get; set; }
+    public bool IsPinned { get; set; }
     public DateTime SentAt { get; set; }
+    public string? ForwardedFromSenderName { get; set; }
     
     public List<AttachmentDto> Attachments { get; set; } = new();
     public List<ReactionSummaryDto> Reactions { get; set; } = new();
@@ -50,4 +52,9 @@ public class ReactionSummaryDto
     public string Emoji { get; set; } = string.Empty;
     public int Count { get; set; }
     public bool ReactedByMe { get; set; }
+}
+public class ForwardMessageDto
+{
+    public int MessageId { get; set; }
+    public int TargetChatId { get; set; }
 }

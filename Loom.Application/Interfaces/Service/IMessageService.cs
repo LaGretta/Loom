@@ -10,4 +10,7 @@ public interface IMessageService
     Task DeleteMessage(int userId, int messageId, CancellationToken ct);
     Task MarkAsRead(int userId, int messageId, CancellationToken ct);
     Task ToggleReaction(int userId, ToggleReactionDto dto, CancellationToken ct);
+    Task<bool> TogglePin(int userId, int messageId, CancellationToken ct);
+    Task<List<MessageResponseDto>> GetPinned(int userId, int chatId, CancellationToken ct);
+    Task<MessageResponseDto> ForwardMessage(int userId, ForwardMessageDto dto, CancellationToken ct);
 }

@@ -92,6 +92,7 @@ export interface Message {
   status: MessageStatus
   replyToMessageId?: number | null
   replyToPreview?: string | null
+  replyToSenderName?: string | null
   isEdited: boolean
   isDeleted: boolean
   sentAt: string

@@ -19,7 +19,9 @@ public class Message
 
     public int? ReplyToMessageId { get; set; }   
     public Message? ReplyToMessage { get; set; }
-
+    public int? ForwardedFromMessageId { get; set; }
+    public string? ForwardedFromSenderName { get; set; }
+    public bool IsPinned { get; set; }
     public bool IsEdited { get; set; }
     public DateTime? EditedAt { get; set; }
     public bool IsDeleted { get; set; }          

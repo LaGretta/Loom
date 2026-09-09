@@ -43,4 +43,8 @@ public class ChatsController : BaseController
         await _chatService.MarkChatRead(UserId, id, ct);
         return NoContent();
     }
+    
+    [HttpPost("{id}/mute")]
+    public async Task<IActionResult> ToggleMute(int id, CancellationToken ct) =>
+        Ok(new { isMuted = await _chatService.ToggleMute(UserId, id, ct) });
 }

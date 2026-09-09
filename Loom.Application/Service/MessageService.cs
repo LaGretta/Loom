@@ -142,7 +142,6 @@ public class MessageService : IMessageService
             await _notifier.ReactionUpdated(message.ChatId, MapMessage(message, userId));
     }
     
-    
     private MessageResponseDto MapMessage(Message message, int userId)
     {
         var dto = _mapper.Map<MessageResponseDto>(message);
@@ -156,5 +155,62 @@ public class MessageService : IMessageService
             })
             .ToList();
         return dto;
+    }
+    
+    public async Task<bool> TogglePin(int userId, int messageId, CancellationToken ct)
+    {
+        var message = await _messageRepo.GetByIdAsync(messageId, ct);
+        if (message == null)
+            throw new KeyNotFoundException("Message not found");
+
+        if (!await _chatRepo.IsMemberAsync(message.ChatId, userId, ct))
+            throw new UnauthorizedAccessException("Not a member of this chat");
+
+        message.IsPinned = !message.IsPinned;
+        await _unitOfWork.SaveChangesAsync(ct);
+
+        await _notifier.MessageEdited(message.ChatId, MapMessage(message, userId));
+        return message.IsPinned;
+    }
+
+    public async Task<List<MessageResponseDto>> GetPinned(int userId, int chatId, CancellationToken ct)
+    {
+        if (!await _chatRepo.IsMemberAsync(chatId, userId, ct))
+            throw new UnauthorizedAccessException("Not a member of this chat");
+
+        var pinned = await _messageRepo.GetPinnedAsync(chatId, ct);
+        return pinned.Select(m => MapMessage(m, userId)).ToList();
+    }
+    
+    public async Task<MessageResponseDto> ForwardMessage(int userId, ForwardMessageDto dto, CancellationToken ct)
+    {
+        var original = await _messageRepo.GetByIdAsync(dto.MessageId, ct);
+        if (original == null || original.IsDeleted)
+            throw new KeyNotFoundException("Message not found");
+
+        if (!await _chatRepo.IsMemberAsync(original.ChatId, userId, ct))
+            throw new UnauthorizedAccessException("Not a member of the source chat");
+        if (!await _chatRepo.IsMemberAsync(dto.TargetChatId, userId, ct))
+            throw new UnauthorizedAccessException("Not a member of the target chat");
+        
+        var originName = original.ForwardedFromSenderName ?? original.Sender.DisplayName;
+        var forwarded = new Message
+        {
+            ChatId = dto.TargetChatId,
+            SenderId = userId,
+            Content = original.Content,
+            Type = original.Type,
+            Status = MessageStatus.Sent,
+            ForwardedFromMessageId = original.Id,
+            ForwardedFromSenderName = originName,
+            SentAt = DateTime.UtcNow
+        };
+
+        await _messageRepo.CreateAsync(forwarded, ct);
+        await _unitOfWork.SaveChangesAsync(ct);
+
+        var response = MapMessage(forwarded, userId);
+        await _notifier.MessageSent(dto.TargetChatId, response);
+        return response;
     }
 }

@@ -17,4 +17,5 @@ public interface IMessageRepository
     Task<bool> HasReadReceiptAsync(int messageId, int userId, CancellationToken ct);
     Task<Message?> GetLastMessageAsync(int chatId, CancellationToken ct);
     Task<int> CountUnreadAsync(int chatId, int userId, DateTime? lastReadAt, CancellationToken ct);
+    Task<List<Message>> GetPinnedAsync(int chatId, CancellationToken ct);
 }

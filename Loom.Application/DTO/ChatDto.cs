@@ -17,7 +17,8 @@ public class ChatResponseDto
     public string? AvatarUrl { get; set; }
     public int MembersCount { get; set; }
     public MessagePreviewDto? LastMessage { get; set; } 
-    public int UnreadCount { get; set; }              
+    public int UnreadCount { get; set; }      
+    public bool IsMuted { get; set; }
 }
 public class MessagePreviewDto
 {

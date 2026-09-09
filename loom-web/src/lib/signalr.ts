@@ -12,7 +12,7 @@ type Handlers = {
   onNewMessage?: (m: Message) => void
   onMessageEdited?: (m: Message) => void
   onMessageDeleted?: (messageId: number) => void
-  onReactionUpdated?: (messageId: number) => void
+  onReactionUpdated?: (m: Message) => void
   onMessageRead?: (messageId: number, userId: number) => void
   onUserOnline?: (userId: number) => void
   onUserOffline?: (userId: number, lastSeenAt: string) => void
@@ -47,7 +47,7 @@ class SignalRManager {
     conn.on('NewMessage', (dto: any) => this.handlers.onNewMessage?.(normMessage(dto)))
     conn.on('MessageEdited', (dto: any) => this.handlers.onMessageEdited?.(normMessage(dto)))
     conn.on('MessageDeleted', (messageId: number) => this.handlers.onMessageDeleted?.(Number(messageId)))
-    conn.on('ReactionUpdated', (messageId: number) => this.handlers.onReactionUpdated?.(Number(messageId)))
+    conn.on('ReactionUpdated', (dto: any) => this.handlers.onReactionUpdated?.(normMessage(dto)))
     conn.on('MessageRead', (messageId: number, userId: number) => this.handlers.onMessageRead?.(Number(messageId), Number(userId)))
     conn.on('UserOnline', (userId: number) => this.handlers.onUserOnline?.(Number(userId)))
     conn.on('UserOffline', (userId: number, lastSeenAt: string) =>

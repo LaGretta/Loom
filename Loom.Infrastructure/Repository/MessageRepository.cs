@@ -67,4 +67,12 @@ public class MessageRepository : IMessageRepository
                         && m.SenderId != userId        
                         && (lastReadAt == null || m.SentAt > lastReadAt))
             .CountAsync(ct);
+    
+    
+    public async Task<List<Message>> GetPinnedAsync(int chatId, CancellationToken ct) =>
+        await _context.Messages
+            .Include(m => m.Sender)
+            .Where(m => m.ChatId == chatId && m.IsPinned && !m.IsDeleted)
+            .OrderByDescending(m => m.SentAt)
+            .ToListAsync(ct);
 }

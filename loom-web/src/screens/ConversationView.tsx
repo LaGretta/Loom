@@ -76,9 +76,9 @@ export function ConversationView({ chatId }: { chatId: number }) {
 
   // Messages that arrive AFTER the chat was opened animate in; existing history does not.
   const openedAt = useMemo(() => Date.now(), [chatId])
-  // The server's MessageResponseDto.ReplyToPreview is never populated (no such field on
-  // the Message entity) and carries no author, so we resolve the quoted message from the
-  // thread we already hold. Falls back gracefully when it's older than the loaded pages.
+  // The server now fills ReplyToPreview + ReplyToSenderName, so the quote renders even for
+  // originals outside the loaded pages. We still keep this map as a fallback (and to make
+  // the quote tappable / richer for media, which the preview text can't express).
   const byId = useMemo(() => {
     const m = new Map<number, Message>()
     for (const x of messages ?? []) m.set(x.id, x)
@@ -233,7 +233,15 @@ function GiftBubbleCard({ giftName, mine, senderName, isNew }: { giftName: strin
   )
 }
 
-/** One-line snippet for a quoted message — media types get a label, not a raw URL. */
+/** Author of the quoted message: server value first, then the locally-loaded original. */
+function replyAuthor(m: Message, quoted?: Message): string {
+  return m.replyToSenderName || quoted?.senderName || 'Message'
+}
+
+/**
+ * One-line snippet for a quoted message. Prefer the locally-loaded original when we have
+ * it (so media shows "📷 Photo" rather than a raw URL), else the server's preview text.
+ */
 function quotedSnippet(q: Message | undefined, fallback?: string | null): string {
   if (!q) return fallback || 'Original message'
   if (q.isDeleted) return 'Deleted message'
@@ -319,7 +327,7 @@ const Bubble = memo(function Bubble({ message, mine, showSender, grouped, sender
             title="Go to the original message"
             onClick={(e) => { e.stopPropagation(); onJump(message.replyToMessageId!) }}
           >
-            <span className="who ellipsis">{quoted ? quoted.senderName || 'Member' : 'Message'}</span>
+            <span className="who ellipsis">{replyAuthor(message, quoted)}</span>
             <span className="qt ellipsis">{quotedSnippet(quoted, message.replyToPreview)}</span>
           </button>
         )}
