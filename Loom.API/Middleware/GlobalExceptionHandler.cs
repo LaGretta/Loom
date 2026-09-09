@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Diagnostics;
+﻿using Loom.Application.Exceptions;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Loom.API.Middleware;
@@ -14,6 +15,7 @@ public class GlobalExceptionHandler : IExceptionHandler
         {
             KeyNotFoundException => StatusCodes.Status404NotFound,
             InvalidOperationException => StatusCodes.Status400BadRequest,
+            ForbiddenException => StatusCodes.Status403Forbidden,
             UnauthorizedAccessException => StatusCodes.Status401Unauthorized,
             ArgumentException => StatusCodes.Status400BadRequest,
             _ => StatusCodes.Status500InternalServerError

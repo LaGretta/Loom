@@ -535,14 +535,12 @@ export const useChat = create<ChatState>((set, get) => ({
       // Patch only. Never insert: a chat we just left or deleted must not come back
       // because an in-flight refresh landed after the local drop.
       set((s) => (s.chats.some((c) => c.id === chatId)
-        // keep any locally-known description: ChatResponseDto doesn't carry one back
-        ? { chats: s.chats.map((c) => (c.id === chatId ? { ...fresh, description: c.description } : c)) }
+        ? { chats: s.chats.map((c) => (c.id === chatId ? fresh : c)) }
         : {}))
     } catch { /* keep what we have; the caller surfaces its own error */ }
   },
 
-  // PUT returns 204, so patch locally and re-read to confirm. `description` only ever
-  // lives client-side (see Chat.description) — the GET DTO has no field for it.
+  // PUT returns 204, so patch locally and re-read to confirm.
   updateChat: async (chatId, patch) => {
     await chatsApi.update(chatId, patch)
     set((s) => ({ chats: s.chats.map((c) => (c.id === chatId ? { ...c, ...patch } : c)) }))

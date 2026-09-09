@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronLeft, Phone, Video, Search, MoreVertical, CheckCheck, Check, Clock, AlertCircle, ArrowDown, CloudOff, CornerUpRight, Pin, Upload } from 'lucide-react'
+import { ChevronLeft, Phone, Video, Search, MoreVertical, UserPlus, CheckCheck, Check, Clock, AlertCircle, ArrowDown, CloudOff, CornerUpRight, Pin, Upload } from 'lucide-react'
 import { useChat } from '../store/chat'
 import { useAuth } from '../store/auth'
 import { chatsApi } from '../lib/api'
@@ -39,7 +39,7 @@ export function ConversationView({ chatId }: { chatId: number }) {
   const cancelUpload = useChat((s) => s.cancelUpload)
   const sendMedia = useChat((s) => s.sendMedia)
 
-  const [chat, setChat] = useState<Chat | null>(null)
+  const [fetchedChat, setFetchedChat] = useState<Chat | null>(null)
   const [members, setMembers] = useState<ChatMember[]>([])
   const [replyTo, setReplyTo] = useState<Message | null>(null)
   const [editing, setEditing] = useState<Message | null>(null)
@@ -83,10 +83,13 @@ export function ConversationView({ chatId }: { chatId: number }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatId])
 
+  // Prefer the store copy so the header follows live changes — a renamed group, a new
+  // avatar, a role change — instead of freezing whatever was true when the chat opened.
+  const storeChat = chats.find((c) => c.id === chatId) ?? null
+  const chat = storeChat ?? fetchedChat
+
   useEffect(() => {
-    const inList = chats.find((c) => c.id === chatId)
-    if (inList) setChat(inList)
-    else chatsApi.byId(chatId).then(setChat).catch(() => {})
+    if (!storeChat) chatsApi.byId(chatId).then(setFetchedChat).catch(() => {})
     chatsApi.members(chatId).then(setMembers).catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatId])
@@ -182,6 +185,10 @@ export function ConversationView({ chatId }: { chatId: number }) {
           <button className="icon-btn desktop-only" onClick={() => toast('Voice call — coming soon')} aria-label="Voice call"><Phone size={19} /></button>
           <button className="icon-btn" onClick={() => toast('Video call — coming soon')} aria-label="Video call"><Video size={19} /></button>
           <button className="icon-btn desktop-only" onClick={() => toast('In-chat search — coming soon')} aria-label="Search in chat"><Search size={19} /></button>
+          {!isDirect && (chat?.myRole === 'Owner' || chat?.myRole === 'Admin') && (
+            <button className="icon-btn" onClick={() => navigate(`/chat/${chatId}/invite`)}
+              aria-label="Invite people" title="Invite people"><UserPlus size={19} /></button>
+          )}
           <button className="icon-btn" onClick={() => navigate(`/chat/${chatId}/members`)} aria-label="Chat info"><MoreVertical size={19} /></button>
         </div>
       </div>

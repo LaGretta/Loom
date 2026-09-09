@@ -17,6 +17,7 @@ import { StickersScreen } from './StickersScreen'
 import { UserProfileScreen } from './UserProfileScreen'
 import { EditProfileScreen } from './EditProfileScreen'
 import { MembersScreen } from './MembersScreen'
+import { InviteScreen } from './InviteScreen'
 import { SavedScreen } from './SavedScreen'
 import { BurgerMenu } from './BurgerMenu'
 import { ConnectionStrip } from '../ui/ConnectionStrip'
@@ -145,6 +146,7 @@ function TabContent({ tab, pathname }: { tab: Tab; pathname: string }) {
         <Route path="/profile/edit" element={<EditProfileScreen />} />
         <Route path="/u/:id" element={<UserProfileScreen />} />
         <Route path="/chat/:id/members" element={<MembersScreen />} />
+        <Route path="/chat/:id/invite" element={<InviteScreen />} />
         <Route path="*" element={pathname === '/' || tab ? null : <Navigate to="/" replace />} />
       </Routes>
     </>

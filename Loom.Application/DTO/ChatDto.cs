@@ -19,6 +19,7 @@ public class ChatResponseDto
     public MessagePreviewDto? LastMessage { get; set; } 
     public int UnreadCount { get; set; }      
     public bool IsMuted { get; set; }
+    public string? Description { get; set; }
     public MemberRole MyRole { get; set; }
 }
 public class MessagePreviewDto

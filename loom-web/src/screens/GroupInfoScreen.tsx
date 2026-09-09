@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Camera, Pencil, ShieldCheck, ShieldOff, UserMinus, MessageSquare,
-  LogOut, Trash2, MoreVertical, Crown,
+  LogOut, Trash2, MoreVertical, Crown, UserPlus,
 } from 'lucide-react'
 import { Avatar } from '../ui/Avatar'
 import { AnchoredMenu } from '../ui/AnchoredMenu'
@@ -15,13 +15,18 @@ import { toast } from '../ui/toast'
 import { isOnline, type MemberRole } from '../lib/enums'
 import { presenceText } from '../ui/format'
 import { ChatMediaGallery } from './ChatMediaGallery'
+import { InvitePanel } from './InvitePanel'
 import type { Chat, ChatMember } from '../lib/types'
 
 const RANK: Record<MemberRole, number> = { Owner: 0, Admin: 1, Member: 2 }
 const isAdminPlus = (r: MemberRole | undefined) => r === 'Owner' || r === 'Admin'
 
-/** A permission denial. This API answers those with 401 (not 403) — accept both. */
-const isDenied = (e: unknown) => e instanceof ApiError && (e.status === 401 || e.status === 403)
+/**
+ * A permission denial — 403 since the backend's ForbiddenException landed. 401 is still
+ * accepted because ChatService.RemoveMember (kick) has not been migrated yet and answers
+ * its three checks with UnauthorizedAccessException → 401.
+ */
+const isDenied = (e: unknown) => e instanceof ApiError && (e.status === 403 || e.status === 401)
 const errText = (e: unknown, fallback: string) =>
   isDenied(e) ? ((e as ApiError).message || 'You don’t have permission to do that')
     : (e instanceof Error && e.message) || fallback
@@ -213,6 +218,13 @@ export function GroupInfoScreen({ chat }: { chat: Chat }) {
           <Switch on={!!chat.isMuted} onChange={() => void toggleMute(chatId)} />
         </div>
       </div>
+
+      {canEdit && (
+        <>
+          <div className="section-label"><UserPlus size={12} /> Invite people</div>
+          <InvitePanel chatId={chatId} chatTitle={title} />
+        </>
+      )}
 
       <div className="section-label">Shared</div>
       <ChatMediaGallery chatId={chatId} />
@@ -415,9 +427,7 @@ function EditGroupModal({ chat, kind, onClose, onSave }: {
 
   const trimmed = title.trim()
   const titleChanged = trimmed.length > 0 && trimmed !== (chat.title ?? '')
-  // The description is never returned by the API, so an empty box does NOT mean "no
-  // description" — sending "" would silently wipe one we can't see. Only send it when typed.
-  const descChanged = desc.trim().length > 0 && desc !== (chat.description ?? '')
+  const descChanged = desc.trim() !== (chat.description ?? '').trim()
   const dirty = titleChanged || descChanged
 
   const submit = async () => {
@@ -425,7 +435,7 @@ function EditGroupModal({ chat, kind, onClose, onSave }: {
     setSaving(true)
     const patch: { title?: string; description?: string } = {}
     if (titleChanged) patch.title = trimmed
-    if (descChanged) patch.description = desc.trim()
+    if (descChanged) patch.description = desc.trim()   // "" clears it
     await onSave(patch)
     setSaving(false)
   }
@@ -452,7 +462,6 @@ function EditGroupModal({ chat, kind, onClose, onSave }: {
         onChange={(e) => setDesc(e.target.value)}
         placeholder="What is this chat about?"
       />
-      <div className="field-hint">Leave blank to keep the current description.</div>
     </Modal>
   )
 }

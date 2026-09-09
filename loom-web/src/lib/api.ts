@@ -6,6 +6,7 @@ import {
 } from './enums'
 import {
   type AuthResponse, type UserProfile, type UserSummary, type Chat, type ChatMember,
+  type Invite, type InvitePreview,
   type Message, type Paged, type StarBalance, type StarTransaction, type GiftCatalogItem, type GiftInstance,
   type PremiumPlan, type PremiumStatus, type LoomEvent,
   normUser, normUserSummary, normChat, normMember, normMessage, normBalance, normTx,
@@ -55,7 +56,23 @@ export const chatsApi = {
     http.put<void>(`/api/chats/${id}/members/${userId}/role`, { role: MemberRoleE.ord(role) }),
   /** Owner only — deletes the whole chat. */
   remove: (id: number) => http.del<void>(`/api/chats/${id}`),
+
+  /* ----- invite links ----- */
+  /** Admin+ — nulls mean "never expires" / "unlimited uses". Rejected on Direct chats. */
+  createInvite: (id: number, b: { expiresInHours?: number | null; maxUses?: number | null }) =>
+    http.post<Invite>(`/api/chats/${id}/invites`, b),
+  invites: (id: number) => http.get<Invite[]>(`/api/chats/${id}/invites`),
+  revokeInvite: (code: string) => http.del<void>(`/api/chats/invites/${encodeURIComponent(code)}`),
+  /** What the person opening the link sees. 404 when invalid / expired / revoked. */
+  invitePreview: (code: string) => http.get<InvitePreview>(`/api/chats/invites/${encodeURIComponent(code)}`),
+  /** Idempotent: calling it as an existing member just returns the chat. */
+  joinByInvite: (code: string) =>
+    http.post<any>(`/api/chats/invites/${encodeURIComponent(code)}/join`).then(normChat),
 }
+
+/** The shareable URL for an invite code — absolute, so it works locally and deployed. */
+export const inviteLink = (code: string) =>
+  `${typeof window === 'undefined' ? '' : window.location.origin}/join/${code}`
 
 /* ---------------- Messages ---------------- */
 export const messagesApi = {
@@ -138,4 +155,4 @@ export async function logoutEverywhere() {
   tokenStore.clear()
 }
 
-export type { AuthResponse, UserProfile, UserSummary, Chat, ChatMember, Message, Paged, StarBalance, StarTransaction, GiftCatalogItem, GiftInstance, PremiumPlan, PremiumStatus, LoomEvent }
+export type { AuthResponse, UserProfile, UserSummary, Chat, ChatMember, Invite, InvitePreview, Message, Paged, StarBalance, StarTransaction, GiftCatalogItem, GiftInstance, PremiumPlan, PremiumStatus, LoomEvent }

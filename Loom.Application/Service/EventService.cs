@@ -1,4 +1,5 @@
 ﻿using Loom.Application.DTO;
+using Loom.Application.Exceptions;
 using Loom.Application.Interfaces;
 using Loom.Application.Interfaces.Repository;
 using Loom.Application.Interfaces.Service;
@@ -114,7 +115,7 @@ public class EventService : IEventService
     public async Task ShareToChat(int userId, int eventId, int chatId, CancellationToken ct)
     {
         if (!await _chatRepo.IsMemberAsync(chatId, userId, ct))
-            throw new UnauthorizedAccessException("Not a member of this chat");
+            throw new ForbiddenException("Not a member of this chat");
 
         var ev = await _eventRepo.GetByIdAsync(eventId, ct);
         if (ev == null)

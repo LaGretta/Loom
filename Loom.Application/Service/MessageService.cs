@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using Loom.Application.DTO;
+using Loom.Application.Exceptions;
 using Loom.Application.Interfaces;
 using Loom.Application.Interfaces.Repository;
 using Loom.Application.Interfaces.Security;
@@ -61,7 +62,8 @@ public class MessageService : IMessageService
         int userId, int chatId, int page, int pageSize, CancellationToken ct)
     {
         if (!await _chatRepo.IsMemberAsync(chatId, userId, ct))
-            throw new UnauthorizedAccessException("Not a member of this chat");
+            throw new ForbiddenException("Not a member of this chat");
+
 
         var (items, totalCount) = await _messageRepo.HistoryAsync(chatId, page, pageSize, ct);
 
@@ -79,7 +81,8 @@ public class MessageService : IMessageService
         if (message == null)
             throw new KeyNotFoundException("Message not found");
         if (message.SenderId != userId)
-            throw new UnauthorizedAccessException("Can only edit your own messages");
+            throw new ForbiddenException("Can only edit your own messages");
+
 
         message.Content = dto.Content;
         message.IsEdited = true;
@@ -96,7 +99,8 @@ public class MessageService : IMessageService
         if (message == null)
             throw new KeyNotFoundException("Message not found");
         if (message.SenderId != userId)
-            throw new UnauthorizedAccessException("Can only delete your own messages");
+            throw new ForbiddenException("Can only delete your own messages");
+
         
         message.IsDeleted = true;
         await _unitOfWork.SaveChangesAsync(ct);
@@ -164,7 +168,8 @@ public class MessageService : IMessageService
             throw new KeyNotFoundException("Message not found");
 
         if (!await _chatRepo.IsMemberAsync(message.ChatId, userId, ct))
-            throw new UnauthorizedAccessException("Not a member of this chat");
+            throw new ForbiddenException("Not a member of this chat");
+
 
         message.IsPinned = !message.IsPinned;
         await _unitOfWork.SaveChangesAsync(ct);
@@ -176,7 +181,8 @@ public class MessageService : IMessageService
     public async Task<List<MessageResponseDto>> GetPinned(int userId, int chatId, CancellationToken ct)
     {
         if (!await _chatRepo.IsMemberAsync(chatId, userId, ct))
-            throw new UnauthorizedAccessException("Not a member of this chat");
+            throw new ForbiddenException("Not a member of this chat");
+
 
         var pinned = await _messageRepo.GetPinnedAsync(chatId, ct);
         return pinned.Select(m => MapMessage(m, userId)).ToList();
@@ -189,9 +195,10 @@ public class MessageService : IMessageService
             throw new KeyNotFoundException("Message not found");
 
         if (!await _chatRepo.IsMemberAsync(original.ChatId, userId, ct))
-            throw new UnauthorizedAccessException("Not a member of the source chat");
+            throw new ForbiddenException("Not a member of the source chat");
+
         if (!await _chatRepo.IsMemberAsync(dto.TargetChatId, userId, ct))
-            throw new UnauthorizedAccessException("Not a member of the target chat");
+            throw new ForbiddenException("Not a member of the target chat");
         
         var originName = original.ForwardedFromSenderName ?? original.Sender.DisplayName;
         var forwarded = new Message

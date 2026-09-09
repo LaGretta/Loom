@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using FluentAssertions;
 using Loom.Application.DTO;
+using Loom.Application.Exceptions;
 using Loom.Application.Interfaces;
 using Loom.Application.Interfaces.Repository;
 using Loom.Application.Service;
@@ -41,7 +42,7 @@ public class MessageServiceTests
     }
 
     [Fact]
-    public async Task EditMessage_NotOwner_ThrowsUnauthorized()
+    public async Task EditMessage_NotOwner_ThrowsForbidden()
     {
         var message = new Message { Id = 10, SenderId = 999, ChatId = 5 };   
         _messageRepo.Setup(r => r.GetByIdAsync(10, It.IsAny<CancellationToken>())).ReturnsAsync(message);
@@ -49,6 +50,6 @@ public class MessageServiceTests
         var dto = new EditMessageDto { MessageId = 10, Content = "edited" };
         var act = () => _sut.EditMessage(1, dto, CancellationToken.None);   
 
-        await act.Should().ThrowAsync<UnauthorizedAccessException>();
+        await act.Should().ThrowAsync<ForbiddenException>();
     }
 }

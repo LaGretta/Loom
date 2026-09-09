@@ -45,7 +45,9 @@ export const useAuth = create<AuthState>((set, get) => ({
       // if the refresh token was rejected, cleared the tokens (so tokenStore.access is now
       // null). A transient error (server down, 5xx, network) must NOT wipe the session —
       // keep the cached identity so it recovers on the next load / when the API returns.
-      const authFailed = !tokenStore.access || (e instanceof ApiError && (e.status === 401 || e.status === 403))
+      // 401 only: since the backend's ForbiddenException landed, 403 means "authenticated
+      // but not allowed", which is no reason to throw the session away.
+      const authFailed = !tokenStore.access || (e instanceof ApiError && e.status === 401)
       if (authFailed) {
         tokenStore.clear()
         set({ ready: true, authed: false, me: null })

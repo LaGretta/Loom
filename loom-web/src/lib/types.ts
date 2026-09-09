@@ -61,8 +61,23 @@ export interface Chat {
   isMuted?: boolean
   /** My role in THIS chat — drives which management actions are offered. */
   myRole?: MemberRole
-  /** ⚠️ Not returned by ChatResponseDto; only ever set locally right after we PUT it. */
   description?: string | null
+}
+export interface Invite {
+  code: string
+  createdAt: string
+  expiresAt?: string | null      // null = never
+  maxUses?: number | null        // null = unlimited
+  uses: number
+  isActive: boolean
+}
+export interface InvitePreview {
+  chatId: number
+  title: string
+  description?: string | null
+  avatarUrl?: string | null
+  membersCount: number
+  alreadyMember: boolean
 }
 export interface ChatMember {
   userId: number

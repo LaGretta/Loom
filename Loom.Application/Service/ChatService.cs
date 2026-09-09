@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using Loom.Application.DTO;
+using Loom.Application.Exceptions;
 using Loom.Application.Interfaces;
 using Loom.Application.Interfaces.Repository;
 using Loom.Application.Interfaces.Security;
@@ -189,25 +190,26 @@ public class ChatService : IChatService
         return member.IsMuted;
     }
 
+    
 
     private async Task<MemberRole> RequireMember(int chatId, int userId, CancellationToken ct)
     {
         var member = await _chatRepo.GetMemberAsync(chatId, userId, ct);
         if (member == null)
-            throw new UnauthorizedAccessException("Not a member of this chat");
+            throw new ForbiddenException("Not a member of this chat");
         return member.Role;
     }
     private async Task RequireAdmin(int chatId, int userId, CancellationToken ct)
     {
         var role = await RequireMember(chatId, userId, ct);
         if (role == MemberRole.Member)
-            throw new UnauthorizedAccessException("Admin rights required");
+            throw new ForbiddenException("Admin rights required");
     }
     private async Task RequireOwner(int chatId, int userId, CancellationToken ct)
     {
         var role = await RequireMember(chatId, userId, ct);
         if (role != MemberRole.Owner)
-            throw new UnauthorizedAccessException("Owner rights required");
+            throw new ForbiddenException("Owner rights required");
     }
     
     
@@ -361,6 +363,7 @@ public class ChatService : IChatService
 
         return await GetChatById(userId, invite.ChatId, ct);
     }
+    
 
     
     
