@@ -12,7 +12,7 @@ export function StickersScreen() {
           <div className="section-label">{pack.name}</div>
           <div className="sticker-grid" style={{ padding: '0 16px 16px' }}>
             {pack.poses.map((p) => (
-              <button key={p} className="sticker-cell" onClick={() => toast('Open a chat to send stickers')}>
+              <button key={p} className="sticker-cell" onClick={() => toast('Open a chat to send stickers')} aria-label={`${pack.name} sticker`} title={pack.name}>
                 <CraftedObject id={p} kind="sticker" size={72} />
               </button>
             ))}

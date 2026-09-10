@@ -14,7 +14,7 @@ export function CallsPage() {
     <div className="pane" style={{ height: '100%' }}>
       <div className="pane-head">
         <div className="pane-title">Calls</div>
-        <button className="icon-btn" onClick={() => toast('New call — coming soon')} aria-label="New call"><Plus size={20} /></button>
+        <button className="icon-btn" onClick={() => toast('New call — coming soon')} aria-label="New call — coming soon" title="New call — coming soon" data-soon><Plus size={20} /></button>
       </div>
       <div className="pane-body" style={{ paddingBottom: 100 }}>
         {calls.length === 0 ? (
@@ -39,7 +39,7 @@ export function CallsPage() {
                       </div>
                     </div>
                     <span className="obj-ic"><CraftedObject id={c.video ? 's-video' : 's-phone'} size={30} /></span>
-                    <button className="icon-btn" onClick={() => toast('Calling — coming soon')} aria-label="Call"><Phone size={18} /></button>
+                    <button className="icon-btn" onClick={() => toast('Calling — coming soon')} aria-label="Call — coming soon" title="Call — coming soon" data-soon><Phone size={18} /></button>
                   </div>
                 )
               })}

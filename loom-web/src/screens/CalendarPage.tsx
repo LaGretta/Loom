@@ -123,7 +123,7 @@ function EventRow({ e, big }: { e: LoomEvent; big?: boolean }) {
           </div>
         </div>
         <button title="Share to a chat" onClick={(ev) => { ev.stopPropagation(); setShareOpen(true) }}
-          style={{ flex: '0 0 auto', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 13px', borderRadius: 11, border: '1px solid var(--accent)', background: 'color-mix(in srgb, var(--accent) 12%, transparent)', color: 'var(--accent)', fontSize: 12.5, fontWeight: 700 }}>
+          style={{ flex: '0 0 auto', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 13px', borderRadius: 11, border: '1px solid var(--accent)', background: 'color-mix(in srgb, var(--accent) 12%, transparent)', color: 'var(--accent-text)', fontSize: 12.5, fontWeight: 700 }}>
           <Send size={15} /> Share
         </button>
       </div>

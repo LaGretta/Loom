@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronLeft, Phone, Video, Search, MoreVertical, UserPlus, CheckCheck, Check, Clock, AlertCircle, ArrowDown, CloudOff, CornerUpRight, Pin, Upload } from 'lucide-react'
+import { ChevronLeft, Phone, Video, Search, MoreVertical, UserPlus, FileText, Film, CheckCheck, Check, Clock, AlertCircle, ArrowDown, CloudOff, CornerUpRight, Pin, Upload } from 'lucide-react'
 import { useChat } from '../store/chat'
 import { useAuth } from '../store/auth'
 import { chatsApi } from '../lib/api'
@@ -182,9 +182,9 @@ export function ConversationView({ chatId }: { chatId: number }) {
           </div>
         </button>
         <div className="h-actions">
-          <button className="icon-btn desktop-only" onClick={() => toast('Voice call — coming soon')} aria-label="Voice call"><Phone size={19} /></button>
-          <button className="icon-btn" onClick={() => toast('Video call — coming soon')} aria-label="Video call"><Video size={19} /></button>
-          <button className="icon-btn desktop-only" onClick={() => toast('In-chat search — coming soon')} aria-label="Search in chat"><Search size={19} /></button>
+          <button className="icon-btn desktop-only" onClick={() => toast('Voice call — coming soon')} aria-label="Voice call — coming soon" title="Voice call — coming soon" data-soon><Phone size={19} /></button>
+          <button className="icon-btn" onClick={() => toast('Video call — coming soon')} aria-label="Video call — coming soon" title="Video call — coming soon" data-soon><Video size={19} /></button>
+          <button className="icon-btn desktop-only" onClick={() => toast('In-chat search — coming soon')} aria-label="Search in chat — coming soon" title="Search in chat — coming soon" data-soon><Search size={19} /></button>
           {!isDirect && (chat?.myRole === 'Owner' || chat?.myRole === 'Admin') && (
             <button className="icon-btn" onClick={() => navigate(`/chat/${chatId}/invite`)}
               aria-label="Invite people" title="Invite people"><UserPlus size={19} /></button>
@@ -377,7 +377,7 @@ const Bubble = memo(function Bubble({ message, mine, showSender, grouped, sender
         {!mine && showSender ? <SenderAvatar name={senderName} id={message.senderId} src={senderAvatarUrl} onClick={() => onOpenProfile(message.senderId)} /> : (!mine ? <span style={{ width: 30, flex: '0 0 30px' }} /> : null)}
         <div style={{ position: 'relative' }} onDoubleClick={() => onReply(message)}
           onTouchStart={startPress} onTouchEnd={endPress} onTouchMove={endPress} onTouchCancel={endPress}>
-          {!mine && showSender && <div className="sender" style={{ color: 'var(--accent)', cursor: 'pointer', marginBottom: 3 }} onClick={() => onOpenProfile(message.senderId)}>{senderName}</div>}
+          {!mine && showSender && <div className="sender" style={{ color: 'var(--accent-text)', cursor: 'pointer', marginBottom: 3 }} onClick={() => onOpenProfile(message.senderId)}>{senderName}</div>}
           <CraftedObject id={message.content} kind="sticker" size={128} />
           {message.reactions.length > 0 && <ReactionRow message={message} mine={mine} onToggle={(e) => react(message.id, message.chatId, e)} />}
         </div>
@@ -396,7 +396,7 @@ const Bubble = memo(function Bubble({ message, mine, showSender, grouped, sender
       onContextMenu={(e) => { e.preventDefault(); onMenu(message, { x: e.clientX, y: e.clientY }) }}>
       {!mine && showSender ? <SenderAvatar name={senderName} id={message.senderId} src={senderAvatarUrl} onClick={() => onOpenProfile(message.senderId)} /> : (!mine ? <span style={{ width: 30, flex: '0 0 30px' }} /> : null)}
       <div className={`bubble ${message.pending ? 'pending' : ''} ${message.failed ? 'failed' : ''} ${message.queued ? 'queued' : ''} ${pressing ? 'is-pressing' : ''}`} onTouchStart={startPress} onTouchEnd={endPress} onTouchMove={endPress} onTouchCancel={endPress} onDoubleClick={() => onReply(message)}>
-        {!mine && showSender && <div className="sender" style={{ color: 'var(--accent)', cursor: 'pointer' }} onClick={() => onOpenProfile(message.senderId)}>{senderName}</div>}
+        {!mine && showSender && <div className="sender" style={{ color: 'var(--accent-text)', cursor: 'pointer' }} onClick={() => onOpenProfile(message.senderId)}>{senderName}</div>}
         {message.forwardedFromSenderName && (
           <div className="fwd-from"><CornerUpRight size={13} /> Forwarded from {message.forwardedFromSenderName}</div>
         )}
@@ -420,7 +420,7 @@ const Bubble = memo(function Bubble({ message, mine, showSender, grouped, sender
               ? <VoiceBubble src={message.content} seconds={message.voiceSeconds} mine={mine} />
             : isFile
               ? <a className="card-file" href={message.content} target="_blank" rel="noreferrer" style={{ color: 'inherit' }}>
-                  <span className="file-ic"><Check size={20} /></span>
+                  <span className="file-ic">{message.type === 'Video' ? <Film size={20} /> : <FileText size={20} />}</span>
                   <span><div className="fn ellipsis" style={{ maxWidth: 180 }}>{fileNameFromUrl(message.content)}</div><div className="fs">{message.type === 'Video' ? 'Video' : 'File'}</div></span>
                 </a>
               : <div className="text">{message.content}</div>}

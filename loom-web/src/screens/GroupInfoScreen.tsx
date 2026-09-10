@@ -215,7 +215,7 @@ export function GroupInfoScreen({ chat }: { chat: Chat }) {
               {chat.isMuted ? 'No sound, no badge, no notifications' : 'You’ll be notified about new messages'}
             </span>
           </span>
-          <Switch on={!!chat.isMuted} onChange={() => void toggleMute(chatId)} />
+          <Switch on={!!chat.isMuted} onChange={() => void toggleMute(chatId)} label="Mute notifications" />
         </div>
       </div>
 

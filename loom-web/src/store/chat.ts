@@ -138,6 +138,62 @@ let flushing = false
 const uploads = new Map<number, AbortController>()
 
 /**
+ * The original bytes behind an optimistic media/voice bubble, kept until it lands.
+ * Without this a retry had nothing to upload and fell back to POSTing the bubble's
+ * `blob:` object URL as the message body — which the server happily stores, and which
+ * is dead for every other client and for this one after a reload.
+ */
+interface PendingUpload { file: File; type: Message['type']; seconds?: number }
+const pendingUploads = new Map<number, PendingUpload>()
+
+const isLocalBlobUrl = (v: string) => typeof v === 'string' && v.startsWith('blob:')
+
+/**
+ * Upload the bytes, then post the message that points at the returned URL. Used for the
+ * first attempt AND for retries, so a retry repeats the real work instead of shortcutting
+ * to the message endpoint with whatever the bubble happened to be showing.
+ */
+async function uploadAndSend(chatId: number, tempId: number, up: PendingUpload): Promise<void> {
+  const ctrl = new AbortController()
+  uploads.set(tempId, ctrl)
+  const patch = (fields: Partial<Message>) => useChat.setState((s) => ({
+    messages: {
+      ...s.messages,
+      [chatId]: (s.messages[chatId] ?? []).map((m) => (m.id === tempId ? { ...m, ...fields } : m)),
+    },
+  }))
+  patch({ pending: true, failed: false, queued: false, uploadPct: 0 })
+  try {
+    const { url } = await mediaApi.uploadProgress(up.file, {
+      signal: ctrl.signal,
+      onProgress: (pct) => patch({ uploadPct: pct }),
+    })
+    const msg = await messagesApi.send({ chatId, content: url, type: up.type })
+    pendingUploads.delete(tempId)
+    useChat.setState((s) => ({
+      messages: {
+        ...s.messages,
+        [chatId]: (s.messages[chatId] ?? []).filter((m) => m.id !== tempId && m.id !== msg.id),
+      },
+    }))
+    useChat.getState().ingestMessage(up.seconds != null ? { ...msg, voiceSeconds: up.seconds } : msg)
+  } catch (e) {
+    if ((e as DOMException)?.name === 'AbortError') {
+      pendingUploads.delete(tempId)
+      useChat.setState((s) => ({
+        messages: { ...s.messages, [chatId]: (s.messages[chatId] ?? []).filter((m) => m.id !== tempId) },
+      }))
+      return
+    }
+    // Keep the bytes: the bubble stays retryable and the retry re-uploads for real.
+    patch({ pending: false, failed: true, uploadPct: undefined })
+    throw e
+  } finally {
+    uploads.delete(tempId)
+  }
+}
+
+/**
  * A 4xx is the server saying "no" — retrying changes nothing, so those fail outright.
  * Network errors, timeouts and 5xx are transport problems: those go to the outbox.
  */
@@ -297,12 +353,34 @@ export const useChat = create<ChatState>((set, get) => ({
     if (!ctrl) return
     ctrl.abort()
     uploads.delete(tempId)
+    pendingUploads.delete(tempId)
     void chatId
   },
 
   retrySend: async (chatId, tempId) => {
     const msg = (get().messages[chatId] ?? []).find((m) => m.id === tempId)
     if (!msg || (!msg.failed && !msg.queued)) return
+
+    // Media and voice must repeat the UPLOAD, not just the message POST — the bubble's
+    // content is a local object URL, which means nothing to the server or anyone else.
+    const up = pendingUploads.get(tempId)
+    if (up) {
+      try { await uploadAndSend(chatId, tempId, up) }
+      catch { toast(up.type === 'Voice' ? 'Could not send the voice message' : 'Could not send that file') }
+      return
+    }
+    if (isLocalBlobUrl(msg.content)) {
+      // Bytes are gone (e.g. the page was reloaded) — say so instead of sending a dead URL.
+      set((s) => ({
+        messages: {
+          ...s.messages,
+          [chatId]: (s.messages[chatId] ?? []).map((m) =>
+            m.id === tempId ? { ...m, pending: false, queued: false, failed: true } : m),
+        },
+      }))
+      toast('That attachment is no longer available — please add it again')
+      return
+    }
     removeFromOutbox(tempId)
     set((s) => ({
       messages: {
@@ -314,6 +392,7 @@ export const useChat = create<ChatState>((set, get) => ({
   },
 
   discardMessage: (chatId, tempId) => {
+    pendingUploads.delete(tempId)
     removeFromOutbox(tempId)
     set((s) => ({
       messages: { ...s.messages, [chatId]: (s.messages[chatId] ?? []).filter((m) => m.id !== tempId) },
@@ -324,45 +403,30 @@ export const useChat = create<ChatState>((set, get) => ({
   // while upload → send runs, then swap the temp message for the real one. So the sender
   // sees the image immediately instead of staring at nothing through two round-trips.
   sendMedia: async (chatId, file) => {
-    const tempId = -Date.now()
+    const tempId = nextTempId()
     const objectUrl = URL.createObjectURL(file)
     const isImg = file.type.startsWith('image/')
+    const type: Message['type'] = isImg ? 'Image' : 'File'
     const optimistic: Message = {
       id: tempId, chatId, senderId: myId() ?? 0, senderName: '', senderAvatarUrl: null,
-      content: objectUrl, type: isImg ? 'Image' : 'File', status: 'Sent', pending: true, uploadPct: 0,
+      content: objectUrl, type, status: 'Sent', pending: true, uploadPct: 0,
       replyToMessageId: null, replyToPreview: null, isEdited: false, isDeleted: false,
       sentAt: new Date().toISOString(), attachments: [], reactions: [],
     }
-    set((s) => ({ messages: { ...s.messages, [chatId]: [...(s.messages[chatId] ?? []), optimistic] } }))
-    const ctrl = new AbortController()
-    uploads.set(tempId, ctrl)
-    const onProgress = (pct: number) => set((s) => ({
-      messages: {
-        ...s.messages,
-        [chatId]: (s.messages[chatId] ?? []).map((m) => (m.id === tempId ? { ...m, uploadPct: pct } : m)),
-      },
+    set((s) => ({
+      messages: { ...s.messages, [chatId]: [...(s.messages[chatId] ?? []), optimistic] },
+      chats: bumpPreview(s.chats, optimistic),
     }))
+    pendingUploads.set(tempId, { file, type })
     try {
-      const { url } = await mediaApi.uploadProgress(file, { onProgress, signal: ctrl.signal })
-      const msg = await messagesApi.send({ chatId, content: url, type: isImg ? 'Image' : 'File' })
-      // Drop the temp bubble (and any duplicate the SignalR echo may have added), then ingest
-      // the real message so preview/unread/order update the same way as a normal send.
-      set((s) => ({
-        messages: {
-          ...s.messages,
-          [chatId]: (s.messages[chatId] ?? []).filter((m) => m.id !== tempId && m.id !== msg.id),
-        },
-      }))
-      get().ingestMessage(msg)
+      await uploadAndSend(chatId, tempId, { file, type })
     } catch (e) {
-      // A cancel simply removes the bubble; a real failure is reported by the caller.
-      set((s) => ({
-        messages: { ...s.messages, [chatId]: (s.messages[chatId] ?? []).filter((m) => m.id !== tempId) },
-      }))
-      if ((e as DOMException)?.name !== 'AbortError') throw e
+      // The bubble stays, marked failed, so it can be retried or discarded — it used to
+      // vanish, which read as "nothing happened".
+      toast('Could not send that file')
+      throw e
     } finally {
-      uploads.delete(tempId)
-      URL.revokeObjectURL(objectUrl)
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60000)
     }
   },
 
@@ -374,7 +438,7 @@ export const useChat = create<ChatState>((set, get) => ({
     const objectUrl = URL.createObjectURL(blob)
     const optimistic: Message = {
       id: tempId, chatId, senderId: myId() ?? 0, senderName: '', senderAvatarUrl: null,
-      content: objectUrl, type: 'Voice', status: 'Sent', pending: true,
+      content: objectUrl, type: 'Voice', status: 'Sent', pending: true, uploadPct: 0,
       replyToMessageId: null, replyToPreview: null, isEdited: false, isDeleted: false,
       sentAt: new Date().toISOString(), attachments: [], reactions: [],
       voiceSeconds: seconds,
@@ -383,43 +447,15 @@ export const useChat = create<ChatState>((set, get) => ({
       messages: { ...s.messages, [chatId]: [...(s.messages[chatId] ?? []), optimistic] },
       chats: bumpPreview(s.chats, optimistic),
     }))
-    const ctrl = new AbortController()
-    uploads.set(tempId, ctrl)
+    const ext = blob.type.includes('mp4') ? 'm4a' : blob.type.includes('ogg') ? 'ogg' : 'webm'
+    const file = new File([blob], `voice-${Date.now()}.${ext}`, { type: blob.type || 'audio/webm' })
+    const up: PendingUpload = { file, type: 'Voice', seconds }
+    pendingUploads.set(tempId, up)
     try {
-      const ext = blob.type.includes('mp4') ? 'm4a' : blob.type.includes('ogg') ? 'ogg' : 'webm'
-      const file = new File([blob], `voice-${Date.now()}.${ext}`, { type: blob.type || 'audio/webm' })
-      const { url } = await mediaApi.uploadProgress(file, {
-        signal: ctrl.signal,
-        onProgress: (pct) => set((s) => ({
-          messages: {
-            ...s.messages,
-            [chatId]: (s.messages[chatId] ?? []).map((m) => (m.id === tempId ? { ...m, uploadPct: pct } : m)),
-          },
-        })),
-      })
-      const msg = await messagesApi.send({ chatId, content: url, type: 'Voice' })
-      set((s) => ({
-        messages: {
-          ...s.messages,
-          [chatId]: (s.messages[chatId] ?? []).filter((m) => m.id !== tempId && m.id !== msg.id),
-        },
-      }))
-      get().ingestMessage({ ...msg, voiceSeconds: seconds })
-    } catch (e) {
-      if ((e as DOMException)?.name === 'AbortError') {
-        set((s) => ({ messages: { ...s.messages, [chatId]: (s.messages[chatId] ?? []).filter((m) => m.id !== tempId) } }))
-      } else {
-        set((s) => ({
-          messages: {
-            ...s.messages,
-            [chatId]: (s.messages[chatId] ?? []).map((m) =>
-              m.id === tempId ? { ...m, pending: false, failed: true, uploadPct: undefined } : m),
-          },
-        }))
-        toast('Could not send the voice message')
-      }
+      await uploadAndSend(chatId, tempId, up)
+    } catch {
+      toast('Could not send the voice message')
     } finally {
-      uploads.delete(tempId)
       window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60000)
     }
   },
@@ -899,6 +935,19 @@ export const useChat = create<ChatState>((set, get) => ({
  * already added). On failure the bubble stays put, flagged `failed` for retry.
  */
 async function deliver(chatId: number, draft: Message): Promise<void> {
+  // Belt and braces: a `blob:` URL is meaningful only inside this tab. Sending one would
+  // look like success and leave an unplayable message behind, so refuse outright.
+  if (isLocalBlobUrl(draft.content)) {
+    useChat.setState((s) => ({
+      messages: {
+        ...s.messages,
+        [chatId]: (s.messages[chatId] ?? []).map((m) =>
+          m.id === draft.id ? { ...m, pending: false, queued: false, failed: true } : m),
+      },
+    }))
+    toast('That attachment is no longer available — please add it again')
+    return
+  }
   try {
     const msg = await messagesApi.send({
       chatId,

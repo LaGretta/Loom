@@ -4,6 +4,7 @@ using Loom.Application.Interfaces.Security;
 using Loom.Infrastructure.Cache;
 using Loom.Infrastructure.Data;
 using Loom.Infrastructure.Media;
+using Loom.Infrastructure.Payments;
 using Loom.Infrastructure.Repository;
 using Loom.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
@@ -26,6 +27,9 @@ public static class DependencyInjection
         services.AddScoped<IStarRepository, StarRepository>();
         services.AddScoped<IGiftRepository, GiftRepository>();
         services.AddScoped<IEventRepository, EventRepository>();
+        
+        
+        services.AddScoped<IPaymentService, StripePaymentService>();
 
         services.AddScoped<IMediaStorage, CloudinaryStorage>();
 

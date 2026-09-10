@@ -126,7 +126,7 @@ export function EventCard({ event }: { event: LoomEvent }) {
         style={{
           marginTop: 8, width: '100%', textAlign: 'center', padding: '8px 0', borderRadius: 10, fontSize: 12, fontWeight: 700,
           display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-          color: event.inMyCalendar ? 'var(--success)' : 'var(--accent)', background: 'transparent',
+          color: event.inMyCalendar ? 'var(--success)' : 'var(--accent-text)', background: 'transparent',
           border: '1px solid var(--hairline)', opacity: event.inMyCalendar ? 0.85 : 1,
         }}>
         {event.inMyCalendar ? <><Check size={15} /> Added to calendar</> : <><CalendarPlus size={15} /> Add to my calendar</>}

@@ -18,6 +18,7 @@ import { UserProfileScreen } from './UserProfileScreen'
 import { EditProfileScreen } from './EditProfileScreen'
 import { MembersScreen } from './MembersScreen'
 import { InviteScreen } from './InviteScreen'
+import { ErrorBoundary } from '../ui/ErrorBoundary'
 import { SavedScreen } from './SavedScreen'
 import { BurgerMenu } from './BurgerMenu'
 import { ConnectionStrip } from '../ui/ConnectionStrip'
@@ -122,6 +123,7 @@ export function AppShell() {
 
 // Renders the base tab pane. Overlays are routed on top of it.
 function TabContent({ tab, pathname }: { tab: Tab; pathname: string }) {
+  const navigate = useNavigate()
   // Base pane persists behind overlays
   const base =
     tab === 'chats' ? <ChatsPage />
@@ -133,8 +135,14 @@ function TabContent({ tab, pathname }: { tab: Tab; pathname: string }) {
   return (
     <>
       {/* keyed so the fade replays on every pane switch (design §7) */}
-      <div key={tab} className="anim-fade" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>{base}</div>
-      {/* Overlay routes render above the base pane */}
+      {/* minHeight:0 — without it this flex child keeps its content height, the pane below
+          never becomes scrollable, and the tail of every tab screen is clipped away. */}
+      <div key={tab} className="anim-fade" style={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        <ErrorBoundary key={tab}>{base}</ErrorBoundary>
+      </div>
+      {/* Overlay routes render above the base pane. Each is boundaried on its own so a
+          broken overlay never blanks the conversation behind it. */}
+      <ErrorBoundary key={`ov:${pathname}`} onReset={() => navigate('/', { replace: true })}>
       <Routes>
         <Route path="/settings" element={<SettingsScreen />} />
         <Route path="/settings/appearance" element={<AppearanceScreen />} />
@@ -149,6 +157,7 @@ function TabContent({ tab, pathname }: { tab: Tab; pathname: string }) {
         <Route path="/chat/:id/invite" element={<InviteScreen />} />
         <Route path="*" element={pathname === '/' || tab ? null : <Navigate to="/" replace />} />
       </Routes>
+      </ErrorBoundary>
     </>
   )
 }

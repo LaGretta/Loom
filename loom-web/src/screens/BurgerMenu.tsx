@@ -71,7 +71,7 @@ export function BurgerMenu({ onClose, activeTab }: { onClose: () => void; active
             <div className="bm-sub ellipsis">@{me?.userName ?? 'you'}</div>
           </div>
         </button>
-        <button className="bm-item bm-muted" onClick={() => toast('Multi-account is coming soon')}>
+        <button className="bm-item bm-muted" data-soon title="Multi-account — coming soon" onClick={() => toast('Multi-account is coming soon')}>
           <span className="bm-ic"><UserPlus size={19} /></span>
           <span className="bm-label grow">Add account</span>
         </button>

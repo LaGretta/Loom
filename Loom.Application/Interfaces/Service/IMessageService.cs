@@ -13,4 +13,6 @@ public interface IMessageService
     Task<bool> TogglePin(int userId, int messageId, CancellationToken ct);
     Task<List<MessageResponseDto>> GetPinned(int userId, int chatId, CancellationToken ct);
     Task<MessageResponseDto> ForwardMessage(int userId, ForwardMessageDto dto, CancellationToken ct);
+    Task<PagedResponse<MessageSearchResultDto>> Search(
+        int userId, string query, int? chatId, int page, int pageSize, CancellationToken ct);
 }

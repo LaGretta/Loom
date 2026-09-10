@@ -52,4 +52,14 @@ public class MessagesController : BaseController
     [HttpPost("forward")]
     public async Task<IActionResult> Forward(ForwardMessageDto dto, CancellationToken ct) =>
         Ok(await _messageService.ForwardMessage(UserId, dto, ct));
+    
+    
+    [HttpGet("search")]
+    public async Task<IActionResult> Search(
+        [FromQuery] string query,
+        [FromQuery] int? chatId,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 30,
+        CancellationToken ct = default) =>
+        Ok(await _messageService.Search(UserId, query, chatId, page, pageSize, ct));
 }

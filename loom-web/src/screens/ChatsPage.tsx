@@ -208,7 +208,7 @@ function ChatRow({ chat, active, index, onClick, onMenu }: {
           <span className="time">{chatListTime(chat.lastMessage?.sentAt)}</span>
         </div>
         <div className="r2">
-          <span className="preview ellipsis" style={isTyping ? { color: 'var(--accent)' } : undefined}>
+          <span className="preview ellipsis" style={isTyping ? { color: 'var(--accent-text)' } : undefined}>
             {isTyping ? 'typing…' : previewText(chat)}
           </span>
           {chat.unreadCount > 0 && !chat.isMuted && <span className="badge">{chat.unreadCount > 99 ? '99+' : chat.unreadCount}</span>}

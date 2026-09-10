@@ -17,13 +17,28 @@ public class CloudinaryStorage : IMediaStorage
             config["Cloudinary:ApiSecret"]);
         _cloudinary = new Cloudinary(account);
     }
-    public async Task<string> UploadImageAsync(Stream fileStream, string fileName, CancellationToken ct)
+
+    public async Task<string> UploadAsync(Stream fileStream, string fileName, CancellationToken ct)
     {
-        var uploadParams = new ImageUploadParams
+        var ext = Path.GetExtension(fileName).ToLowerInvariant();
+        var isImage = ext is ".jpg" or ".jpeg" or ".png" or ".gif" or ".webp" or ".bmp" or ".svg";
+
+        if (isImage)
+        {
+            var imageParams = new ImageUploadParams
+            {
+                File = new FileDescription(fileName, fileStream)
+            };
+            var imageResult = await _cloudinary.UploadAsync(imageParams, ct);
+            return imageResult.SecureUrl.ToString();
+        }
+
+        // аудіо, відео та решта — Cloudinary обробляє їх як video-ресурс
+        var videoParams = new VideoUploadParams
         {
             File = new FileDescription(fileName, fileStream)
         };
-        var result = await _cloudinary.UploadAsync(uploadParams, ct);
-        return result.SecureUrl.ToString();
+        var videoResult = await _cloudinary.UploadAsync(videoParams, ct);
+        return videoResult.SecureUrl.ToString();
     }
 }

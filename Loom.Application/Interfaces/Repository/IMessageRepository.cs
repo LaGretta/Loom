@@ -18,4 +18,6 @@ public interface IMessageRepository
     Task<Message?> GetLastMessageAsync(int chatId, CancellationToken ct);
     Task<int> CountUnreadAsync(int chatId, int userId, DateTime? lastReadAt, CancellationToken ct);
     Task<List<Message>> GetPinnedAsync(int chatId, CancellationToken ct);
+    Task<(List<Message> items, int totalCount)> SearchAsync(
+        int userId, string query, int? chatId, int page, int pageSize, CancellationToken ct);
 }

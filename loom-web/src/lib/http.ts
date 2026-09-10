@@ -159,7 +159,14 @@ export function uploadWithProgress(
         try { resolve(JSON.parse(xhr.responseText)) }
         catch { reject(new ApiError(xhr.status, 'Malformed upload response')) }
       } else {
-        reject(new ApiError(xhr.status, `${xhr.status} ${xhr.statusText}`))
+        // Carry the server's own words: a bare "400 Bad Request" hides why an upload was
+        // refused (wrong resource type, size limit, missing file) and makes this a guess.
+        let detail = ''
+        try {
+          const body = JSON.parse(xhr.responseText)
+          detail = body?.detail || body?.title || body?.message || ''
+        } catch { detail = (xhr.responseText || '').slice(0, 200) }
+        reject(new ApiError(xhr.status, detail ? `${xhr.status}: ${detail}` : `${xhr.status} ${xhr.statusText}`))
       }
     }
     xhr.onerror = () => reject(new TypeError('Network error during upload'))

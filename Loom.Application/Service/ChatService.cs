@@ -99,6 +99,7 @@ public class ChatService : IChatService
             var myMembership = c.Members.FirstOrDefault(m => m.UserId == userId);
             dto.IsMuted = myMembership?.IsMuted ?? false;
             dto.MyRole = myMembership?.Role ?? MemberRole.Member;
+            dto.CanPost = c.Type != ChatType.Channel || myMembership?.Role != MemberRole.Member;
 
             dto.UnreadCount = myMembership?.IsMuted == true
                 ? 0
@@ -132,6 +133,8 @@ public class ChatService : IChatService
         var myMembership = chat.Members.FirstOrDefault(m => m.UserId == userId);
         dto.MyRole = myMembership?.Role ?? MemberRole.Member;
         dto.IsMuted = myMembership?.IsMuted ?? false;
+        dto.CanPost = chat.Type != ChatType.Channel
+                      || myMembership?.Role != MemberRole.Member;
         
         return dto;
     }

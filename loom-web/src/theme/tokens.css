@@ -21,16 +21,19 @@
   --elev:var(--shadow); --elevsm:var(--shadow-sm);
   --violet:var(--accent); --v1:var(--accent); --v2:var(--accent-2); --gold:var(--star-gold);
   --accent-grad:linear-gradient(135deg,var(--accent),var(--accent-2));
-  --link:var(--accent);
+  /* Accent used as TEXT on a neutral surface. The coloured light palettes need a darker
+     shade than the fill colour to clear 4.5:1 — see the per-theme overrides below. */
+  --accent-text:var(--accent);
+  --link:var(--accent-text);
 }
 
 /* Neutral bases */
 [data-mode="light"]{
   --bg:#F3F3F5; --surface:#FFFFFF; --surface-2:#FAFAFC;
   /* #86868F only reached 3.6:1 on white — secondary text must stay legible (>=4.5) */
-  --text:#17171B; --text-2:#6E6E76; --hairline:#EAEAEF; --bubble-in:#FFFFFF;
+  --text:#17171B; --text-2:#63636B; --hairline:#EAEAEF; --bubble-in:#FFFFFF;
   /* semantic colours darkened for light backgrounds (the :root values are tuned for dark) */
-  --green:#2A7F52; --success:#2A7F52; --danger:#D4374A;
+  --green:#237049; --success:#237049; --danger:#C22B3D;
   --shadow:0 4px 16px -3px rgba(18,18,26,.16),0 16px 40px -10px rgba(18,18,26,.13);
   --shadow-sm:0 1px 2px rgba(18,18,26,.06),0 5px 14px -4px rgba(18,18,26,.13);
   --glass:rgba(255,255,255,.72);
@@ -45,7 +48,7 @@
 
 /* THEME: Mono (default) — overrides neutrals for pure B/W */
 [data-theme="mono"][data-mode="light"]{
-  --bg:#FFFFFF; --surface:#FFFFFF; --surface-2:#F6F6F7; --text:#0A0A0B; --text-2:#6E6E76; --hairline:#EAEAEC;
+  --bg:#FFFFFF; --surface:#FFFFFF; --surface-2:#F6F6F7; --text:#0A0A0B; --text-2:#63636B; --hairline:#EAEAEC;
   --accent:#0A0A0B; --accent-2:#26262B; --on-accent:#FFFFFF; --ring:#0A0A0B;
   --bubble-in:#F2F2F3; --bubble-out:#111113; --bubble-out-text:#FFFFFF;
   --shadow:0 4px 16px -3px rgba(0,0,0,.18),0 16px 40px -10px rgba(0,0,0,.16);
@@ -66,13 +69,13 @@
 [data-theme="ink"][data-mode="dark"]{  --accent:#F0F0F2; --accent-2:#C9C9CF; --on-accent:#0F0F12; --bubble-out:#2E2E36; --bubble-out-text:#ECECEF; --ring:#F0F0F2; }
 
 /* THEME: Steel (blue) */
-[data-theme="steel"][data-mode="light"]{ --accent:#3563E0; --accent-2:#5B86FF; --on-accent:#FFFFFF; --bubble-out:#E4EBFC; --bubble-out-text:#152036; --ring:#3E6FF0; }
+[data-theme="steel"][data-mode="light"]{ --accent:#3563E0; --accent-2:#5B86FF; --on-accent:#FFFFFF; --bubble-out:#E4EBFC; --bubble-out-text:#152036; --ring:#3E6FF0; --accent-text:#2B4FB8; }
 [data-theme="steel"][data-mode="dark"]{  --accent:#5B86FF; --accent-2:#7AA0FF; --on-accent:#0F0F12; --bubble-out:#243049; --bubble-out-text:#ECECEF; --ring:#5B86FF; }
 
 /* THEME: Moss (green) */
-[data-theme="moss"][data-mode="light"]{ --accent:#2F7D5B; --accent-2:#3E9B70; --on-accent:#FFFFFF; --bubble-out:#E3F0E9; --bubble-out-text:#153027; --ring:#2F7D5B; }
+[data-theme="moss"][data-mode="light"]{ --accent:#2F7D5B; --accent-2:#3E9B70; --on-accent:#FFFFFF; --bubble-out:#E3F0E9; --bubble-out-text:#153027; --ring:#2F7D5B; --accent-text:#256B4C; }
 [data-theme="moss"][data-mode="dark"]{  --accent:#3E9B70; --accent-2:#57B487; --on-accent:#0F0F12; --bubble-out:#213A30; --bubble-out-text:#ECECEF; --ring:#3E9B70; }
 
 /* THEME: Amber (warm) */
-[data-theme="amber"][data-mode="light"]{ --accent:#D9822B; --accent-2:#E8A24C; --on-accent:#1A1206; --bubble-out:#F6E9D8; --bubble-out-text:#2A1E0C; --ring:#D9822B; }
+[data-theme="amber"][data-mode="light"]{ --accent:#D9822B; --accent-2:#E8A24C; --on-accent:#1A1206; --bubble-out:#F6E9D8; --bubble-out-text:#2A1E0C; --ring:#D9822B; --accent-text:#96500F; }
 [data-theme="amber"][data-mode="dark"]{  --accent:#E8A24C; --accent-2:#F2B968; --on-accent:#0F0F12; --bubble-out:#3A2C18; --bubble-out-text:#ECECEF; --ring:#E8A24C; }

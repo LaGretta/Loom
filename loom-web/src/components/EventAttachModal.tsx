@@ -116,7 +116,7 @@ function ShareExistingList({ chatId, alreadyShared, onShared }: { chatId: number
               <div className="lr-title">{e.title}</div>
               <div className="lr-sub">{d.toLocaleDateString([], { day: 'numeric', month: 'short' })} · {d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
             </div>
-            <span style={{ color: 'var(--accent)', fontWeight: 700, fontSize: 13 }}>{sharingId === e.id ? '…' : 'Share'}</span>
+            <span style={{ color: 'var(--accent-text)', fontWeight: 700, fontSize: 13 }}>{sharingId === e.id ? '…' : 'Share'}</span>
           </button>
         )
       })}

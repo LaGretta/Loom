@@ -94,7 +94,7 @@ export function NewChatModal({ onClose }: { onClose: () => void }) {
                   <div className="lr-title">{u.displayName}</div>
                   <div className="lr-sub">@{u.userName}</div>
                 </div>
-                {on && <span style={{ color: 'var(--accent)' }}><Check size={20} /></span>}
+                {on && <span style={{ color: 'var(--accent-text)' }}><Check size={20} /></span>}
               </button>
             )
           })}

@@ -58,3 +58,12 @@ public class ForwardMessageDto
     public int MessageId { get; set; }
     public int TargetChatId { get; set; }
 }
+public class MessageSearchResultDto
+{
+    public int MessageId { get; set; }
+    public int ChatId { get; set; }
+    public string ChatTitle { get; set; } = string.Empty;
+    public string SenderName { get; set; } = string.Empty;
+    public string Content { get; set; } = string.Empty;
+    public DateTime SentAt { get; set; }
+}

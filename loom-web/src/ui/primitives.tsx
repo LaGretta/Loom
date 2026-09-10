@@ -39,9 +39,14 @@ export function Segmented<T extends string>({ options, value, onChange }: {
   )
 }
 
-export function Switch({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
+/** `label` is not optional on purpose: a role="switch" with no name is announced as
+    "switch, on" and nothing else. */
+export function Switch({ on, onChange, label }: {
+  on: boolean; onChange: (v: boolean) => void; label: string
+}) {
   return (
-    <button className={`switch ${on ? 'on' : ''}`} onClick={() => onChange(!on)} role="switch" aria-checked={on}>
+    <button className={`switch ${on ? 'on' : ''}`} onClick={() => onChange(!on)}
+      role="switch" aria-checked={on} aria-label={label} title={label}>
       <span className="knob" />
     </button>
   )

@@ -30,6 +30,7 @@ public class LoomDbContext : DbContext
     public DbSet<CalendarEntry> CalendarEntries { get; set; }
     public DbSet<EventShare> EventShares { get; set; }
     public DbSet<ChatInvite> ChatInvites { get; set; }
+    public DbSet<StarPurchase> StarPurchases { get; set; }
 
     protected override void OnModelCreating(ModelBuilder mb)
     {
@@ -144,6 +145,11 @@ public class LoomDbContext : DbContext
             e.HasIndex(x => x.Code).IsUnique();
             e.HasOne(x => x.Chat).WithMany()
                 .HasForeignKey(x => x.ChatId).OnDelete(DeleteBehavior.Cascade);
+        });
+        
+        mb.Entity<StarPurchase>(e =>
+        {
+            e.HasIndex(x => x.SessionId).IsUnique();
         });
     }
 }

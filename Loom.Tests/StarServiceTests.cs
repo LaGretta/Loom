@@ -17,15 +17,17 @@ public class StarServiceTests
     private readonly Mock<IUserRepository> _userRepo = new();
     private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IMapper> _mapper = new();
+    private readonly Mock<IPaymentService> _payments = new();
     private readonly StarService _sut;
 
     public StarServiceTests()
     {
         _sut = new StarService(
-            _starRepo.Object, 
-            _mapper.Object,    
-            _uow.Object,         
-            _userRepo.Object);
+            _starRepo.Object,
+            _mapper.Object,
+            _uow.Object,
+            _userRepo.Object,
+            _payments.Object);
     }
 
     [Fact]

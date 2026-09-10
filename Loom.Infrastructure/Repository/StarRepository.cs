@@ -26,4 +26,10 @@ public class StarRepository : IStarRepository
             .ToListAsync(ct);
         return (items, totalCount);
     }
+    
+    public async Task<StarPurchase?> GetPurchaseBySessionAsync(string sessionId, CancellationToken ct) =>
+        await _context.StarPurchases.FirstOrDefaultAsync(p => p.SessionId == sessionId, ct);
+
+    public async Task AddPurchaseAsync(StarPurchase purchase, CancellationToken ct) =>
+        await _context.StarPurchases.AddAsync(purchase, ct);
 }

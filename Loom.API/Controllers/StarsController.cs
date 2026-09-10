@@ -20,4 +20,11 @@ public class StarsController : BaseController
     [HttpPost("purchase")]
     public async Task<IActionResult> Purchase(PurchaseStarsDto dto, CancellationToken ct) =>
         Ok(await _starService.PurchaseStars(UserId, dto, ct));
+    
+    [HttpGet("packs")]
+    public IActionResult GetPacks() => Ok(_starService.GetPacks());
+
+    [HttpPost("checkout")]
+    public async Task<IActionResult> CreateCheckout(CreateCheckoutDto dto, CancellationToken ct) =>
+        Ok(await _starService.CreateCheckout(UserId, dto, ct));
 }

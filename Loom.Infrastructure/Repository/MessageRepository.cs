@@ -1,6 +1,7 @@
 ﻿using Loom.Application.Interfaces.Repository;
 using Loom.Domain.Entities;
 using Loom.Domain.Entities.Chats;
+using Loom.Domain.Enums;
 using Loom.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -75,4 +76,30 @@ public class MessageRepository : IMessageRepository
             .Where(m => m.ChatId == chatId && m.IsPinned && !m.IsDeleted)
             .OrderByDescending(m => m.SentAt)
             .ToListAsync(ct);
+    
+    
+    public async Task<(List<Message> items, int totalCount)> SearchAsync(
+        int userId, string query, int? chatId, int page, int pageSize, CancellationToken ct)
+    {
+        var q = _context.Messages
+            .Include(m => m.Sender)
+            .Include(m => m.Chat).ThenInclude(c => c.Members).ThenInclude(mem => mem.User)
+            .Where(m => !m.IsDeleted
+                        && m.Type == MessageType.Text
+                        && EF.Functions.ILike(m.Content, $"%{query}%")
+                        && m.Chat.Members.Any(mem => mem.UserId == userId));
+
+        if (chatId.HasValue)
+            q = q.Where(m => m.ChatId == chatId.Value);
+
+        var totalCount = await q.CountAsync(ct);
+
+        var items = await q
+            .OrderByDescending(m => m.SentAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(ct);
+
+        return (items, totalCount);
+    }
 }

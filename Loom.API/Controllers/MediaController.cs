@@ -18,7 +18,7 @@ public class MediaController : BaseController
             return BadRequest("No file");
         
         await using var stream = file.OpenReadStream();
-        var url = await _storage.UploadImageAsync(stream, file.FileName, ct);
+        var url = await _storage.UploadAsync(stream, file.FileName, ct);
         return Ok(new { url });
     }
 }

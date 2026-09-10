@@ -51,7 +51,7 @@ export function ShareToChatModal({ event, onClose }: { event: LoomEvent; onClose
                       <div className="lr-title">{title}</div>
                       <div className="lr-sub">{c.type}{c.membersCount ? ` · ${c.membersCount} members` : ''}</div>
                     </div>
-                    <span style={{ color: 'var(--accent)' }}>{sharingId === c.id ? '…' : <Send size={18} />}</span>
+                    <span style={{ color: 'var(--accent-text)' }}>{sharingId === c.id ? '…' : <Send size={18} />}</span>
                   </button>
                 )
               })}

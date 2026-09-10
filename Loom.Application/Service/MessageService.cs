@@ -35,8 +35,17 @@ public class MessageService : IMessageService
 
     public async Task<MessageResponseDto> SendMessage(int userId, SendMessageDto dto, CancellationToken ct)
     {
-        if (!await _chatRepo.IsMemberAsync(dto.ChatId, userId, ct))
-            throw new UnauthorizedAccessException("Not a member of this chat");
+        var member = await _chatRepo.GetMemberAsync(dto.ChatId, userId, ct);
+        if (member == null)
+            throw new ForbiddenException("Not a member of this chat");
+
+        if (member.Role == MemberRole.Member)
+        {
+            var chat = await _chatRepo.GetByIdAsync(dto.ChatId, ct);
+            if (chat?.Type == ChatType.Channel)
+                throw new ForbiddenException("Only admins can post in a channel");
+        }
+
         var message = new Message
         {
             ChatId = dto.ChatId,
@@ -50,9 +59,7 @@ public class MessageService : IMessageService
 
         await _messageRepo.CreateAsync(message, ct);
         await _unitOfWork.SaveChangesAsync(ct);
-        
 
-        
         var dtos = MapMessage(message, userId);
         await _notifier.MessageSent(dto.ChatId, dtos);
         return dtos;
@@ -219,5 +226,33 @@ public class MessageService : IMessageService
         var response = MapMessage(forwarded, userId);
         await _notifier.MessageSent(dto.TargetChatId, response);
         return response;
+    }
+    
+    public async Task<PagedResponse<MessageSearchResultDto>> Search(
+        int userId, string query, int? chatId, int page, int pageSize, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(query) || query.Trim().Length < 2)
+            throw new ArgumentException("Search query must be at least 2 characters");
+
+        var (items, totalCount) = await _messageRepo.SearchAsync(
+            userId, query.Trim(), chatId, page, pageSize, ct);
+
+        return new PagedResponse<MessageSearchResultDto>
+        {
+            Items = items.Select(m => new MessageSearchResultDto
+            {
+                MessageId = m.Id,
+                ChatId = m.ChatId,
+                ChatTitle = m.Chat.Type == ChatType.Direct
+                    ? m.Chat.Members.FirstOrDefault(mem => mem.UserId != userId)?.User?.DisplayName ?? "Direct chat"
+                    : m.Chat.Title ?? string.Empty,
+                SenderName = m.Sender.DisplayName,
+                Content = m.Content,
+                SentAt = m.SentAt
+            }).ToList(),
+            Page = page,
+            PageSize = pageSize,
+            TotalCount = totalCount
+        };
     }
 }

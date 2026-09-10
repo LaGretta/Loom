@@ -2,5 +2,5 @@
 
 public interface IMediaStorage
 {
-    Task<string> UploadImageAsync(Stream fileStream, string fileName, CancellationToken ct);
+    Task<string> UploadAsync(Stream fileStream, string fileName, CancellationToken ct);
 }

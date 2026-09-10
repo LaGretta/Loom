@@ -36,7 +36,7 @@
 .bm-profile{ padding:8px 9px; }
 .bm-profile:hover,.bm-item:hover{ background:var(--surface-2); }
 .bm-item.active{ background:color-mix(in srgb, var(--accent) 12%, transparent); }
-.bm-item.active .bm-label{ color:var(--accent); font-weight:650; }
+.bm-item.active .bm-label{ color:var(--accent-text); font-weight:650; }
 .bm-id{ min-width:0; }
 .bm-name{ font-size:14.5px; font-weight:700; letter-spacing:-.01em; line-height:1.2; }
 .bm-sub{ font-size:12px; color:var(--text-2); line-height:1.25; }
@@ -48,7 +48,7 @@
 .bm-danger .bm-label,.bm-danger .bm-ic{ color:var(--danger); }
 
 /* generic pane column */
-.pane{ display:flex; flex-direction:column; min-width:0; height:100%; }
+.pane{ display:flex; flex-direction:column; min-width:0; min-height:0; height:100%; }
 .list-col{ width:var(--list-w,340px); flex:0 0 var(--list-w,340px); border-right:1px solid var(--hairline); background:var(--surface); }
 
 /* draggable column resizer (desktop) */
@@ -61,7 +61,7 @@
 /* pane header */
 .pane-head{ padding:16px 18px 10px; display:flex; align-items:center; justify-content:space-between; }
 .pane-title{ font-size:22px; font-weight:800; letter-spacing:-.5px; }
-.pane-body{ flex:1; overflow-y:auto; overflow-x:hidden; }
+.pane-body{ flex:1 1 auto; min-height:0; overflow-y:auto; overflow-x:hidden; }
 
 /* search */
 .search{
@@ -114,7 +114,7 @@
   background:transparent; color:var(--text-2); transition:background .14s ease, color .14s ease;
 }
 .icon-btn:hover{ background:var(--surface-2); color:var(--text); }
-.icon-btn.accent{ color:var(--accent); }
+.icon-btn.accent{ color:var(--accent-text); }
 
 /* ----------------- message thread ----------------- */
 .thread-wrap{ position:relative; flex:1; min-height:0; display:flex; flex-direction:column; overflow:hidden; }
@@ -190,7 +190,7 @@
   transition:background .16s ease;
 }
 .reply-quote:hover{ background:color-mix(in srgb, var(--accent) 18%, transparent); }
-.reply-quote .who{ font-size:12px; font-weight:700; color:var(--accent); max-width:100%; }
+.reply-quote .who{ font-size:12px; font-weight:700; color:currentColor; opacity:.92; max-width:100%; }
 .reply-quote .qt{ font-size:12.5px; opacity:.8; max-width:100%; }
 .msg-row.out .reply-quote{ border-left-color:currentColor; background:rgba(255,255,255,.14); }
 .msg-row.out .reply-quote:hover{ background:rgba(255,255,255,.22); }
@@ -269,7 +269,7 @@
 .btn:active{ transform:scale(.98); }
 .btn-primary{ background:var(--accent); color:var(--on-accent); box-shadow:inset 0 1px 0 rgba(255,255,255,.22), 0 6px 16px -6px rgba(0,0,0,.3); }
 .btn-secondary{ background:var(--surface-2); border-color:var(--hairline); color:var(--text); }
-.btn-ghost{ background:transparent; color:var(--accent); }
+.btn-ghost{ background:transparent; color:var(--accent-text); }
 .btn-danger{ background:transparent; color:var(--danger); }
 .btn-danger.fill{ background:var(--danger); color:#fff; }
 .btn-block{ width:100%; }
@@ -317,9 +317,13 @@ textarea.input{ height:auto; padding:12px 14px; resize:vertical; min-height:80px
 .obj-cell{ display:flex; flex-direction:column; align-items:center; gap:6px; padding:8px 4px; border-radius:14px; background:transparent; border:none; color:var(--text); transition:background .14s ease; }
 .obj-cell:hover{ background:var(--surface-2); }
 .obj-cell .lbl{ font-size:12px; color:var(--text-2); }
-.sticker-grid{ display:grid; grid-template-columns:repeat(5,1fr); gap:6px; }
-.sticker-grid.c4{ grid-template-columns:repeat(4,1fr); }
-.sticker-cell{ background:transparent; border:none; border-radius:14px; padding:6px; cursor:pointer; }
+.sticker-grid{ display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:6px; }
+.sticker-grid.c4{ grid-template-columns:repeat(4,minmax(0,1fr)); }
+.sticker-cell{ background:transparent; border:none; border-radius:14px; padding:6px; cursor:pointer; min-width:0; }
+/* The crafted SVG carries a fixed pixel size; let it shrink to the cell so five columns
+   still fit a 375px screen instead of running off the right edge. */
+.sticker-cell > span{ width:100% !important; height:auto !important; aspect-ratio:1; }
+.sticker-cell svg{ width:100%; height:100%; }
 .sticker-cell:hover{ background:var(--surface-2); }
 .sticker-cell svg{ animation:lmBob 2.8s ease-in-out infinite; }
 
@@ -344,7 +348,7 @@ textarea.input{ height:auto; padding:12px 14px; resize:vertical; min-height:80px
 .ctx-item + .ctx-item{ border-top:1px solid var(--hairline); }
 
 /* toast */
-.toast-host{ position:fixed; left:0; right:0; bottom:calc(24px + env(safe-area-inset-bottom)); z-index:200; display:flex; flex-direction:column; align-items:center; gap:8px; pointer-events:none; }
+.toast-host{ position:fixed; left:0; right:0; bottom:calc(24px + env(safe-area-inset-bottom)); z-index:500; display:flex; flex-direction:column; align-items:center; gap:8px; pointer-events:none; }
 .toast{ background:var(--glass); backdrop-filter:blur(24px) saturate(1.4); -webkit-backdrop-filter:blur(24px) saturate(1.4); border:1px solid var(--hairline); color:var(--text); border-radius:20px; padding:10px 18px; font-size:13.5px; font-weight:600; box-shadow:var(--shadow); }
 
 /* ----------------- generic list rows / cards ----------------- */
@@ -378,7 +382,7 @@ textarea.input{ height:auto; padding:12px 14px; resize:vertical; min-height:80px
 }
 .nav-item{ flex:1 1 0; min-width:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; border:none; background:transparent; color:var(--text-2); padding:6px 2px; border-radius:12px; }
 .nav-item .nl{ font-size:10px; font-weight:600; }
-.nav-item.active{ color:var(--accent); }
+.nav-item.active{ color:var(--accent-text); }
 /* height reserved so scrolling content is never hidden behind the fixed bar */
 :root{ --bottomnav-h:60px; }
 
@@ -592,19 +596,19 @@ textarea.input{ height:auto; padding:12px 14px; resize:vertical; min-height:80px
 .pin-rail{ display:flex; flex-direction:column; gap:2px; width:2.5px; flex:none; align-self:stretch; }
 .pin-rail span{ flex:1; border-radius:2px; background:var(--hairline); }
 .pin-rail span.on{ background:var(--accent); }
-.pinned-bar .pin-ic{ color:var(--accent); flex:none; }
+.pinned-bar .pin-ic{ color:var(--accent-text); flex:none; }
 .pin-body{
   flex:1; min-width:0; border:none; background:transparent; cursor:pointer;
   text-align:left; display:flex; flex-direction:column; gap:1px; color:inherit; padding:0;
 }
-.pin-title{ font-size:11.5px; font-weight:700; color:var(--accent); }
+.pin-title{ font-size:11.5px; font-weight:700; color:var(--accent-text); }
 .pin-text{ font-size:12.5px; color:var(--text-2); max-width:100%; }
 .pin-off{ width:30px; height:30px; flex:none; border-radius:50%; }
 .pin-mark{ opacity:.6; }
 
 .fwd-from{
   display:flex; align-items:center; gap:5px; margin-bottom:3px;
-  font-size:11.5px; font-weight:700; color:var(--accent); opacity:.9;
+  font-size:11.5px; font-weight:700; color:currentColor; opacity:.85;
 }
 .msg-row.out .fwd-from{ color:currentColor; opacity:.75; }
 
@@ -1015,3 +1019,8 @@ button:disabled{ cursor:not-allowed; opacity:.55; }
 .join-desc{ margin:0; font-size:14.5px; line-height:1.5; color:var(--text); }
 .join-sub{ margin:0 0 8px; font-size:13.5px; color:var(--text-2); }
 .join-card .btn{ width:100%; }
+
+/* Not-yet-available actions: visible (so the shape of the product is honest) but clearly
+   inert, rather than looking fully live until you click and get a toast. */
+[data-soon]{ opacity:.55; }   /* matches button:disabled, so 'inert' reads the same everywhere */
+[data-soon]:hover{ opacity:.72; }

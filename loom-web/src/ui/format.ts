@@ -93,6 +93,7 @@ export function fileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-export function fmtNumber(n: number): string {
-  return n.toLocaleString('en-US')
+export function fmtNumber(n: number | null | undefined): string {
+  // A renamed or absent field should read as 0, not take the whole screen down.
+  return Number.isFinite(n as number) ? (n as number).toLocaleString('en-US') : '0'
 }

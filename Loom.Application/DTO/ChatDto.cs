@@ -20,6 +20,7 @@ public class ChatResponseDto
     public int UnreadCount { get; set; }      
     public bool IsMuted { get; set; }
     public string? Description { get; set; }
+    public bool CanPost { get; set; }
     public MemberRole MyRole { get; set; }
 }
 public class MessagePreviewDto

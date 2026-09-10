@@ -44,7 +44,7 @@ export function NotificationSettings() {
             <span className="lr-title">Sound</span>
             <span className="lr-sub" style={{ display: 'block' }}>A short ping for messages in other chats</span>
           </span>
-          <Switch on={sound} onChange={setSound} />
+          <Switch on={sound} onChange={setSound} label="Notification sound" />
         </div>
 
         <div className="list-row" style={{ cursor: 'default' }}>
@@ -58,7 +58,7 @@ export function NotificationSettings() {
                     : 'You’ll be asked the first time one is needed'}
             </span>
           </span>
-          <Switch on={browser && supported && !denied} onChange={(v) => void enableBrowser(v)} />
+          <Switch on={browser && supported && !denied} onChange={(v) => void enableBrowser(v)} label="Browser notifications" />
         </div>
       </div>
 

@@ -43,7 +43,7 @@ export function ProfileHub() {
           {/* gifts showcase */}
           <div className="section-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
             <span>Gifts · {gifts.length}</span>
-            {gifts.length > 0 && <span style={{ color: 'var(--accent)', cursor: 'pointer' }} onClick={() => navigate('/gifts')}>See all</span>}
+            {gifts.length > 0 && <span style={{ color: 'var(--accent-text)', cursor: 'pointer' }} onClick={() => navigate('/gifts')}>See all</span>}
           </div>
           {gifts.length === 0
             ? <div className="muted" style={{ padding: '4px 18px 14px', fontSize: 13.5 }}>No gifts yet. Send or receive collectible gifts to build your showcase.</div>

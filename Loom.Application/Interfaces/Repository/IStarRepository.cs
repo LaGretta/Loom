@@ -7,4 +7,6 @@ public interface IStarRepository
 {
     Task AddTransactionAsync(StarTransaction transaction,CancellationToken ct);
     Task<(List<StarTransaction> items, int totalCount)> HistoryAsync(int userid , int page , int pageSize , CancellationToken ct);
+    Task<StarPurchase?> GetPurchaseBySessionAsync(string sessionId, CancellationToken ct);
+    Task AddPurchaseAsync(StarPurchase purchase, CancellationToken ct);
 }

@@ -146,8 +146,9 @@ export function Composer({ chatId, replyTo, onCancelReply, editing, onCancelEdit
     setBusy(true)
     // sendMedia shows the photo instantly (local blob) then reconciles with the real message.
     // Backend Message.content carries the URL; type flags media. // TODO(backend): attachment metadata endpoint
+    // sendMedia reports its own failure and leaves a retryable bubble behind.
     try { await sendMedia(chatId, file) }
-    catch { toast('Upload failed') }
+    catch { /* already surfaced */ }
     finally { setBusy(false) }
   }
 
@@ -168,7 +169,7 @@ export function Composer({ chatId, replyTo, onCancelReply, editing, onCancelEdit
           <div className="composer-reply" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ width: 3, alignSelf: 'stretch', background: 'var(--accent)', borderRadius: 3 }} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)' }}>{editing ? 'Editing' : `Reply to ${replyTo?.senderName}`}</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent-text)' }}>{editing ? 'Editing' : `Reply to ${replyTo?.senderName}`}</div>
               <div className="ellipsis muted" style={{ fontSize: 12.5 }}>{(editing ?? replyTo)?.content}</div>
             </div>
             <button className="icon-btn" onClick={() => { onCancelReply?.(); onCancelEdit?.() }} aria-label="Cancel"><X size={18} /></button>
@@ -285,7 +286,7 @@ export function StickerPickerBody({ onPick }: { onPick: (id: string) => void }) 
           <div className="section-label" style={{ padding: '10px 6px 6px' }}>{pack.name}</div>
           <div className="sticker-grid">
             {pack.poses.map((p) => (
-              <button key={p} className="sticker-cell" onClick={() => onPick(p)}>
+              <button key={p} className="sticker-cell" onClick={() => onPick(p)} aria-label={`Send ${pack.name} sticker`} title={pack.name}>
                 <CraftedObject id={p} kind="sticker" size={64} />
               </button>
             ))}
