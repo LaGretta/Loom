@@ -1,10 +1,12 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, lazy, Suspense } from 'react'
 import { FileText, Download } from 'lucide-react'
 import { useChat } from '../store/chat'
 import { Segmented, EmptyState } from '../ui/primitives'
-import { Lightbox, type LightboxItem } from '../ui/Lightbox'
-import { fileSize } from '../ui/format'
+import { type LightboxItem } from '../ui/Lightbox'
+import { fileSize, thumbUrl } from '../ui/format'
 import type { Message } from '../lib/types'
+
+const Lightbox = lazy(() => import('../ui/Lightbox').then((m) => ({ default: m.Lightbox })))
 
 type Tab = 'media' | 'files'
 
@@ -94,7 +96,7 @@ export function ChatMediaGallery({ chatId }: { chatId: number }) {
               <div className="media-grid">
                 {g.items.map((m) => (
                   <button key={m.id} className="media-cell" onClick={() => setOpenId(m.id)} title="Open photo">
-                    <img src={m.content} alt="" loading="lazy" decoding="async" />
+                    <img src={thumbUrl(m.content, 160)} alt="" width={160} height={160} loading="lazy" decoding="async" />
                   </button>
                 ))}
               </div>
@@ -120,7 +122,9 @@ export function ChatMediaGallery({ chatId }: { chatId: number }) {
       )}
 
       {openId != null && lightboxItems.length > 0 && (
-        <Lightbox items={lightboxItems} startId={openId} onClose={() => setOpenId(null)} />
+        <Suspense fallback={null}>
+          <Lightbox items={lightboxItems} startId={openId} onClose={() => setOpenId(null)} />
+        </Suspense>
       )}
     </>
   )

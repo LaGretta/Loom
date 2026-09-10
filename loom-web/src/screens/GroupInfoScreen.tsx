@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Camera, Pencil, ShieldCheck, ShieldOff, UserMinus, MessageSquare,
@@ -14,9 +14,10 @@ import { useAuth } from '../store/auth'
 import { toast } from '../ui/toast'
 import { isOnline, type MemberRole } from '../lib/enums'
 import { presenceText } from '../ui/format'
-import { ChatMediaGallery } from './ChatMediaGallery'
 import { InvitePanel } from './InvitePanel'
 import type { Chat, ChatMember } from '../lib/types'
+
+const ChatMediaGallery = lazy(() => import('./ChatMediaGallery').then((m) => ({ default: m.ChatMediaGallery })))
 
 const RANK: Record<MemberRole, number> = { Owner: 0, Admin: 1, Member: 2 }
 const isAdminPlus = (r: MemberRole | undefined) => r === 'Owner' || r === 'Admin'
@@ -66,7 +67,7 @@ export function GroupInfoScreen({ chat }: { chat: Chat }) {
   const loadMembers = useCallback(async () => {
     try {
       setLoadError(false)
-      setMembers(await chatsApi.members(chatId))
+      setMembers(await chatsApi.members(chatId, { fresh: true }))
     } catch {
       setMembers(null)
       setLoadError(true)
@@ -227,7 +228,7 @@ export function GroupInfoScreen({ chat }: { chat: Chat }) {
       )}
 
       <div className="section-label">Shared</div>
-      <ChatMediaGallery chatId={chatId} />
+      <Suspense fallback={<CenterSpinner />}><ChatMediaGallery chatId={chatId} /></Suspense>
 
       {/* ---------------- members ---------------- */}
       <div className="section-label">Members{sorted ? ` · ${sorted.length}` : ''}</div>

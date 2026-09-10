@@ -1,6 +1,6 @@
-import { useRef, useState } from 'react'
+import { memo, useCallback, useRef, useState } from 'react'
 import { useLocation, useMatch, useNavigate } from 'react-router-dom'
-import { Search, PenSquare, BellOff } from 'lucide-react'
+import { Search, PenSquare, BellOff, Megaphone } from 'lucide-react'
 import { useChat, previewText } from '../store/chat'
 import { useNav } from '../store/nav'
 import { useAuth } from '../store/auth'
@@ -102,6 +102,9 @@ function ChatListPane({ activeId }: { activeId: number | null }) {
   const [q, setQ] = useState('')
   const [composeOpen, setComposeOpen] = useState(false)
   const [rowMenu, setRowMenu] = useState<{ chat: Chat; x: number; y: number } | null>(null)
+  // stable identities, or every render hands memo(ChatRow) new props
+  const openRow = useCallback((id: number) => navigate(`/chat/${id}`), [navigate])
+  const openRowMenu = useCallback((chat: Chat, pt: { x: number; y: number }) => setRowMenu({ chat, ...pt }), [])
 
   const filtered = q.trim()
     ? chats.filter((c) => (c.title ?? '').toLowerCase().includes(q.toLowerCase()) || (c.lastMessage?.content ?? '').toLowerCase().includes(q.toLowerCase()))
@@ -163,8 +166,7 @@ function ChatListPane({ activeId }: { activeId: number | null }) {
                 />
               : filtered.map((c, i) => (
               <ChatRow key={c.id} chat={c} active={c.id === activeId} index={i}
-                onClick={() => navigate(`/chat/${c.id}`)}
-                onMenu={(pt) => setRowMenu({ chat: c, ...pt })} />
+                onOpen={openRow} onMenu={openRowMenu} />
             ))}
       </div>
 
@@ -174,15 +176,20 @@ function ChatListPane({ activeId }: { activeId: number | null }) {
   )
 }
 
-function ChatRow({ chat, active, index, onClick, onMenu }: {
-  chat: Chat; active: boolean; index: number; onClick: () => void
-  onMenu: (pt: { x: number; y: number }) => void
+/**
+ * memo + a per-chat typing selector: `bumpPreview` replaces only the chat that changed,
+ * so an incoming message now re-renders one row instead of the whole list. Subscribing to
+ * the whole `presence` map (which this row never used) re-rendered every row on every
+ * presence tick — gone.
+ */
+const ChatRow = memo(function ChatRow({ chat, active, index, onOpen, onMenu }: {
+  chat: Chat; active: boolean; index: number
+  onOpen: (id: number) => void
+  onMenu: (chat: Chat, pt: { x: number; y: number }) => void
 }) {
+  const onClick = () => onOpen(chat.id)
   const press = useRef<number>()
-  const presence = useChat((s) => s.presence)
   const typing = useChat((s) => s.typing[chat.id])
-  const online = chat.type === 'Direct' && false // presence is per-user; direct-chat online resolved in convo. Keep dot subtle here.
-  void presence; void online
   const title = chat.title || (chat.type === 'Direct' ? 'Direct chat' : chat.type)
   const isTyping = typing && typing.length > 0
 
@@ -191,8 +198,8 @@ function ChatRow({ chat, active, index, onClick, onMenu }: {
       className={`chat-row row-in ${active ? 'active' : ''}`}
       style={{ animationDelay: `${Math.min(index, 12) * 0.03}s` }}
       onClick={onClick}
-      onContextMenu={(e) => { e.preventDefault(); onMenu({ x: e.clientX, y: e.clientY }) }}
-      onTouchStart={(e) => { const t = e.touches[0]; const pt = { x: t.clientX, y: t.clientY }; press.current = window.setTimeout(() => onMenu(pt), 480) }}
+      onContextMenu={(e) => { e.preventDefault(); onMenu(chat, { x: e.clientX, y: e.clientY }) }}
+      onTouchStart={(e) => { const t = e.touches[0]; const pt = { x: t.clientX, y: t.clientY }; press.current = window.setTimeout(() => onMenu(chat, pt), 480) }}
       onTouchEnd={() => window.clearTimeout(press.current)}
       onTouchMove={() => window.clearTimeout(press.current)}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } }}
@@ -203,6 +210,7 @@ function ChatRow({ chat, active, index, onClick, onMenu }: {
       <Avatar name={title} id={chat.id} src={chat.avatarUrl} size={48} />
       <div className="col">
         <div className="r1">
+          {chat.type === 'Channel' && <Megaphone size={13} className="kind-ic" aria-label="Channel" />}
           <span className="name ellipsis">{title}</span>
           {chat.isMuted && <BellOff size={13} className="muted-ic" aria-label="Muted" />}
           <span className="time">{chatListTime(chat.lastMessage?.sentAt)}</span>
@@ -216,4 +224,4 @@ function ChatRow({ chat, active, index, onClick, onMenu }: {
       </div>
     </div>
   )
-}
+})

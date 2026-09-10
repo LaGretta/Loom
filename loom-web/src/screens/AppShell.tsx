@@ -1,10 +1,9 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, lazy, Suspense } from 'react'
 import { Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom'
 import { MessageCircle, Calendar, Users, Phone, User } from 'lucide-react'
 import { useChat } from '../store/chat'
 import { useNav } from '../store/nav'
 import { ChatsPage } from './ChatsPage'
-import { CalendarPage } from './CalendarPage'
 import { ContactsPage } from './ContactsPage'
 import { CallsPage } from './CallsPage'
 import { ProfileHub } from './ProfileHub'
@@ -18,13 +17,17 @@ import { UserProfileScreen } from './UserProfileScreen'
 import { EditProfileScreen } from './EditProfileScreen'
 import { MembersScreen } from './MembersScreen'
 import { InviteScreen } from './InviteScreen'
+import { SearchOverlay } from './SearchOverlay'
 import { ErrorBoundary } from '../ui/ErrorBoundary'
+import { CenterSpinner } from '../ui/primitives'
 import { SavedScreen } from './SavedScreen'
 import { BurgerMenu } from './BurgerMenu'
 import { ConnectionStrip } from '../ui/ConnectionStrip'
 import { useKeyboardInset } from '../ui/useKeyboardInset'
 import { useHotkeys } from '../ui/useHotkeys'
 import { useNotifications } from '../ui/useNotifications'
+
+const CalendarPage = lazy(() => import('./CalendarPage').then((m) => ({ default: m.CalendarPage })))
 
 type Tab = 'chats' | 'calendar' | 'contacts' | 'calls' | 'profile'
 
@@ -65,6 +68,8 @@ export function AppShell() {
   const { pathname } = useLocation()
   const loadChats = useChat((s) => s.loadChats)
   const menuOpen = useNav((s) => s.menuOpen)
+  const search = useNav((s) => s.search)
+  const closeSearch = useNav((s) => s.closeSearch)
   const openMenu = useNav((s) => s.openMenu)
   const closeMenu = useNav((s) => s.closeMenu)
 
@@ -117,6 +122,9 @@ export function AppShell() {
 
       {/* Burger menu popover */}
       {menuOpen && <BurgerMenu onClose={closeMenu} activeTab={activeTab} />}
+
+      {/* Message search (Cmd/Ctrl+K globally, or scoped from a chat header) */}
+      {search && <SearchOverlay chatId={search.chatId ?? null} chatTitle={search.chatTitle} onClose={closeSearch} />}
     </div>
   )
 }
@@ -127,7 +135,7 @@ function TabContent({ tab, pathname }: { tab: Tab; pathname: string }) {
   // Base pane persists behind overlays
   const base =
     tab === 'chats' ? <ChatsPage />
-      : tab === 'calendar' ? <CalendarPage />
+      : tab === 'calendar' ? <Suspense fallback={<CenterSpinner />}><CalendarPage /></Suspense>
         : tab === 'contacts' ? <ContactsPage />
           : tab === 'calls' ? <CallsPage />
             : <ProfileHub />

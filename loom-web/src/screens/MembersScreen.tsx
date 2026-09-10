@@ -1,15 +1,16 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, lazy, Suspense } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Overlay } from '../ui/Overlay'
 import { Avatar } from '../ui/Avatar'
 import { Button, CenterSpinner, EmptyState, Switch } from '../ui/primitives'
 import { chatsApi } from '../lib/api'
-import { ChatMediaGallery } from './ChatMediaGallery'
 import { GroupInfoScreen } from './GroupInfoScreen'
 import { useChat } from '../store/chat'
 import { isOnline } from '../lib/enums'
 import { presenceText } from '../ui/format'
 import type { ChatMember } from '../lib/types'
+
+const ChatMediaGallery = lazy(() => import('./ChatMediaGallery').then((m) => ({ default: m.ChatMediaGallery })))
 
 export function MembersScreen() {
   const { id } = useParams()
@@ -79,7 +80,7 @@ function DirectInfo({ chatId }: { chatId: number }) {
       </div>
 
       <div className="section-label">Shared</div>
-      <ChatMediaGallery chatId={chatId} />
+      <Suspense fallback={<CenterSpinner />}><ChatMediaGallery chatId={chatId} /></Suspense>
 
       <div className="section-label">Members{members ? ` · ${members.length}` : ''}</div>
       {!members ? <CenterSpinner /> : (

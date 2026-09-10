@@ -1,9 +1,8 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, lazy, Suspense } from 'react'
 import { Paperclip, ArrowUp, Mic, X, Reply, Forward, Copy, Trash2, Pencil, Trash, Pin, PinOff, Smile, Plus } from 'lucide-react'
 import { Sheet } from '../ui/primitives'
 import { useDismiss } from '../ui/useDismiss'
 import { useFocusTrap } from '../ui/useFocusTrap'
-import { EmojiPicker } from '../ui/EmojiPicker'
 import { CraftedObject } from '../ui/CraftedObject'
 import { useChat } from '../store/chat'
 import { messagesApi } from '../lib/api'
@@ -13,6 +12,8 @@ import { useVoiceRecorder } from '../ui/useVoiceRecorder'
 import { LOOMI_POSES, STAR_POSES } from '../assets/loom'
 import { EventAttachModal } from '../components/EventAttachModal'
 import type { Message } from '../lib/types'
+
+const EmojiPicker = lazy(() => import('../ui/EmojiPicker').then((m) => ({ default: m.EmojiPicker })))
 
 const QUICK_REACTIONS = ['❤️', '👍', '🔥', '😂', '😮']
 
@@ -272,7 +273,9 @@ export function Composer({ chatId, replyTo, onCancelReply, editing, onCancelEdit
       )}
 
       {emojiAt && (
-        <EmojiPicker at={emojiAt} onPick={insertEmoji} onClose={() => { setEmojiAt(null); setTimeout(() => taRef.current?.focus(), 0) }} closeOnPick={false} />
+        <Suspense fallback={null}>
+          <EmojiPicker at={emojiAt} onPick={insertEmoji} onClose={() => { setEmojiAt(null); setTimeout(() => taRef.current?.focus(), 0) }} closeOnPick={false} />
+        </Suspense>
       )}
     </>
   )
@@ -355,11 +358,13 @@ export function MessageContextMenu({ message, mine, at, onClose, onReply, onEdit
   // The quick row is the shortcut; "+" swaps the whole menu for the full picker at the same point.
   if (pickerOpen) {
     return (
-      <EmojiPicker
-        at={at}
-        onPick={(e) => void react(message.id, message.chatId, e)}
-        onClose={onClose}
-      />
+      <Suspense fallback={null}>
+        <EmojiPicker
+          at={at}
+          onPick={(e) => void react(message.id, message.chatId, e)}
+          onClose={onClose}
+        />
+      </Suspense>
     )
   }
 

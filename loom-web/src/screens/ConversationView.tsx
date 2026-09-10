@@ -1,7 +1,8 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { ChevronLeft, Phone, Video, Search, MoreVertical, UserPlus, FileText, Film, CheckCheck, Check, Clock, AlertCircle, ArrowDown, CloudOff, CornerUpRight, Pin, Upload } from 'lucide-react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { ChevronLeft, Phone, Video, Search, MoreVertical, UserPlus, FileText, Film, Megaphone, CheckCheck, Check, Clock, AlertCircle, ArrowDown, CloudOff, CornerUpRight, Pin, Upload } from 'lucide-react'
 import { useChat } from '../store/chat'
+import { useNav } from '../store/nav'
 import { useAuth } from '../store/auth'
 import { chatsApi } from '../lib/api'
 import { Avatar } from '../ui/Avatar'
@@ -9,22 +10,26 @@ import { ThreadSkeleton } from '../ui/Skeleton'
 import { VoiceBubble } from '../ui/VoiceBubble'
 import { CraftedObject } from '../ui/CraftedObject'
 import { giftByName } from '../assets/loom'
+import { useGiftsReady } from '../ui/useGifts'
 import { Wallpaper } from '../ui/Wallpaper'
 import { timeShort, dayLabel, fileSize, presenceText } from '../ui/format'
 import { isOnline, type UserStatus } from '../lib/enums'
 import type { Chat, ChatMember, Message, LoomEvent } from '../lib/types'
 import { Composer, MessageContextMenu } from './conversation-parts'
 import { useThreadScroll } from './useThreadScroll'
-import { Lightbox, type LightboxItem } from '../ui/Lightbox'
+import { type LightboxItem } from '../ui/Lightbox'
 import { PinnedBar } from './PinnedBar'
 import { ForwardModal } from './ForwardModal'
 import { EventCard } from '../components/EventCard'
+import { thumbUrl } from '../ui/format'
 import { toast } from '../ui/toast'
+
+const Lightbox = lazy(() => import('../ui/Lightbox').then((m) => ({ default: m.Lightbox })))
 
 export function ConversationView({ chatId }: { chatId: number }) {
   const navigate = useNavigate()
+  const openSearch = useNav((s) => s.openSearch)
   const me = useAuth((s) => s.me)
-  const chats = useChat((s) => s.chats)
   const messages = useChat((s) => s.messages[chatId])
   const events = useChat((s) => s.events[chatId])
   const loading = useChat((s) => s.msgLoading[chatId])
@@ -85,7 +90,9 @@ export function ConversationView({ chatId }: { chatId: number }) {
 
   // Prefer the store copy so the header follows live changes — a renamed group, a new
   // avatar, a role change — instead of freezing whatever was true when the chat opened.
-  const storeChat = chats.find((c) => c.id === chatId) ?? null
+  // Select just THIS chat: subscribing to the whole `chats` array re-rendered the open
+  // conversation every time any other chat received a message (bumpPreview replaces it).
+  const storeChat = useChat((s) => s.chats.find((c) => c.id === chatId)) ?? null
   const chat = storeChat ?? fetchedChat
 
   useEffect(() => {
@@ -105,8 +112,11 @@ export function ConversationView({ chatId }: { chatId: number }) {
       // ChatMember carries no lastSeenAt; the live presence entry (p) supplies it when offline.
       return { text: presenceText(other.status as UserStatus, null, p), online }
     }
+    const count = chat?.membersCount ?? members.length
+    // A channel is a broadcast, not a room — "N subscribers", and no online tally.
+    if (chat?.type === 'Channel') return { text: `${count} ${count === 1 ? 'subscriber' : 'subscribers'}`, online: false }
     const onlineCount = members.filter((m) => (presence[m.userId]?.online ?? isOnline(m.status as UserStatus))).length
-    return { text: `${chat?.membersCount ?? members.length} members${onlineCount ? `, ${onlineCount} online` : ''}`, online: false }
+    return { text: `${count} members${onlineCount ? `, ${onlineCount} online` : ''}`, online: false }
   }, [isDirect, other, presence, members, chat])
 
   // Messages that arrive AFTER the chat was opened animate in; existing history does not.
@@ -127,6 +137,39 @@ export function ConversationView({ chatId }: { chatId: number }) {
     el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash')
     window.setTimeout(() => el.classList.remove('flash'), 1200)
   }, [threadRef])
+
+  /**
+   * A search hit may live far up the history. Page backwards (bounded) until the message
+   * is in the store, then jump — instead of "isn't loaded yet" for anything older.
+   */
+  const location = useLocation()
+  const jumpTarget = (location.state as { jumpTo?: number } | null)?.jumpTo ?? null
+  const jumpedFor = useRef<number | null>(null)
+  useEffect(() => {
+    if (jumpTarget == null || jumpedFor.current === jumpTarget) return
+    let cancelled = false
+    const attempt = async (left: number): Promise<void> => {
+      if (cancelled) return
+      const here = useChat.getState().messages[chatId] ?? []
+      if (here.some((m) => m.id === jumpTarget)) {
+        jumpedFor.current = jumpTarget
+        // let the row paint before scrolling to it; a timeout (not rAF) so this still
+        // works when the tab is in the background and rAF is paused
+        window.setTimeout(() => jumpToMessage(jumpTarget), 40)
+        return
+      }
+      if (left <= 0 || !useChat.getState().msgHasMore[chatId]) {
+        jumpedFor.current = jumpTarget
+        toast('That message is further back than we could load')
+        return
+      }
+      await useChat.getState().loadMore(chatId)
+      return attempt(left - 1)
+    }
+    void attempt(8)
+    return () => { cancelled = true }
+  }, [jumpTarget, chatId, jumpToMessage])
+
   // Stable handlers: inline closures would change identity every render and defeat
   // the memo on Bubble, re-rendering the whole thread on each incoming message.
   const handleReply = useCallback((m: Message) => { setEditing(null); setReplyTo(m) }, [])
@@ -184,7 +227,8 @@ export function ConversationView({ chatId }: { chatId: number }) {
         <div className="h-actions">
           <button className="icon-btn desktop-only" onClick={() => toast('Voice call — coming soon')} aria-label="Voice call — coming soon" title="Voice call — coming soon" data-soon><Phone size={19} /></button>
           <button className="icon-btn" onClick={() => toast('Video call — coming soon')} aria-label="Video call — coming soon" title="Video call — coming soon" data-soon><Video size={19} /></button>
-          <button className="icon-btn desktop-only" onClick={() => toast('In-chat search — coming soon')} aria-label="Search in chat — coming soon" title="Search in chat — coming soon" data-soon><Search size={19} /></button>
+          <button className="icon-btn" onClick={() => openSearch({ chatId, chatTitle: title })}
+            aria-label="Search in this chat" title="Search in this chat"><Search size={19} /></button>
           {!isDirect && (chat?.myRole === 'Owner' || chat?.myRole === 'Admin') && (
             <button className="icon-btn" onClick={() => navigate(`/chat/${chatId}/invite`)}
               aria-label="Invite people" title="Invite people"><UserPlus size={19} /></button>
@@ -239,16 +283,25 @@ export function ConversationView({ chatId }: { chatId: number }) {
         </button>
       )}
 
-      <Composer
-        chatId={chatId}
-        replyTo={replyTo}
-        onCancelReply={() => setReplyTo(null)}
-        editing={editing}
-        onCancelEdit={() => setEditing(null)}
-      />
+      {chat && chat.canPost === false ? (
+        <div className="readonly-bar" role="status">
+          <Megaphone size={15} />
+          <span>Only admins can post in this channel</span>
+        </div>
+      ) : (
+        <Composer
+          chatId={chatId}
+          replyTo={replyTo}
+          onCancelReply={() => setReplyTo(null)}
+          editing={editing}
+          onCancelEdit={() => setEditing(null)}
+        />
+      )}
 
       {lightboxId != null && photos.length > 0 && (
-        <Lightbox items={photos} startId={lightboxId} onClose={() => setLightboxId(null)} />
+        <Suspense fallback={null}>
+          <Lightbox items={photos} startId={lightboxId} onClose={() => setLightboxId(null)} />
+        </Suspense>
       )}
 
       {forwardFor && <ForwardModal message={forwardFor} onClose={() => setForwardFor(null)} />}
@@ -287,6 +340,7 @@ function SenderAvatar({ name, id, src, onClick }: { name: string; id: number; sr
 
 /* Gift-type message → rendered as a gift card (crafted 3D object by name), not plain text. */
 function GiftBubbleCard({ giftName, mine, senderName, isNew }: { giftName: string; mine: boolean; senderName: string; isNew: boolean }) {
+  useGiftsReady()                    // the gift library is code-split; repaint on arrival
   const meta = giftByName(giftName)
   const backdrop = meta ? `radial-gradient(120% 100% at 50% 18%, ${meta.g1}, ${meta.g2})` : 'var(--surface-2)'
   const legendary = meta?.r === 'LEGENDARY'
@@ -332,7 +386,8 @@ function ChatImage({ src, onOpen }: { src: string; onOpen: () => void }) {
   return (
     <div className={`card-photo ${loaded ? 'is-loaded' : ''}`} role="button" tabIndex={0} title="Open photo"
       onClick={onOpen} onKeyDown={(e) => { if (e.key === 'Enter') onOpen() }}>
-      <img src={src} alt="" decoding="async" onLoad={() => setLoaded(true)} onError={() => setLoaded(true)} />
+      {/* the bubble is at most ~320px wide, so never pull the full-size original */}
+      <img src={thumbUrl(src, 360)} alt="" decoding="async" onLoad={() => setLoaded(true)} onError={() => setLoaded(true)} />
     </div>
   )
 }

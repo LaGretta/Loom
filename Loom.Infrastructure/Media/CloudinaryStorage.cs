@@ -7,6 +7,12 @@ namespace Loom.Infrastructure.Media;
 
 public class CloudinaryStorage : IMediaStorage
 {
+    private static readonly string[] ImageExtensions =
+        { ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg" };
+
+    private static readonly string[] MediaExtensions =
+        { ".webm", ".mp3", ".m4a", ".ogg", ".wav", ".aac", ".mp4", ".mov", ".avi", ".mkv" };
+
     private readonly Cloudinary _cloudinary;
 
     public CloudinaryStorage(IConfiguration config)
@@ -21,9 +27,8 @@ public class CloudinaryStorage : IMediaStorage
     public async Task<string> UploadAsync(Stream fileStream, string fileName, CancellationToken ct)
     {
         var ext = Path.GetExtension(fileName).ToLowerInvariant();
-        var isImage = ext is ".jpg" or ".jpeg" or ".png" or ".gif" or ".webp" or ".bmp" or ".svg";
 
-        if (isImage)
+        if (ImageExtensions.Contains(ext))
         {
             var imageParams = new ImageUploadParams
             {
@@ -33,12 +38,23 @@ public class CloudinaryStorage : IMediaStorage
             return imageResult.SecureUrl.ToString();
         }
 
-        // аудіо, відео та решта — Cloudinary обробляє їх як video-ресурс
-        var videoParams = new VideoUploadParams
+        if (MediaExtensions.Contains(ext))
+        {
+            // Cloudinary handles audio under the video resource type as well.
+            var videoParams = new VideoUploadParams
+            {
+                File = new FileDescription(fileName, fileStream)
+            };
+            var videoResult = await _cloudinary.UploadAsync(videoParams, ct);
+            return videoResult.SecureUrl.ToString();
+        }
+        
+        
+        var rawParams = new RawUploadParams
         {
             File = new FileDescription(fileName, fileStream)
         };
-        var videoResult = await _cloudinary.UploadAsync(videoParams, ct);
-        return videoResult.SecureUrl.ToString();
+        var rawResult = await _cloudinary.UploadAsync(rawParams, "raw", ct);
+        return rawResult.SecureUrl.ToString();
     }
 }

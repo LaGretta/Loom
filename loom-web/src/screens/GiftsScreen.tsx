@@ -5,7 +5,7 @@ import { Modal, Button, Segmented, Spinner } from '../ui/primitives'
 import { GiftsSkeleton } from '../ui/Skeleton'
 import { Avatar } from '../ui/Avatar'
 import { giftsApi, starsApi, usersApi } from '../lib/api'
-import { giftByName, GIFT_CATALOG } from '../assets/loom'
+import { giftByName, GIFT_CATALOG, loadGifts } from '../assets/loom'
 import type { GiftMeta } from '../assets/loom'
 import { fmtNumber } from '../ui/format'
 import { CountUp } from '../ui/CountUp'
@@ -267,3 +267,4 @@ function CraftPanel({ owned }: { owned: GiftInstance[] }) {
 
 // keep GIFT_CATALOG import referenced for design parity
 void GIFT_CATALOG
+void loadGifts()

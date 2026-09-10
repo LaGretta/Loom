@@ -6,7 +6,7 @@ import {
 } from './enums'
 import {
   type AuthResponse, type UserProfile, type UserSummary, type Chat, type ChatMember,
-  type Invite, type InvitePreview,
+  type Invite, type InvitePreview, type MessageSearchResult,
   type Message, type Paged, type StarBalance, type StarTransaction, type GiftCatalogItem, type GiftInstance,
   type PremiumPlan, type PremiumStatus, type LoomEvent,
   normUser, normUserSummary, normChat, normMember, normMessage, normBalance, normTx,
@@ -36,6 +36,9 @@ export const usersApi = {
 }
 
 /* ---------------- Chats ---------------- */
+const MEMBER_TTL = 15_000
+const memberCache = new Map<number, { at: number; p: Promise<ChatMember[]> }>()
+
 export const chatsApi = {
   create: (b: { type: ChatType; title?: string | null; description?: string | null; memberUserIds: number[] }) =>
     http.post<any>('/api/chats', { ...b, type: ChatTypeE.ord(b.type) }).then(normChat),
@@ -43,7 +46,21 @@ export const chatsApi = {
   byId: (id: number) => http.get<any>(`/api/chats/${id}`).then(normChat),
   join: (id: number) => http.post<void>(`/api/chats/${id}/join`),
   leave: (id: number) => http.post<void>(`/api/chats/${id}/leave`),
-  members: (id: number) => http.get<any[]>(`/api/chats/${id}/members`).then((r) => r.map(normMember)),
+  /**
+   * Opening a group's info fires this from three places at once (the conversation header,
+   * the info screen, the invite panel's parent). Share one in-flight request and hold the
+   * answer briefly so they don't each hit the network.
+   */
+  members: (id: number, opts?: { fresh?: boolean }) => {
+    if (opts?.fresh) memberCache.delete(id)
+    const hit = memberCache.get(id)
+    if (hit && Date.now() - hit.at < MEMBER_TTL) return hit.p
+    const p = http.get<any[]>(`/api/chats/${id}/members`).then((r) => r.map(normMember))
+    p.catch(() => memberCache.delete(id))          // never cache a failure
+    memberCache.set(id, { at: Date.now(), p })
+    return p
+  },
+  invalidateMembers: (id: number) => { memberCache.delete(id) },
   read: (id: number) => http.post<void>(`/api/chats/${id}/read`),
   mute: (id: number) => http.post<{ isMuted: boolean }>(`/api/chats/${id}/mute`),
   /** Admin+ — group/channel only; the API rejects Direct chats with 400. Returns 204. */
@@ -94,6 +111,12 @@ export const messagesApi = {
   react: (b: { messageId: number; emoji: string }) => http.post<any>('/api/messages/reaction', b),
   pin: (id: number) => http.post<{ isPinned: boolean }>(`/api/messages/${id}/pin`),
   pinned: (chatId: number) => http.get<any[]>(`/api/messages/chat/${chatId}/pinned`).then((r) => r.map(normMessage)),
+  /** Server requires >= 2 chars, matches text messages only, and scopes to my chats. */
+  search: (b: { query: string; chatId?: number | null; page?: number; pageSize?: number }) => {
+    const q = new URLSearchParams({ query: b.query, page: String(b.page ?? 1), pageSize: String(b.pageSize ?? 30) })
+    if (b.chatId != null) q.set('chatId', String(b.chatId))
+    return http.get<Paged<MessageSearchResult>>(`/api/messages/search?${q}`)
+  },
   forward: (b: { messageId: number; targetChatId: number }) =>
     http.post<any>('/api/messages/forward', b).then(normMessage),
 }
@@ -155,4 +178,4 @@ export async function logoutEverywhere() {
   tokenStore.clear()
 }
 
-export type { AuthResponse, UserProfile, UserSummary, Chat, ChatMember, Invite, InvitePreview, Message, Paged, StarBalance, StarTransaction, GiftCatalogItem, GiftInstance, PremiumPlan, PremiumStatus, LoomEvent }
+export type { AuthResponse, UserProfile, UserSummary, Chat, ChatMember, Invite, InvitePreview, MessageSearchResult, Message, Paged, StarBalance, StarTransaction, GiftCatalogItem, GiftInstance, PremiumPlan, PremiumStatus, LoomEvent }

@@ -1024,3 +1024,122 @@ button:disabled{ cursor:not-allowed; opacity:.55; }
    inert, rather than looking fully live until you click and get a toast. */
 [data-soon]{ opacity:.55; }   /* matches button:disabled, so 'inert' reads the same everywhere */
 [data-soon]:hover{ opacity:.72; }
+
+/* ----------------- shared content column for tab screens ----------------- */
+/* Mobile keeps the old 620px cap (which is simply "full width" on a phone). */
+.pane-col{ max-width:620px; margin:0 auto; }
+
+/* ================= desktop polish (>=901px) ================= */
+@media (min-width: 901px){
+  /* Tab screens used to be a phone column stretched wide: a 1380px search bar sitting
+     over a 620px list. Head, search and body now share one measured column. */
+  .tabpane{ --pane-col:900px; }
+  .tabpane > .pane-head{
+    width:100%; max-width:calc(var(--pane-col) + 64px); margin:0 auto;
+    padding:26px 32px 12px;
+  }
+  .tabpane > .pane-head .pane-title{ font-size:28px; letter-spacing:-.6px; }
+  .tabpane > .search{
+    width:100%; max-width:calc(var(--pane-col) + 64px); margin:0 auto 18px;
+    height:46px; border-radius:14px; padding:0 16px; font-size:15px;
+  }
+  .tabpane > .search input{ font-size:15px; }
+  .tabpane > .pane-body{ padding:0 32px 48px; }
+  .tabpane .pane-col{ max-width:var(--pane-col); }
+
+  /* results as a grid — one lonely narrow column in a wide pane reads as unfinished */
+  .contacts-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:2px 16px; }
+
+  /* desktop-scale rows: phone rows stretched wide feel thin */
+  .tabpane .list-row{ padding:14px 18px; }
+  .tabpane .list-row .lr-title{ font-size:15.5px; }
+  .tabpane .chat-row{ padding:12px 13px; border-radius:16px; }
+  .tabpane .chat-row .name{ font-size:16.5px; }
+  .tabpane .empty{ padding:72px 20px; }
+  .tabpane .empty .et{ font-size:19px; }
+
+  /* one island vocabulary everywhere: same hairline, same shadow, same radii */
+  .list-card{ border-radius:18px; box-shadow:var(--shadow-sm); }
+  .invite-create{ border-radius:18px; box-shadow:var(--shadow-sm); }
+  .tabpane .section-label{ padding:20px 18px 8px; font-size:11.5px; }
+}
+
+/* ----------------- channels ----------------- */
+/* A channel is a broadcast: the chat row carries a megaphone, and a member who cannot
+   post gets an honest bar where the composer would be — not a composer that 403s. */
+.chat-row .kind-ic{ color:var(--text-2); flex:none; opacity:.85; }
+.readonly-bar{
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  padding:16px 18px calc(16px + env(safe-area-inset-bottom));
+  border-top:1px solid var(--hairline); background:var(--glass);
+  backdrop-filter:blur(20px) saturate(1.3); -webkit-backdrop-filter:blur(20px) saturate(1.3);
+  color:var(--text-2); font-size:13.5px; font-weight:600; position:relative; z-index:3;
+}
+@media (min-width: 901px){
+  .conv .readonly-bar{
+    position:absolute; left:var(--conv-left); right:52px; bottom:18px;
+    border:1px solid var(--hairline); border-radius:999px; box-shadow:var(--shadow);
+    padding:14px 22px; z-index:5;
+  }
+}
+
+/* ----------------- message search ----------------- */
+.search-scrim{ align-items:flex-start; padding-top:8vh; }
+.search-card{
+  width:min(680px, calc(100vw - 24px)); max-height:min(72dvh, 720px);
+  display:flex; flex-direction:column; overflow:hidden;
+  background:var(--surface); border:1px solid var(--hairline); border-radius:22px; box-shadow:var(--shadow);
+  transform-origin:top center;
+}
+.search-card-head{
+  display:flex; align-items:center; gap:10px; padding:12px 12px 12px 18px;
+  border-bottom:1px solid var(--hairline); color:var(--text-2); flex:0 0 auto;
+}
+.search-card-head input{
+  flex:1; min-width:0; border:none; background:transparent; outline:none;
+  color:var(--text); font-size:16px; font-weight:500;
+}
+.search-card-head input::placeholder{ color:var(--text-2); }
+.search-card-body{ flex:1 1 auto; min-height:0; overflow-y:auto; padding:6px 0 10px; overscroll-behavior:contain; }
+.sr-chat{
+  display:flex; align-items:center; gap:8px; padding:12px 18px 6px;
+  font-size:12px; font-weight:700; letter-spacing:.3px; text-transform:uppercase; color:var(--text-2);
+  position:sticky; top:0; background:var(--surface); z-index:1;
+}
+.sr-row{
+  display:flex; flex-direction:column; gap:2px; width:100%; text-align:left;
+  padding:9px 18px; border:none; background:transparent; color:var(--text);
+  transition:background .14s ease;
+}
+.sr-row:hover{ background:var(--surface-2); }
+.sr-top{ display:flex; align-items:baseline; gap:8px; }
+.sr-who{ font-size:13.5px; font-weight:650; min-width:0; }
+.sr-when{ margin-left:auto; font-size:11.5px; color:var(--text-2); white-space:nowrap; }
+.sr-text{
+  font-size:13.5px; color:var(--text-2); line-height:1.45;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+}
+.sr-hit{
+  background:color-mix(in srgb, var(--accent) 26%, transparent);
+  color:var(--text); border-radius:3px; padding:0 1px; font-weight:700;
+}
+.sr-more{ display:grid; place-items:center; padding:14px 0; }
+@media (min-width: 901px){
+  .search-card{ width:min(760px, calc(100vw - 96px)); }
+  .sr-row{ padding:11px 24px; }
+  .sr-chat{ padding:14px 24px 6px; }
+  .sr-text{ font-size:14px; }
+}
+
+/* ----------------- hover states for the button family ----------------- */
+/* Buttons had :active but no :hover — the most-used controls in the app were the only
+   ones that didn't respond to the pointer. */
+.btn{ transition:transform .14s ease, background .14s ease, border-color .14s ease, filter .14s ease; }
+.btn-primary:hover:not(:disabled){ filter:brightness(1.08); }
+.btn-secondary:hover:not(:disabled){ background:color-mix(in srgb, var(--text) 7%, var(--surface-2)); }
+.btn-ghost:hover:not(:disabled){ background:color-mix(in srgb, var(--accent) 10%, transparent); }
+.btn-danger:hover:not(:disabled){ background:color-mix(in srgb, var(--danger) 12%, transparent); }
+.btn-danger.fill:hover:not(:disabled){ filter:brightness(1.08); background:var(--danger); }
+.segmented button:not(.on):hover{ background:color-mix(in srgb, var(--text) 6%, transparent); color:var(--text); }
+.chip:not(.on):hover{ background:color-mix(in srgb, var(--text) 6%, var(--surface-2)); }
+@media (prefers-reduced-motion: reduce){ .btn{ transition:none; } }

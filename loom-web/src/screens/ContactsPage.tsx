@@ -43,20 +43,21 @@ export function ContactsPage() {
   }
 
   return (
-    <div className="pane" style={{ height: '100%' }}>
+    <div className="pane tabpane" style={{ height: '100%' }}>
       <div className="pane-head">
         <div className="pane-title">Contacts</div>
         <button className="icon-btn" onClick={() => toast('Add contact — search below')} aria-label="Add contact"><UserPlus size={20} /></button>
       </div>
       <div className="search"><Search size={17} /><input placeholder="Search people" value={q} onChange={(e) => setQ(e.target.value)} /></div>
       <div className="pane-body" style={{ paddingBottom: 100 }}>
-        <div style={{ maxWidth: 620, margin: '0 auto' }}>
+        <div className="pane-col">
           {searching ? <ContactsSkeleton />
             : !touched ? <EmptyState icon={<Search size={38} strokeWidth={1.4} />} title="Find people" subtitle="Search by name or @username to start a conversation" />
               : results.length === 0 ? <EmptyState title="No people found" subtitle="Try a different search" />
                 : groups.map(([letter, users]) => (
                   <div key={letter}>
                     <div className="section-label" style={{ padding: '10px 16px 4px' }}>{letter}</div>
+                    <div className="contacts-grid">
                     {users.map((u) => (
                       <div key={u.id} className="chat-row" onClick={() => navigate(`/u/${u.id}`)}>
                         <Avatar name={u.displayName} id={u.id} src={u.avatarUrl} size={46} online={isOnline(u.status)} />
@@ -67,6 +68,7 @@ export function ContactsPage() {
                         <button className="icon-btn" onClick={(e) => { e.stopPropagation(); void message(u) }} aria-label="Message"><MessageSquare size={18} /></button>
                       </div>
                     ))}
+                    </div>
                   </div>
                 ))}
         </div>

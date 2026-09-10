@@ -6,6 +6,7 @@ import { CraftedObject } from '../ui/CraftedObject'
 import { CenterSpinner } from '../ui/primitives'
 import { usersApi, chatsApi } from '../lib/api'
 import { giftByName } from '../assets/loom'
+import { useGiftsReady } from '../ui/useGifts'
 import { presenceText } from '../ui/format'
 import { isOnline } from '../lib/enums'
 import { useChat } from '../store/chat'
@@ -25,6 +26,7 @@ export function UserProfileScreen() {
   const navigate = useNavigate()
   const [user, setUser] = useState<UserProfile | null>(null)
   const [gifts, setGifts] = useState<GiftInstance[]>([])
+  useGiftsReady(gifts.length > 0)   // repaint when the split gift library lands
   const [loading, setLoading] = useState(true)
   const presence = useChat((s) => s.presence)
 

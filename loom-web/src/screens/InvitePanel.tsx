@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, lazy, Suspense } from 'react'
 import { Copy, Share2, QrCode as QrIcon, Trash2, Plus, Link2 } from 'lucide-react'
 import { chatsApi, inviteLink } from '../lib/api'
 import { ApiError } from '../lib/http'
 import { Button, CenterSpinner, EmptyState, ErrorState, Modal, Segmented, Spinner } from '../ui/primitives'
-import { QrCode } from '../ui/QrCode'
 import { toast } from '../ui/toast'
 import type { Invite } from '../lib/types'
+
+const QrCode = lazy(() => import('../ui/QrCode').then((m) => ({ default: m.QrCode })))
 
 type Expiry = 'never' | '1h' | '1d' | '1w'
 type Uses = 'unlimited' | '1' | '10' | '100'
@@ -219,7 +220,9 @@ export function InvitePanel({ chatId, chatTitle }: { chatId: number; chatTitle: 
             </Button>
           </>}>
           <div className="qr-wrap">
-            <QrCode text={inviteLink(qrFor.code)} size={216} />
+            <Suspense fallback={<CenterSpinner />}>
+              <QrCode text={inviteLink(qrFor.code)} size={216} />
+            </Suspense>
           </div>
           <div className="inv-link qr-code-text">{inviteLink(qrFor.code)}</div>
         </Modal>

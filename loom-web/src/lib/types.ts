@@ -61,7 +61,17 @@ export interface Chat {
   isMuted?: boolean
   /** My role in THIS chat — drives which management actions are offered. */
   myRole?: MemberRole
+  /** False in a channel where I'm only a Member: the composer is hidden entirely. */
+  canPost?: boolean
   description?: string | null
+}
+export interface MessageSearchResult {
+  messageId: number
+  chatId: number
+  chatTitle: string
+  senderName: string
+  content: string
+  sentAt: string
 }
 export interface Invite {
   code: string
@@ -219,6 +229,7 @@ export const normChat = (r: any): Chat => ({
   ...r,
   type: ChatTypeE.from(r?.type, 'Direct'),
   myRole: MemberRoleE.from(r?.myRole, 'Member'),
+  canPost: r?.canPost ?? true,
   lastMessage: r?.lastMessage
     ? { ...r.lastMessage, type: MessageTypeE.from(r.lastMessage.type, 'Text') }
     : null,

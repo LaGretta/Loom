@@ -9,6 +9,7 @@ import { ProfileSkeleton } from '../ui/Skeleton'
 import { AccountRows } from './account-rows'
 import { giftsApi } from '../lib/api'
 import { giftByName } from '../assets/loom'
+import { useGiftsReady } from '../ui/useGifts'
 import type { GiftInstance } from '../lib/types'
 
 export function ProfileHub() {
@@ -16,13 +17,14 @@ export function ProfileHub() {
   const navigate = useNavigate()
   const premium = me?.premiumTier === 'Premium'
   const [gifts, setGifts] = useState<GiftInstance[]>([])
+  useGiftsReady(gifts.length > 0)   // repaint when the split gift library lands
 
   useEffect(() => { giftsApi.mine().then(setGifts).catch(() => {}) }, [])
 
   if (!me) return <div className="pane" style={{ height: '100%' }}><ProfileSkeleton /></div>
 
   return (
-    <div className="pane" style={{ height: '100%' }}>
+    <div className="pane tabpane" style={{ height: '100%' }}>
       <div className="pane-head desktop-only"><div className="pane-title">Profile</div></div>
       <div className="pane-body" style={{ paddingBottom: 100 }}>
         <div className="profile-wrap" style={{ maxWidth: 620, margin: '0 auto' }}>

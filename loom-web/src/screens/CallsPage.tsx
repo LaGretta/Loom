@@ -11,7 +11,7 @@ export function CallsPage() {
   const calls = useMock((s) => s.calls)
 
   return (
-    <div className="pane" style={{ height: '100%' }}>
+    <div className="pane tabpane" style={{ height: '100%' }}>
       <div className="pane-head">
         <div className="pane-title">Calls</div>
         <button className="icon-btn" onClick={() => toast('New call — coming soon')} aria-label="New call — coming soon" title="New call — coming soon" data-soon><Plus size={20} /></button>
@@ -24,7 +24,7 @@ export function CallsPage() {
             subtitle="Voice and video calls aren’t available yet — your call history will appear here once they are."
           />
         ) : (
-          <div style={{ maxWidth: 620, margin: '0 auto' }}>
+          <div className="pane-col">
             <div className="list-card" style={{ marginTop: 12 }}>
               {calls.map((c) => {
                 const Dir = c.direction === 'incoming' ? PhoneIncoming : c.direction === 'outgoing' ? PhoneOutgoing : PhoneMissed

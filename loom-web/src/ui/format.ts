@@ -97,3 +97,15 @@ export function fmtNumber(n: number | null | undefined): string {
   // A renamed or absent field should read as 0, not take the whole screen down.
   return Number.isFinite(n as number) ? (n as number).toLocaleString('en-US') : '0'
 }
+
+/**
+ * Ask Cloudinary for a right-sized, auto-format copy instead of the full upload.
+ * A 116px gallery cell was downloading the original photo; this cuts it to a thumbnail.
+ * Any non-Cloudinary URL (or a local blob:) is returned untouched.
+ */
+export function thumbUrl(url: string, px: number): string {
+  if (!url || !url.includes('/upload/') || !url.includes('res.cloudinary.com')) return url
+  if (/\/upload\/(?:[a-z]+_[^/]+,)*[a-z]+_[^/]+\//.test(url)) return url   // already transformed
+  const dpr = typeof window !== 'undefined' ? Math.min(2, Math.round(window.devicePixelRatio || 1)) : 1
+  return url.replace('/upload/', `/upload/w_${px * dpr},c_limit,q_auto,f_auto/`)
+}
