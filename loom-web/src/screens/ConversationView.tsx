@@ -550,7 +550,12 @@ function buildTimeline(messages: Message[], events: LoomEvent[]): Group[] {
   type Item = { at: number; iso: string } & ({ t: 'msg'; m: Message } | { t: 'event'; e: LoomEvent })
   const items: Item[] = [
     ...messages.map((m) => ({ at: new Date(m.sentAt).getTime(), iso: m.sentAt, t: 'msg' as const, m })),
-    ...events.map((e) => ({ at: new Date(e.createdAt).getTime(), iso: e.createdAt, t: 'event' as const, e })),
+    // Fall back if createdAt is ever absent: an invalid date sorts as NaN (random position)
+    // and renders a day divider literally reading "Invalid Date".
+    ...events.map((e) => {
+      const iso = e.createdAt || e.eventDateTime || new Date().toISOString()
+      return { at: new Date(iso).getTime(), iso, t: 'event' as const, e }
+    }),
   ].sort((a, b) => a.at - b.at)
 
   const out: Group[] = []
